@@ -17,33 +17,31 @@
             appId: "1:817523658314:web:3ddc1520cd3612732620b3"
         };
 
-        try {
-            const app = initializeApp(firebaseConfig);
-            const db = getFirestore(app);
-            const configRef = doc(db, "config", "global");
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const configRef = doc(db, "config", "global");
 
-            onSnapshot(configRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    const d = docSnap.data();
-                    document.getElementById('solde').innerText = (d.solde_general || 0) + " €";
-                    document.getElementById('tirelire').innerText = (d.tirelire || 0) + " €";
-                    document.getElementById('obj-nom').innerText = d.nom_objectif || "Objectif";
-                    document.getElementById('obj-val').innerText = (d.objectif_courant || 0) + " / " + (d.prix_objectif || 0) + " €";
-                    const percent = Math.min(((d.objectif_courant || 0) / (d.prix_objectif || 1)) * 100, 100);
-                    document.getElementById('barre').style.width = percent + "%";
-                }
-            });
+        onSnapshot(configRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const d = docSnap.data();
+                document.getElementById('solde').innerText = (d.solde_general || 0) + " €";
+                document.getElementById('tirelire').innerText = (d.tirelire || 0) + " €";
+                document.getElementById('obj-nom').innerText = d.nom_objectif || "Objectif";
+                document.getElementById('obj-val').innerText = (d.objectif_courant || 0) + " / " + (d.prix_objectif || 0) + " €";
+                const percent = Math.min(((d.objectif_courant || 0) / (d.prix_objectif || 1)) * 100, 100);
+                document.getElementById('barre').style.width = percent + "%";
+            }
+        });
 
-            window.agir = async (cible, montant) => {
-                const m = parseFloat(montant);
-                if (!m || m <= 0) return;
-                try {
-                    let update = { solde_general: increment(-m) };
-                    update[cible] = increment(m);
-                    await updateDoc(configRef, update);
-                } catch (e) { alert("Erreur d'envoi : " + e.message); }
-            };
-        } catch (e) { console.error("Erreur init:", e); }
+        window.agir = async (cible, montant) => {
+            const m = parseFloat(montant);
+            if (!m || m <= 0) return;
+            try {
+                let update = { solde_general: increment(-m) };
+                update[cible] = increment(m);
+                await updateDoc(configRef, update);
+            } catch (e) { alert("Erreur : " + e.message); }
+        };
     </script>
     <style>
         body { font-family: sans-serif; background: #eef2f3; padding: 10px; }
@@ -59,7 +57,6 @@
         <div style="text-align:center">Solde Disponible</div>
         <div class="montant" id="solde">Chargement...</div>
     </div>
-    <!-- ... le reste du corps HTML (Tirelire, Objectif) ne change pas ... -->
     <div class="card">
         <h3>Tirelire 🐷</h3>
         <div class="montant" id="tirelire">0 €</div>
@@ -71,7 +68,6 @@
         <input type="number" id="input-tirelire" placeholder="Autre montant...">
         <button style="background:#e67e22; width:100%" onclick="agir('tirelire', document.getElementById('input-tirelire').value)">Ajouter</button>
     </div>
-
     <div class="card">
         <h3 id="obj-nom">Objectif</h3>
         <div class="montant" id="obj-val" style="font-size:1.2em">0 / 0 €</div>
