@@ -26,7 +26,6 @@
             const d = doc.data();
             document.getElementById('solde-general').innerText = d.solde_general + " €";
             document.getElementById('tirelire-val').innerText = d.tirelire + " €";
-            // Mise à jour du nom et des montants de l'objectif
             document.getElementById('nom-objectif').innerText = d.nom_objectif;
             document.getElementById('obj-val').innerText = d.objectif_courant + " € / " + d.prix_objectif + " €";
             document.getElementById('barre-obj').style.width = Math.min((d.objectif_courant / d.prix_objectif) * 100, 100) + "%";
@@ -37,49 +36,61 @@
             if (!m || m <= 0) return;
             const snap = await getDoc(configRef);
             const d = snap.data();
-            
             let update = {};
             if (type === 'depense') update = { solde_general: d.solde_general - m };
             if (type === 'gain') update = { solde_general: d.solde_general + m };
             if (type === 'tirelire') update = { solde_general: d.solde_general - m, tirelire: d.tirelire + m };
             if (type === 'objectif') update = { solde_general: d.solde_general - m, objectif_courant: d.objectif_courant + m };
-            
             await updateDoc(configRef, update);
             document.getElementById('montant').value = '';
         };
+
+        window.updateConfig = async () => {
+            await updateDoc(configRef, {
+                nom_objectif: document.getElementById('nom-obj-input').value,
+                prix_objectif: parseFloat(document.getElementById('prix-obj-input').value),
+                objectif_courant: 0 // On réinitialise la progression avec le nouvel objectif
+            });
+            alert("Objectif mis à jour !");
+        };
     </script>
     <style>
-        body { font-family: -apple-system, sans-serif; background: #f0f2f5; padding: 20px; }
+        body { font-family: sans-serif; background: #f0f2f5; padding: 20px; }
         .card { background: white; padding: 15px; border-radius: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         .big-solde { font-size: 2em; color: #2ecc71; font-weight: bold; text-align: center; }
-        .btn-group { display: flex; gap: 5px; margin-top: 10px; }
-        button { flex: 1; padding: 10px; border: none; border-radius: 8px; color: white; font-weight: bold; }
+        button { padding: 10px; border: none; border-radius: 8px; color: white; font-weight: bold; width: 100%; margin-top:5px; }
         .progress-bg { background: #eee; height: 10px; border-radius: 5px; margin: 10px 0; }
         .progress-fill { background: #3498db; height: 100%; border-radius: 5px; width: 0%; }
+        details { background: #fff3cd; padding: 10px; border-radius: 10px; font-size: 0.9em; }
     </style>
 </head>
 <body>
     <div class="card">
         <div style="text-align:center">Solde Disponible</div>
         <div class="big-solde" id="solde-general">-- €</div>
-        <input type="number" id="montant" placeholder="Montant €" style="width:100%; padding:10px; margin:10px 0; box-sizing:border-box;">
-        <div class="btn-group">
-            <button style="background:#e74c3c" onclick="transaction('depense', document.getElementById('montant').value)">Dépense</button>
-            <button style="background:#2ecc71" onclick="transaction('gain', document.getElementById('montant').value)">Gain</button>
-        </div>
+        <input type="number" id="montant" placeholder="Montant €" style="width:100%; padding:10px; box-sizing:border-box;">
+        <button style="background:#e74c3c" onclick="transaction('depense', document.getElementById('montant').value)">Dépense</button>
+        <button style="background:#2ecc71" onclick="transaction('gain', document.getElementById('montant').value)">Gain</button>
     </div>
 
     <div class="card">
-        <h3>Tirelire (Épargne)</h3>
+        <h3>Tirelire</h3>
         <div id="tirelire-val">0 €</div>
-        <button style="background:#f39c12; width:100%; margin-top:10px;" onclick="transaction('tirelire', document.getElementById('montant').value)">Ajouter à la tirelire</button>
+        <button style="background:#f39c12" onclick="transaction('tirelire', document.getElementById('montant').value)">Ajouter à la tirelire</button>
     </div>
 
     <div class="card">
         <h3 id="nom-objectif">Objectif</h3>
         <div id="obj-val">0 € / 0 €</div>
         <div class="progress-bg"><div class="progress-fill" id="barre-obj"></div></div>
-        <button style="background:#3498db; width:100%" onclick="transaction('objectif', document.getElementById('montant').value)">Ajouter à l'objectif</button>
+        <button style="background:#3498db" onclick="transaction('objectif', document.getElementById('montant').value)">Ajouter à l'objectif</button>
     </div>
+
+    <details>
+        <summary>⚙️ Changer d'objectif</summary>
+        <input type="text" id="nom-obj-input" placeholder="Nom du nouvel objectif">
+        <input type="number" id="prix-obj-input" placeholder="Prix total">
+        <button style="background:#6c757d" onclick="updateConfig()">Valider le changement</button>
+    </details>
 </body>
 </html>
