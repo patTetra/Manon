@@ -8,12 +8,21 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, doc, updateDoc, onSnapshot, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firestore.js";
 
-        const firebaseConfig = { /* ... garde ton config existant ... */ };
+        const firebaseConfig = {
+            apiKey: "AIzaSyAaOR2mS_AeffwMug6gpcVRzYK04PE82Qw",
+            authDomain: "manon-finances.firebaseapp.com",
+            projectId: "manon-finances",
+            storageBucket: "manon-finances.firebasestorage.app",
+            messagingSenderId: "817523658314",
+            appId: "1:817523658314:web:3ddc1520cd3612732620b3"
+        };
+
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const configRef = doc(db, "config", "global");
 
         onSnapshot(configRef, (doc) => {
+            if (!doc.exists()) return;
             const d = doc.data();
             document.getElementById('solde').innerText = d.solde_general + " €";
             document.getElementById('tirelire').innerText = d.tirelire + " €";
@@ -23,7 +32,6 @@
             document.getElementById('barre').style.width = percent + "%";
         });
 
-        // Fonction simplifiée : ajoute montant à une cible, retire du solde
         window.agir = async (cible, montant) => {
             let update = { solde_general: increment(-montant) };
             update[cible] = increment(montant);
@@ -31,11 +39,11 @@
         };
     </script>
     <style>
-        body { font-family: 'Arial Rounded MT Bold', sans-serif; background: #eef2f3; padding: 10px; }
+        body { font-family: sans-serif; background: #eef2f3; padding: 10px; }
         .card { background: white; padding: 20px; border-radius: 25px; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         .montant { font-size: 2.5em; font-weight: bold; color: #2d3436; }
         .btn-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 10px; }
-        button { border: none; padding: 15px; border-radius: 15px; font-weight: bold; }
+        button { border: none; padding: 15px; border-radius: 15px; font-weight: bold; cursor: pointer; color: white; }
     </style>
 </head>
 <body>
@@ -48,9 +56,9 @@
         <h3>Tirelire 🐷</h3>
         <div class="montant" id="tirelire">0 €</div>
         <div class="btn-grid">
-            <button onclick="agir('tirelire', 1)">+ 1 €</button>
-            <button onclick="agir('tirelire', 5)">+ 5 €</button>
-            <button onclick="agir('tirelire', 10)">+ 10 €</button>
+            <button style="background:#f39c12" onclick="agir('tirelire', 1)">+ 1 €</button>
+            <button style="background:#f39c12" onclick="agir('tirelire', 5)">+ 5 €</button>
+            <button style="background:#f39c12" onclick="agir('tirelire', 10)">+ 10 €</button>
         </div>
     </div>
 
@@ -61,9 +69,9 @@
             <div id="barre" style="background:#0984e3; height:100%; border-radius:10px; width:0%;"></div>
         </div>
         <div class="btn-grid">
-            <button onclick="agir('objectif_courant', 1)">+ 1 €</button>
-            <button onclick="agir('objectif_courant', 5)">+ 5 €</button>
-            <button onclick="agir('objectif_courant', 10)">+ 10 €</button>
+            <button style="background:#3498db" onclick="agir('objectif_courant', 1)">+ 1 €</button>
+            <button style="background:#3498db" onclick="agir('objectif_courant', 5)">+ 5 €</button>
+            <button style="background:#3498db" onclick="agir('objectif_courant', 10)">+ 10 €</button>
         </div>
     </div>
 </body>
