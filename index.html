@@ -6,7 +6,7 @@
     <title>Budget Manon</title>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAaOR2mS_AeffwMug6gpcVRzYK04PE82Qw",
@@ -21,42 +21,30 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // --- Fonctions de gestion ---
+        // Mise à jour de l'affichage
+        onSnapshot(doc(db, "config", "global"), (doc) => {
+            if (doc.exists()) {
+                const data = doc.data();
+                document.getElementById('solde').innerText = data.solde_global + " €";
+                document.getElementById('objectif').innerText = "Objectif : " + data.objectif + " €";
+                
+                // Calcul de la barre de progression
+                const progress = (data.solde_global / data.objectif) * 100;
+                document.getElementById('barre').style.width = Math.min(progress, 100) + "%";
+            }
+        });
+
         window.ajouterOperation = async (type) => {
             const desc = document.getElementById('desc').value || (type === 'gain' ? "Gain" : "Dépense");
             const montant = parseFloat(document.getElementById('montant').value);
-            if (!montant) return alert("Indique un montant");
-
+            if (!montant) return;
             const val = type === 'gain' ? montant : -montant;
             await addDoc(collection(db, "operations"), { description: desc, montant: val, date: serverTimestamp() });
-            
             const configRef = doc(db, "config", "global");
             const snap = await getDoc(configRef);
-            await setDoc(configRef, { solde_global: (snap.data()?.solde_global || 0) + val }, { merge: true });
-            
+            await setDoc(configRef, { solde_global: (snap.data().solde_global || 0) + val }, { merge: true });
             document.getElementById('desc').value = ''; document.getElementById('montant').value = '';
         };
-
-        // --- Automatisation 1er du mois ---
-        async function checkMonthly() {
-            const now = new Date();
-            const configRef = doc(db, "config", "global");
-            const snap = await getDoc(configRef);
-            const data = snap.data();
-            
-            if (now.getDate() === 1 && (data.lastCheckMonth !== now.getMonth())) {
-                await setDoc(configRef, { solde_global: (data.solde_global || 0) + 15, lastCheckMonth: now.getMonth() }, { merge: true });
-                await addDoc(collection(db, "operations"), { description: "Argent de poche", montant: 15, date: serverTimestamp() });
-            }
-        }
-
-        // --- Écoute temps réel ---
-        onSnapshot(doc(db, "config", "global"), (doc) => {
-            if (doc.exists()) {
-                document.getElementById('solde').innerText = doc.data().solde_global + " €";
-                document.getElementById('obj').innerText = doc.data().objectif || "Objectif non défini";
-            }
-        });
 
         onSnapshot(query(collection(db, "operations"), orderBy("date", "desc")), (snapshot) => {
             const hist = document.getElementById('hist');
@@ -66,34 +54,31 @@
                 hist.innerHTML += `<li>${d.description} : <b>${d.montant > 0 ? '+' : ''}${d.montant} €</b></li>`;
             });
         });
-
-        checkMonthly();
     </script>
     <style>
-        body { font-family: -apple-system, sans-serif; background-color: #d1f2eb; padding: 20px; text-align: center; color: #2d3436; }
-        .card { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .solde { font-size: 3em; color: #00a86b; font-weight: bold; }
-        input { width: 90%; padding: 12px; margin: 5px; border-radius: 10px; border: 1px solid #ccc; }
-        button { padding: 15px 30px; border: none; border-radius: 10px; background: #00a86b; color: white; font-weight: bold; margin: 5px; }
-        ul { list-style: none; padding: 0; text-align: left; }
-        li { background: white; padding: 12px; border-bottom: 1px solid #eee; border-radius: 8px; margin-bottom: 5px; display: flex; justify-content: space-between; }
+        body { font-family: sans-serif; background-color: #f4f7f6; padding: 20px; text-align: center; }
+        .card { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .solde { font-size: 2.5em; color: #27ae60; font-weight: bold; }
+        .progress-bg { background: #eee; border-radius: 10px; height: 20px; margin-top: 10px; }
+        .progress-fill { background: #27ae60; height: 100%; border-radius: 10px; width: 0%; transition: width 0.5s; }
+        input { width: 85%; padding: 10px; margin: 5px; border-radius: 8px; border: 1px solid #ccc; }
+        button { padding: 10px 20px; border: none; border-radius: 8px; background: #27ae60; color: white; cursor: pointer; }
     </style>
 </head>
 <body>
     <div class="card">
-        <h3>Solde disponible</h3>
-        <div class="solde" id="solde">-- €</div>
+        <h3>Ma Tirelire</h3>
+        <div class="solde" id="solde">0 €</div>
+        <h4 id="objectif">Objectif : 0 €</h4>
+        <div class="progress-bg"><div class="progress-fill" id="barre"></div></div>
     </div>
     <div class="card">
-        <h3 id="obj">Objectif : Chargement...</h3>
         <input type="text" id="desc" placeholder="Libellé">
         <input type="number" id="montant" placeholder="Montant €">
-        <div style="display:flex; justify-content: center;">
-            <button onclick="ajouterOperation('depense')" style="background:#e74c3c">Dépense 💸</button>
-            <button onclick="ajouterOperation('gain')">Gain ✨</button>
-        </div>
+        <br>
+        <button onclick="ajouterOperation('depense')" style="background:#e74c3c">Dépense 💸</button>
+        <button onclick="ajouterOperation('gain')">Gain ✨</button>
     </div>
-    <h3>Historique</h3>
-    <ul id="hist"></ul>
+    <ul id="hist" style="list-style:none; padding:0; text-align:left;"></ul>
 </body>
 </html>
