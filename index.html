@@ -33,22 +33,33 @@
         });
 
         window.agir = async (cible, montant) => {
-            let update = { solde_general: increment(-montant) };
-            update[cible] = increment(montant);
+            const m = parseFloat(montant);
+            if (!m || m <= 0) return;
+            let update = { solde_general: increment(-m) };
+            update[cible] = increment(m);
             await updateDoc(configRef, update);
+        };
+
+        window.updateConfig = async () => {
+            await updateDoc(configRef, {
+                nom_objectif: document.getElementById('nom-obj-input').value,
+                prix_objectif: parseFloat(document.getElementById('prix-obj-input').value),
+                objectif_courant: 0
+            });
         };
     </script>
     <style>
         body { font-family: sans-serif; background: #eef2f3; padding: 10px; }
-        .card { background: white; padding: 20px; border-radius: 25px; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        .montant { font-size: 2.5em; font-weight: bold; color: #2d3436; }
-        .btn-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 10px; }
-        button { border: none; padding: 15px; border-radius: 15px; font-weight: bold; cursor: pointer; color: white; }
+        .card { background: white; padding: 15px; border-radius: 20px; margin-bottom: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .montant { font-size: 2em; font-weight: bold; color: #2d3436; text-align: center; }
+        .btn-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; margin: 10px 0; }
+        button { border: none; padding: 10px; border-radius: 10px; font-weight: bold; cursor: pointer; color: white; }
+        input { width: 100%; padding: 10px; margin: 5px 0; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; }
     </style>
 </head>
 <body>
-    <div class="card" style="text-align:center">
-        <div>Disponible</div>
+    <div class="card">
+        <div style="text-align:center">Solde Disponible</div>
         <div class="montant" id="solde">--</div>
     </div>
 
@@ -56,23 +67,34 @@
         <h3>Tirelire 🐷</h3>
         <div class="montant" id="tirelire">0 €</div>
         <div class="btn-grid">
-            <button style="background:#f39c12" onclick="agir('tirelire', 1)">+ 1 €</button>
-            <button style="background:#f39c12" onclick="agir('tirelire', 5)">+ 5 €</button>
-            <button style="background:#f39c12" onclick="agir('tirelire', 10)">+ 10 €</button>
+            <button style="background:#f39c12" onclick="agir('tirelire', 1)">+ 1</button>
+            <button style="background:#f39c12" onclick="agir('tirelire', 5)">+ 5</button>
+            <button style="background:#f39c12" onclick="agir('tirelire', 10)">+ 10</button>
         </div>
+        <input type="number" id="input-tirelire" placeholder="Autre montant...">
+        <button style="background:#e67e22; width:100%" onclick="agir('tirelire', document.getElementById('input-tirelire').value)">Ajouter ce montant</button>
     </div>
 
     <div class="card">
         <h3 id="obj-nom">Objectif</h3>
-        <div id="obj-val">0 / 0 €</div>
+        <div class="montant" id="obj-val" style="font-size:1.2em">0 / 0 €</div>
         <div style="background:#eee; height:15px; border-radius:10px; margin:10px 0;">
             <div id="barre" style="background:#0984e3; height:100%; border-radius:10px; width:0%;"></div>
         </div>
         <div class="btn-grid">
-            <button style="background:#3498db" onclick="agir('objectif_courant', 1)">+ 1 €</button>
-            <button style="background:#3498db" onclick="agir('objectif_courant', 5)">+ 5 €</button>
-            <button style="background:#3498db" onclick="agir('objectif_courant', 10)">+ 10 €</button>
+            <button style="background:#3498db" onclick="agir('objectif_courant', 1)">+ 1</button>
+            <button style="background:#3498db" onclick="agir('objectif_courant', 5)">+ 5</button>
+            <button style="background:#3498db" onclick="agir('objectif_courant', 10)">+ 10</button>
         </div>
+        <input type="number" id="input-obj" placeholder="Autre montant...">
+        <button style="background:#2980b9; width:100%" onclick="agir('objectif_courant', document.getElementById('input-obj').value)">Ajouter ce montant</button>
+    </div>
+
+    <div class="card" style="background:#ffeaa7">
+        <summary><b>⚙️ Nouveau Projet ?</b></summary>
+        <input type="text" id="nom-obj-input" placeholder="Nom de l'objectif (ex: Casque)">
+        <input type="number" id="prix-obj-input" placeholder="Prix total">
+        <button style="background:#d63031; width:100%" onclick="updateConfig()">Valider le changement</button>
     </div>
 </body>
 </html>
