@@ -3,94 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Budget Manon</title>
+    <title>Mon Budget</title>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, doc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firestore.js";
+        import { getFirestore, doc, updateDoc, onSnapshot, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firestore.js";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyAaOR2mS_AeffwMug6gpcVRzYK04PE82Qw",
-            authDomain: "manon-finances.firebaseapp.com",
-            projectId: "manon-finances",
-            storageBucket: "manon-finances.firebasestorage.app",
-            messagingSenderId: "817523658314",
-            appId: "1:817523658314:web:3ddc1520cd3612732620b3",
-            measurementId: "G-EBPNMD09MW"
-        };
-
+        const firebaseConfig = { /* ... garde ton config existant ... */ };
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const configRef = doc(db, "config", "global");
 
         onSnapshot(configRef, (doc) => {
             const d = doc.data();
-            document.getElementById('solde-general').innerText = d.solde_general + " €";
-            document.getElementById('tirelire-val').innerText = d.tirelire + " €";
-            document.getElementById('nom-objectif').innerText = d.nom_objectif;
-            document.getElementById('obj-val').innerText = d.objectif_courant + " € / " + d.prix_objectif + " €";
-            document.getElementById('barre-obj').style.width = Math.min((d.objectif_courant / d.prix_objectif) * 100, 100) + "%";
+            document.getElementById('solde').innerText = d.solde_general + " €";
+            document.getElementById('tirelire').innerText = d.tirelire + " €";
+            document.getElementById('obj-nom').innerText = d.nom_objectif;
+            document.getElementById('obj-val').innerText = d.objectif_courant + " / " + d.prix_objectif + " €";
+            const percent = Math.min((d.objectif_courant / d.prix_objectif) * 100, 100);
+            document.getElementById('barre').style.width = percent + "%";
         });
 
-        window.transaction = async (type, montant) => {
-            const m = parseFloat(montant);
-            if (!m || m <= 0) return;
-            const snap = await getDoc(configRef);
-            const d = snap.data();
-            let update = {};
-            if (type === 'depense') update = { solde_general: d.solde_general - m };
-            if (type === 'gain') update = { solde_general: d.solde_general + m };
-            if (type === 'tirelire') update = { solde_general: d.solde_general - m, tirelire: d.tirelire + m };
-            if (type === 'objectif') update = { solde_general: d.solde_general - m, objectif_courant: d.objectif_courant + m };
+        // Fonction simplifiée : ajoute montant à une cible, retire du solde
+        window.agir = async (cible, montant) => {
+            let update = { solde_general: increment(-montant) };
+            update[cible] = increment(montant);
             await updateDoc(configRef, update);
-            document.getElementById('montant').value = '';
-        };
-
-        window.updateConfig = async () => {
-            await updateDoc(configRef, {
-                nom_objectif: document.getElementById('nom-obj-input').value,
-                prix_objectif: parseFloat(document.getElementById('prix-obj-input').value),
-                objectif_courant: 0 // On réinitialise la progression avec le nouvel objectif
-            });
-            alert("Objectif mis à jour !");
         };
     </script>
     <style>
-        body { font-family: sans-serif; background: #f0f2f5; padding: 20px; }
-        .card { background: white; padding: 15px; border-radius: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .big-solde { font-size: 2em; color: #2ecc71; font-weight: bold; text-align: center; }
-        button { padding: 10px; border: none; border-radius: 8px; color: white; font-weight: bold; width: 100%; margin-top:5px; }
-        .progress-bg { background: #eee; height: 10px; border-radius: 5px; margin: 10px 0; }
-        .progress-fill { background: #3498db; height: 100%; border-radius: 5px; width: 0%; }
-        details { background: #fff3cd; padding: 10px; border-radius: 10px; font-size: 0.9em; }
+        body { font-family: 'Arial Rounded MT Bold', sans-serif; background: #eef2f3; padding: 10px; }
+        .card { background: white; padding: 20px; border-radius: 25px; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .montant { font-size: 2.5em; font-weight: bold; color: #2d3436; }
+        .btn-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 10px; }
+        button { border: none; padding: 15px; border-radius: 15px; font-weight: bold; }
     </style>
 </head>
 <body>
-    <div class="card">
-        <div style="text-align:center">Solde Disponible</div>
-        <div class="big-solde" id="solde-general">-- €</div>
-        <input type="number" id="montant" placeholder="Montant €" style="width:100%; padding:10px; box-sizing:border-box;">
-        <button style="background:#e74c3c" onclick="transaction('depense', document.getElementById('montant').value)">Dépense</button>
-        <button style="background:#2ecc71" onclick="transaction('gain', document.getElementById('montant').value)">Gain</button>
+    <div class="card" style="text-align:center">
+        <div>Disponible</div>
+        <div class="montant" id="solde">--</div>
     </div>
 
     <div class="card">
-        <h3>Tirelire</h3>
-        <div id="tirelire-val">0 €</div>
-        <button style="background:#f39c12" onclick="transaction('tirelire', document.getElementById('montant').value)">Ajouter à la tirelire</button>
+        <h3>Tirelire 🐷</h3>
+        <div class="montant" id="tirelire">0 €</div>
+        <div class="btn-grid">
+            <button onclick="agir('tirelire', 1)">+ 1 €</button>
+            <button onclick="agir('tirelire', 5)">+ 5 €</button>
+            <button onclick="agir('tirelire', 10)">+ 10 €</button>
+        </div>
     </div>
 
     <div class="card">
-        <h3 id="nom-objectif">Objectif</h3>
-        <div id="obj-val">0 € / 0 €</div>
-        <div class="progress-bg"><div class="progress-fill" id="barre-obj"></div></div>
-        <button style="background:#3498db" onclick="transaction('objectif', document.getElementById('montant').value)">Ajouter à l'objectif</button>
+        <h3 id="obj-nom">Objectif</h3>
+        <div id="obj-val">0 / 0 €</div>
+        <div style="background:#eee; height:15px; border-radius:10px; margin:10px 0;">
+            <div id="barre" style="background:#0984e3; height:100%; border-radius:10px; width:0%;"></div>
+        </div>
+        <div class="btn-grid">
+            <button onclick="agir('objectif_courant', 1)">+ 1 €</button>
+            <button onclick="agir('objectif_courant', 5)">+ 5 €</button>
+            <button onclick="agir('objectif_courant', 10)">+ 10 €</button>
+        </div>
     </div>
-
-    <details>
-        <summary>⚙️ Changer d'objectif</summary>
-        <input type="text" id="nom-obj-input" placeholder="Nom du nouvel objectif">
-        <input type="number" id="prix-obj-input" placeholder="Prix total">
-        <button style="background:#6c757d" onclick="updateConfig()">Valider le changement</button>
-    </details>
 </body>
 </html>
