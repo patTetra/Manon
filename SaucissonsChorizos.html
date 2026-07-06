@@ -50,7 +50,7 @@
     <button class="btn-control" style="width:100%; background:#b22222;" onclick="resetTotal()">RÉINITIALISER TOTAL</button>
 
     <script>
-        // Chargement des données depuis le localStorage
+        // Chargement initial
         let sC = parseInt(localStorage.getItem('sC')) || 0;
         let sS = parseInt(localStorage.getItem('sS')) || 0;
         let wC = parseInt(localStorage.getItem('wC')) || 0;
@@ -97,8 +97,12 @@
             else if (sS > sC) { wS++; winner = "Saucissons"; }
             
             if (winner) {
-                let date = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                matchHistory.push(winner + " (" + sC + "-" + sS + ") à " + date);
+                matchHistory.push({
+                    winner: winner,
+                    scoreC: sC,
+                    scoreS: sS,
+                    date: new Date().toLocaleString()
+                });
             }
             
             sC=0; sS=0; history=[];
@@ -107,7 +111,12 @@
         }
 
         function showHistory() {
-            alert("Historique des victoires :\n" + (matchHistory.join("\n") || "Aucune partie enregistrée."));
+            if (matchHistory.length === 0) {
+                alert("Aucune partie enregistrée.");
+                return;
+            }
+            let list = matchHistory.map(m => `${m.winner} (${m.scoreC}-${m.scoreS}) le ${m.date}`).join("\n");
+            alert("Historique des victoires :\n" + list);
         }
 
         function resetTotal() {
@@ -126,17 +135,21 @@
 
         function importData() {
             const dataStr = prompt("Collez vos données ici :");
-            if (dataStr) {
-                try {
-                    const data = JSON.parse(dataStr);
+            if (!dataStr) return;
+            try {
+                const data = JSON.parse(dataStr);
+                const requiredKeys = ['sC', 'sS', 'wC', 'wS', 'history', 'matchHistory'];
+                if (requiredKeys.every(key => data.hasOwnProperty(key))) {
                     sC = data.sC; sS = data.sS; wC = data.wC; wS = data.wS;
                     history = data.history; matchHistory = data.matchHistory;
                     saveData();
                     updateDisplay();
                     alert("Données importées avec succès !");
-                } catch (e) {
-                    alert("Erreur lors de l'import : format invalide.");
+                } else {
+                    throw new Error("Structure invalide");
                 }
+            } catch (e) {
+                alert("Erreur : Le format des données est incorrect ou incomplet.");
             }
         }
     </script>
