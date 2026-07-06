@@ -18,6 +18,10 @@
         .total-row { display: flex; height: 10vh; align-items: center; background: #eee; font-weight: bold; cursor: pointer; font-size: 0.85rem; }
         .total-row div { flex: 1; text-align: center; padding: 5px; }
         .export-row { display: flex; height: 7vh; }
+        
+        /* Styles pour la modale */
+        #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 100; flex-direction: column; padding: 20px; color: white; overflow-y: auto; }
+        .history-item { background: #444; padding: 12px; margin-bottom: 8px; border-radius: 8px; font-size: 0.95rem; }
     </style>
 </head>
 <body>
@@ -35,7 +39,6 @@
     </div>
     
     <button class="btn-control" style="width:100%; background:#b22222;" onclick="undo()">ANNULER DERNIER POINT</button>
-
     <button class="btn-control" style="width:100%" onclick="resetMatch()">NOUVELLE PARTIE</button>
     
     <div class="total-row" onclick="showHistory()">
@@ -50,8 +53,14 @@
     
     <button class="btn-control" style="width:100%; background:#b22222;" onclick="resetTotal()">RÉINITIALISER TOTAL</button>
 
+    <!-- Structure de la modale -->
+    <div id="modal" onclick="this.style.display='none'">
+        <h2 style="text-align:center">Historique des parties</h2>
+        <div id="historyList"></div>
+        <button class="btn-control" style="background:#b22222; margin-top:20px; width:100%">Fermer</button>
+    </div>
+
     <script>
-        // Chargement initial
         let sC = parseInt(localStorage.getItem('sC')) || 0;
         let sS = parseInt(localStorage.getItem('sS')) || 0;
         let wC = parseInt(localStorage.getItem('wC')) || 0;
@@ -112,12 +121,21 @@
         }
 
         function showHistory() {
+            const modal = document.getElementById('modal');
+            const list = document.getElementById('historyList');
+            list.innerHTML = "";
+            
             if (matchHistory.length === 0) {
-                alert("Aucune partie enregistrée.");
-                return;
+                list.innerHTML = "<p style='text-align:center'>Aucune partie enregistrée.</p>";
+            } else {
+                [...matchHistory].reverse().forEach(m => {
+                    const div = document.createElement('div');
+                    div.className = 'history-item';
+                    div.innerHTML = `<strong>${m.winner}</strong> : ${m.scoreC} - ${m.scoreS}<br><small style="color:#ccc">${m.date}</small>`;
+                    list.appendChild(div);
+                });
             }
-            let list = matchHistory.map(m => `${m.winner} (${m.scoreC}-${m.scoreS}) le ${m.date}`).join("\n");
-            alert("Historique des victoires :\n" + list);
+            modal.style.display = 'flex';
         }
 
         function resetTotal() {
