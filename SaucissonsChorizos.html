@@ -7,23 +7,35 @@
     <style>
         * { box-sizing: border-box; }
         body { margin: 0; font-family: -apple-system, sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        
         .row { display: flex; flex: 2; }
         .team { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border: none; }
+        
         .avatar { width: 50px; height: 50px; border-radius: 50%; background: white; display: flex; align-items: center; justify-content: center; font-size: 25px; margin-bottom: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
         .name { font-weight: bold; font-size: 0.9rem; }
         .score { font-size: 5rem; font-weight: 800; }
+        
         .chorizos { background-color: #ADD8E6; }
         .saucissons { background-color: #FFD1DC; }
-        .btn-control { height: 7vh; border: 1px solid #fff; background: #333; color: white; font-weight: bold; font-size: 0.8rem; }
-        .total-row { display: flex; height: 9vh; align-items: center; background: #eee; font-weight: bold; cursor: pointer; font-size: 0.8rem; }
-        .total-row div { flex: 1; text-align: center; }
-        #fileInput { display: none; }
+        
+        .btn-control { height: 8vh; border: 1px solid #fff; background: #333; color: white; font-weight: bold; font-size: 0.9rem; }
+        
+        .total-row { display: flex; height: 12vh; align-items: center; background: #eee; font-weight: bold; cursor: pointer; font-size: 0.85rem; }
+        .total-row div { flex: 1; text-align: center; padding: 5px; }
     </style>
 </head>
 <body>
     <div class="row">
-        <button class="team chorizos" onclick="addScore('C')"><div class="avatar">🥓</div><div class="name">Chorizos</div><div class="score" id="sC">0</div></button>
-        <button class="team saucissons" onclick="addScore('S')"><div class="avatar">🌭</div><div class="name">Saucissons</div><div class="score" id="sS">0</div></button>
+        <button class="team chorizos" onclick="addScore('C')">
+            <div class="avatar">🥓</div>
+            <div class="name">Chorizos</div>
+            <div class="score" id="sC">0</div>
+        </button>
+        <button class="team saucissons" onclick="addScore('S')">
+            <div class="avatar">🌭</div>
+            <div class="name">Saucissons</div>
+            <div class="score" id="sS">0</div>
+        </button>
     </div>
     
     <button class="btn-control" style="width:100%" onclick="undo()">ANNULER DERNIER POINT</button>
@@ -33,17 +45,11 @@
         <div id="wC">Chorizos : 0</div>
         <div id="wS">Saucissons : 0</div>
     </div>
-    
-    <div style="display:flex">
-        <button class="btn-control" style="flex:1; background:#4a4a4a;" onclick="exportFile()">EXPORTER</button>
-        <button class="btn-control" style="flex:1; background:#4a4a4a;" onclick="document.getElementById('fileInput').click()">IMPORTER</button>
-        <input type="file" id="fileInput" onchange="importFile(event)">
-    </div>
     <button class="btn-control" style="width:100%; background:#b22222;" onclick="resetTotal()">RÉINITIALISER TOTAL</button>
 
     <script>
         let sC=0, sS=0, wC=0, wS=0, history=[], matchHistory=[];
-
+        
         function addScore(t) {
             if(window.navigator.vibrate) window.navigator.vibrate(50);
             history.push(t);
@@ -58,49 +64,30 @@
         function updateDisplay() {
             document.getElementById('sC').innerText = sC;
             document.getElementById('sS').innerText = sS;
-            document.getElementById('wC').innerText = "Chorizos : " + wC;
-            document.getElementById('wS').innerText = "Saucissons : " + wS;
         }
         function resetMatch() {
             let winner = "";
             if (sC > sS) { wC++; winner = "Chorizos"; }
             else if (sS > sC) { wS++; winner = "Saucissons"; }
-            if (winner) matchHistory.push(winner + " (" + sC + "-" + sS + ") - " + new Date().toLocaleDateString());
+            
+            if (winner) {
+                let date = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                matchHistory.push(winner + " (" + sC + "-" + sS + ") à " + date);
+            }
             
             sC=0; sS=0; history=[];
+            document.getElementById('wC').innerText = "Chorizos : " + wC;
+            document.getElementById('wS').innerText = "Saucissons : " + wS;
             updateDisplay();
-            localStorage.setItem('scoreData', JSON.stringify({wC, wS, matchHistory}));
+        }
+        function showHistory() {
+            alert("Historique des victoires :\n" + (matchHistory.join("\n") || "Aucune partie enregistrée."));
         }
         function resetTotal() {
-            if(confirm("Tout effacer (stats et historique) ?")) {
-                wC=0; wS=0; matchHistory=[]; sC=0; sS=0; history=[];
-                localStorage.removeItem('scoreData');
-                updateDisplay();
+            if(confirm("Tout remettre à zéro (historique compris) ?")) {
+                wC=0; wS=0; matchHistory=[]; resetMatch();
             }
         }
-        function exportFile() {
-            let data = JSON.stringify({wC, wS, matchHistory});
-            let blob = new Blob([data], {type: "application/json"});
-            let url = URL.createObjectURL(blob);
-            let a = document.createElement('a');
-            a.href = url; a.download = "scores_chorizos_saucissons.json"; a.click();
-        }
-        function importFile(e) {
-            let file = e.target.files[0];
-            let reader = new FileReader();
-            reader.onload = function(event) {
-                let data = JSON.parse(event.target.result);
-                wC = data.wC; wS = data.wS; matchHistory = data.matchHistory;
-                updateDisplay();
-                localStorage.setItem('scoreData', JSON.stringify({wC, wS, matchHistory}));
-                alert("Import réussi !");
-            };
-            reader.readAsText(file);
-        }
-        // Charger au démarrage
-        let data = JSON.parse(localStorage.getItem('scoreData'));
-        if(data) { wC = data.wC; wS = data.wS; matchHistory = data.matchHistory; updateDisplay(); }
-        function showHistory() { alert("Historique :\n" + (matchHistory.join("\n") || "Vide")); }
     </script>
 </body>
 </html>
