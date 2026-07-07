@@ -14,7 +14,6 @@
             if (localData) data = JSON.parse(localData);
         }
 
-        // Fonction pour éviter que l'application ne reste figée si HA ne répond pas
         function fetchWithTimeout(url, options, timeout = 5000) {
             return Promise.race([
                 fetch(url, options),
@@ -34,10 +33,18 @@
                     body: JSON.stringify({ action: 'lire' })
                 }, 6000);
                 
-                const resultat = await reponse.json();
-                console.log("Réponse de HA :", resultat);
+                const texteReponse = await reponse.text();
+                console.log("Texte brut reçu de HA :", texteReponse);
                 
-                // Extraction des données de la liste de tâches renvoyée par ton automatisation
+                let resultat = null;
+                if (texteReponse && texteReponse.trim().startsWith('{')) {
+                    try {
+                        resultat = JSON.parse(texteReponse);
+                    } catch(e) {
+                        console.log("Erreur de parsing JSON discret, HA a renvoyé un format alternatif.");
+                    }
+                }
+                
                 let items = [];
                 if (resultat && Array.isArray(resultat.items)) {
                     items = resultat.items;
@@ -54,7 +61,7 @@
                     localStorage.setItem('budgetDataConnecte', JSON.stringify(data));
                     document.getElementById('statut-synchro').innerText = "☁️ Synchronisé avec HA";
                 } else {
-                    document.getElementById('statut-synchro').innerText = "⚠️ Première synchro (Création au prochain export)";
+                    document.getElementById('statut-synchro').innerText = "☁️ Connecté (Prêt à synchroniser)";
                     chargerLocalSecours();
                 }
             } catch (e) {
@@ -237,9 +244,9 @@
         :root { --bg-color: #f7f9fa; --card-bg: #ffffff; --text-main: #2d3436; --primary: #2ecc71; --orange: #e67e22; --blue: #3498db; --red: #e74c3c; }
         body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg-color); padding: 15px; margin: 0; color: var(--text-main); }
         .container { max-width: 450px; margin: 0 auto; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
         .header h1 { font-size: 1.5em; margin: 0; }
-        .synchro-status { font-size: 0.75em; color: #7f8c8d; text-align: center; margin-bottom: 10px; font-weight: 600;}
+        .synchro-status { font-size: 0.8em; color: #7f8c8d; text-align: center; margin-bottom: 15px; font-weight: 600;}
         .btn-param { background: none; border: none; font-size: 1.6em; cursor: pointer; color: #7f8c8d; }
         .card { background: var(--card-bg); padding: 20px; border-radius: 24px; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); }
         .solde-card { background: linear-gradient(135deg, #1abc9c, #2ecc71); color: white; text-align: center; }
@@ -287,7 +294,7 @@
             <h1>Mon Budget Connecté 💸</h1>
             <button class="btn-param" onclick="ouvrirParametres()">⚙️</button>
         </div>
-        <div class="synchro-status" id="statut-synchro">🔄 Initialisation...</div>
+        <div class="synchro-status" id="statut-synchro">🔌 Mode Local (Hors ligne)</div>
 
         <!-- SOLDE -->
         <div class="card solde-card">
