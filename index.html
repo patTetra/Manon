@@ -13,7 +13,7 @@
             nom_objectif: "Mon Objectif",
             cible_objectif: 50,
             dernier_mois_credit: "",
-            depenses: []
+            historique: [] // Historique global (gains et dépenses)
         };
 
         // Variables temporaires pour savoir quelle cible on est en train de vider
@@ -23,7 +23,16 @@
         if (!data.nom_objectif) data.nom_objectif = "Mon Objectif";
         if (!data.cible_objectif) data.cible_objectif = 50;
         if (!data.dernier_mois_credit) data.dernier_mois_credit = "";
-        if (!data.depenses) data.depenses = [];
+        if (!data.historique) {
+            data.historique = [];
+            // Migration des anciennes dépenses vers le nouvel historique si nécessaire
+            if (data.depenses) {
+                data.depenses.forEach(d => {
+                    data.historique.push({ type: 'depense', montant: d.montant, desc: d.desc, date: d.date });
+                });
+                delete data.depenses;
+            }
+        }
 
         function sauvegarder() {
             localStorage.setItem('budgetData', JSON.stringify(data));
@@ -38,7 +47,14 @@
             const moisCourantStr = `${annee}-${mois}`;
 
             if (data.dernier_mois_credit !== moisCourantStr) {
+                const dateIso = aujourdhui.toISOString().split('T')[0];
                 data.solde += 15;
+                data.historique.push({
+                    type: 'gain',
+                    montant: 15,
+                    desc: "💰 Argent de poche du mois",
+                    date: dateIso
+                });
                 data.dernier_mois_credit = moisCourantStr;
                 sauvegarder();
                 
@@ -69,42 +85,65 @@
             document.getElementById('param-nom-obj').value = data.nom_objectif;
             document.getElementById('param-cible-obj').value = data.cible_objectif;
 
-            // Mettre à jour la date du jour par défaut
+            // Mettre à jour les dates par défaut des modales
             const aujourdhui = new Date().toISOString().split('T')[0];
             document.getElementById('depense-date').value = aujourdhui;
+            document.getElementById('gain-date').value = aujourdhui;
 
-            // Afficher l'historique des dépenses
-            const listeDepenses = document.getElementById('liste-depenses');
-            listeDepenses.innerHTML = "";
+            // Afficher l'historique complet
+            const listeHistorique = document.getElementById('liste-historique');
+            listeHistorique.innerHTML = "";
             
-            if (data.depenses.length === 0) {
-                listeDepenses.innerHTML = "<div class='vide'>Aucune dépense enregistrée pour le moment.</div>";
+            if (data.historique.length === 0) {
+                listeHistorique.innerHTML = "<div class='vide'>Aucune opération enregistrée pour le moment.</div>";
             } else {
-                const depensesInversees = [...data.depenses].reverse();
-                depensesInversees.forEach(dep => {
-                    const dateFormatee = dep.date.split('-').reverse().join('/');
-                    const item = document.createElement('div');
-                    item.className = 'depense-item';
-                    item.innerHTML = `
+                const histInverse = [...data.historique].reverse();
+                histInverse.forEach(item => {
+                    const dateFormatee = item.date.split('-').reverse().join('/');
+                    const div = document.createElement('div');
+                    div.className = 'hist-item';
+                    
+                    const estGain = item.type === 'gain';
+                    const signe = estGain ? '+' : '-';
+                    const classeMontant = estGain ? 'montant-plus' : 'montant-moins';
+
+                    div.innerHTML = `
                         <div>
-                            <div class="depense-desc">${dep.desc}</div>
-                            <div class="depense-date">${dateFormatee}</div>
+                            <div class="hist-desc">${item.desc}</div>
+                            <div class="hist-date">${dateFormatee}</div>
                         </div>
-                        <div class="depense-montant">- ${dep.montant.toFixed(2)} €</div>
+                        <div class="hist-montant ${classeMontant}">${signe} ${item.montant.toFixed(2)} €</div>
                     `;
-                    listeDepenses.appendChild(item);
+                    listeHistorique.appendChild(div);
                 });
             }
         }
 
-        function ajouterSolde() {
-            const input = document.getElementById('input-solde');
-            const montant = parseFloat(input.value);
-            if (!montant || montant <= 0) return;
-            
+        // Fenêtre Ajouter de l'argent
+        function ouvrirGain() { document.getElementById('modal-gain').style.display = 'flex'; }
+        function fermerGain() { document.getElementById('modal-gain').style.none = 'none'; document.getElementById('modal-gain').style.display = 'none';}
+        
+        function enregistrerGain() {
+            const inputMontant = document.getElementById('gain-montant');
+            const inputDesc = document.getElementById('gain-desc');
+            const inputDate = document.getElementById('gain-date');
+
+            const montant = parseFloat(inputMontant.value);
+            const desc = inputDesc.value.trim();
+            const date = inputDate.value;
+
+            if (!montant || montant <= 0 || !desc || !date) {
+                alert("Remplis toutes les cases pour ajouter l'argent !");
+                return;
+            }
+
             data.solde += montant;
-            input.value = '';
+            data.historique.push({ type: 'gain', montant, desc, date });
+            
+            inputMontant.value = '';
+            inputDesc.value = '';
             sauvegarder();
+            fermerGain();
         }
 
         function verifierObjectifAtteint(cible, montantAjoute) {
@@ -158,9 +197,7 @@
             document.getElementById('modal-retrait').style.display = 'flex';
         }
 
-        function fermerRetrait() {
-            document.getElementById('modal-retrait').style.display = 'none';
-        }
+        function fermerRetrait() { document.getElementById('modal-retrait').style.display = 'none'; }
 
         function validerRetrait() {
             const input = document.getElementById('retrait-montant');
@@ -201,7 +238,7 @@
 
             if (data.solde >= montant) {
                 data.solde -= montant;
-                data.depenses.push({ montant, desc, date });
+                data.historique.push({ type: 'depense', montant, desc, date });
                 inputMontant.value = '';
                 inputDesc.value = '';
                 sauvegarder();
@@ -228,7 +265,7 @@
         }
 
         function reinitialiserTout() {
-            if (confirm("⚠️ Es-tu sûr(e) de vouloir TOUT réinitialiser ? Cela va effacer le solde, la tirelire, l'objectif et TOUT l'historique des dépenses !")) {
+            if (confirm("⚠️ Es-tu sûr(e) de vouloir TOUT réinitialiser ? Cela va effacer le solde, la tirelire, l'objectif et TOUT l'historique !")) {
                 data = { 
                     solde: 0, 
                     tirelire: 0, 
@@ -236,7 +273,7 @@
                     nom_objectif: "Mon Objectif",
                     cible_objectif: 50,
                     dernier_mois_credit: "",
-                    depenses: []
+                    historique: []
                 };
                 sauvegarder();
                 fermerParametres();
@@ -297,27 +334,22 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.04); 
         }
         
-        /* Personnalisation des fonds de cartes */
         .solde-card {
             background: linear-gradient(135deg, #1abc9c, #2ecc71);
             color: white;
         }
         .solde-card .montant { color: white; }
 
-        .tirelire-card {
-            background-color: #fff2ec; /* Orange/Rose pastel */
-        }
-
-        .objectif-card {
-            background-color: #ecf4ff; /* Bleu ciel pastel */
-        }
+        /* Couleurs pastel plus soutenues et dynamiques */
+        .tirelire-card { background-color: #ffe6d9; }
+        .objectif-card { background-color: #dbeaff; }
         
         .montant { font-size: 2.2em; font-weight: 800; color: var(--text-main); text-align: center; margin: 10px 0; }
         
         h3 { margin-top: 0; margin-bottom: 5px; font-size: 1.2em; display: flex; align-items: center; gap: 8px;}
         
         .progress-container {
-            background: rgba(0, 0, 0, 0.06);
+            background: rgba(0, 0, 0, 0.08);
             border-radius: 10px;
             height: 14px;
             width: 100%;
@@ -334,7 +366,7 @@
             display: flex;
             justify-content: space-between;
             font-size: 0.85em;
-            color: #7f8c8d;
+            color: #5d6a6b;
             margin-bottom: 15px;
         }
         
@@ -352,36 +384,42 @@
         }
         button:active { transform: scale(0.95); }
         button.btn-retrait { background-color: var(--red); width: 100%; margin-top: 12px;}
-        button.btn-depense { background-color: rgba(255, 255, 255, 0.25); border: 1.5px solid white; width: 100%; margin-top: 15px;}
-        button.btn-depense:hover { background-color: rgba(255, 255, 255, 0.4); }
+        
+        /* Boutons de la carte solde */
+        .solde-actions { display: flex; gap: 10px; margin-top: 15px; }
+        .solde-actions button { flex: 1; padding: 12px 10px; font-size: 0.9em; }
+        button.btn-solde-action { background-color: rgba(255, 255, 255, 0.25); border: 1.5px solid white; }
+        button.btn-solde-action:hover { background-color: rgba(255, 255, 255, 0.4); }
         
         .action-input { display: flex; gap: 8px; margin-top: 8px; }
         input { 
             flex: 1; 
             padding: 12px; 
             border-radius: 12px; 
-            border: 2px solid #e2e8f0; 
+            border: 2px solid #cbd5e1; 
             font-size: 1em;
             outline: none;
             box-sizing: border-box;
-            min-width: 0;
             background-color: white;
+            color: var(--text-main);
         }
-        input:focus { border-color: var(--primary); }
-        .btn-add { background: var(--text-main); }
+        input:focus { border-color: var(--text-main); }
 
-        .liste-historique { max-height: 250px; overflow-y: auto; margin-top: 10px; }
-        .depense-item {
+        /* Structure de l'historique unifié */
+        .liste-historique { max-height: 280px; overflow-y: auto; margin-top: 10px; }
+        .hist-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 10px 0;
-            border-bottom: 1px solid rgba(0,0,0,0.05);
+            padding: 11px 0;
+            border-bottom: 1px solid rgba(0,0,0,0.06);
         }
-        .depense-item:last-child { border-bottom: none; }
-        .depense-desc { font-weight: 600; font-size: 0.95em; }
-        .depense-date { font-size: 0.8em; color: #95a5a6; margin-top: 2px; }
-        .depense-montant { font-weight: 700; color: var(--red); font-size: 1em; }
+        .hist-item:last-child { border-bottom: none; }
+        .hist-desc { font-weight: 600; font-size: 0.95em; }
+        .hist-date { font-size: 0.8em; color: #7f8c8d; margin-top: 2px; }
+        .hist-montant { font-weight: 700; font-size: 1em; }
+        .montant-plus { color: #27ae60; }
+        .montant-moins { color: var(--red); }
         .vide { text-align: center; color: #95a5a6; font-size: 0.9em; padding: 15px 0; }
 
         /* Modales */
@@ -403,7 +441,7 @@
             width: 100%;
             max-width: 400px;
         }
-        .modal-content h2 { margin-top: 0; font-size: 1.4em; margin-bottom: 10px;}
+        .modal-content h2 { margin-top: 0; font-size: 1.4em; margin-bottom: 15px;}
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9em; }
         .form-group input { width: 100%; }
@@ -424,11 +462,10 @@
             <div style="text-align:center; font-weight: 600; opacity: 0.9;">Argent de poche disponible</div>
             <div class="montant" id="solde">0.00 €</div>
             
-            <div class="action-input">
-                <input type="number" inputmode="decimal" id="input-solde" placeholder="Ajouter de l'argent (Cadeau...)">
-                <button class="btn-add" onclick="ajouterSolde()">+ Ajouter</button>
+            <div class="solde-actions">
+                <button class="btn-solde-action" onclick="ouvrirGain()">➕ Recevoir Argent</button>
+                <button class="btn-solde-action" onclick="ouvrirDepense()">🛒 Enregistrer Achat</button>
             </div>
-            <button class="btn-depense" onclick="ouvrirDepense()">🛒 Enregistrer un achat (Dépense)</button>
         </div>
         
         <!-- BLOC TIRELIRE -->
@@ -475,14 +512,41 @@
             <button class="btn-retrait" style="background: var(--blue)" onclick="ouvrirRetrait('objectif_courant')">Récupérer pour acheter ↩</button>
         </div>
 
-        <!-- BLOC HISTORIQUE -->
+        <!-- BLOC HISTORIQUE UNIQUE (ENTREES / SORTIES) -->
         <div class="card">
-            <h3><span>📜</span> Mes Achats (Historique)</h3>
-            <div class="liste-historique" id="liste-depenses"></div>
+            <h3><span>📊</span> Mon Historique (Suivi)</h3>
+            <div class="liste-historique" id="liste-historique"></div>
         </div>
     </div>
 
-    <!-- NOUVELLE MODAL RECUPERER / RETRAIT (NUMERIQUE) -->
+    <!-- MODAL RECEVOIR DE L'ARGENT (GAIN) -->
+    <div class="modal" id="modal-gain">
+        <div class="modal-content">
+            <h2>➕ Recevoir de l'argent</h2>
+            
+            <div class="form-group">
+                <label for="gain-montant">Montant reçu (€)</label>
+                <input type="number" inputmode="decimal" id="gain-montant" placeholder="Ex: 10">
+            </div>
+
+            <div class="form-group">
+                <label for="gain-desc">D'où vient cet argent ? (Provenance)</label>
+                <input type="text" id="gain-desc" placeholder="Ex: Anniversaire, Tâche ménagère, Mamie...">
+            </div>
+
+            <div class="form-group">
+                <label for="gain-date">Date de réception</label>
+                <input type="date" id="gain-date">
+            </div>
+
+            <div class="modal-actions">
+                <button style="background: #bdc3c7; color: #2d3436;" onclick="fermerGain()">Annuler</button>
+                <button style="background: var(--primary); color: white;" onclick="enregistrerGain()">Ajouter au solde</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL RECUPERER / RETRAIT -->
     <div class="modal" id="modal-retrait">
         <div class="modal-content">
             <h2 id="retrait-titre">↩ Récupérer de l'argent</h2>
