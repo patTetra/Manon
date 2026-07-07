@@ -7,6 +7,7 @@
     <script>
         let data = { solde: 0, tirelire: 0, objectif_courant: 0, nom_objectif: "Mon Objectif", cible_objectif: 50, dernier_mois_credit: "", historique: [] };
         let haUrl = localStorage.getItem('ha_url') || "";
+        let haToken = localStorage.getItem('ha_token') || "";
         let cibleRetraitEnCours = "";
 
         function chargerLocalSecours() {
@@ -20,48 +21,52 @@
             
             try {
                 const urlNettoyee = haUrl.replace(/\/$/, "");
-                const reponse = await fetch(`${urlNettoyee}/api/webhook/budget_app_synchro_secret_1607`, {
+                
+                // Si on a un Token, on utilise l'API REST officielle beaucoup plus fiable pour la lecture
+                if (haToken) {
+                    const reponse = await fetch(`${urlNettoyee}/api/states/todo.application_budget`, {
+                        method: 'GET',
+                        headers: { 
+                            'Authorization': `Bearer ${haToken}`,
+                            'Content-Type': 'application/json' 
+                        }
+                    });
+                    
+                    if (reponse.ok) {
+                        const etatEntite = await reponse.json();
+                        // On cherche notre option/donnée dans les attributs ou la description
+                        // Si tu as stocké tes données dans une entité de texte ou un calendrier/todo :
+                        if (etatEntite.attributes && etatEntite.attributes.description) {
+                            data = JSON.parse(etatEntite.attributes.description);
+                            localStorage.setItem('budgetDataConnecte', JSON.stringify(data));
+                            document.getElementById('statut-synchro').innerText = "☁️ Synchronisé (API REST)";
+                            afficher(); verifierArgentDePoche();
+                            return;
+                        }
+                    }
+                }
+
+                // Solution de secours : Webhook classique (si pas de token ou échec API)
+                const reponseWebhook = await fetch(`${urlNettoyee}/api/webhook/budget_app_synchro_secret_1607`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action: 'lire' })
                 });
                 
-                const resultat = await reponse.json();
-                console.log("Réponse brute de HA :", resultat);
+                const resultat = await reponseWebhook.json();
+                let items = resultat.items || (resultat.retour_lire ? resultat.retour_lire.items : []);
                 
-                // RECHERCHE ULTRA-RESILIENTE DES ITEMS
-                let items = [];
-                if (resultat && Array.isArray(resultat.items)) {
-                    items = resultat.items;
-                } else if (resultat && resultat.retour_lire && Array.isArray(resultat.retour_lire.items)) {
-                    items = resultat.retour_lire.items;
-                } else if (resultat && resultat['todo.application_budget'] && Array.isArray(resultat['todo.application_budget'].items)) {
-                    items = resultat['todo.application_budget'].items;
-                } else if (resultat) {
-                    // Si HA a imbriqué les données ailleurs, on cherche le premier tableau disponible
-                    for (let cle in resultat) {
-                        if (resultat[cle] && Array.isArray(resultat[cle])) {
-                            items = resultat[cle];
-                            break;
-                        } else if (resultat[cle] && Array.isArray(resultat[cle].items)) {
-                            items = resultat[cle].items;
-                            break;
-                        }
-                    }
-                }
-
                 const tacheData = items.find(i => i.summary === "data_budget");
-
                 if (tacheData && tacheData.description) {
                     data = JSON.parse(tacheData.description);
                     localStorage.setItem('budgetDataConnecte', JSON.stringify(data));
-                    document.getElementById('statut-synchro').innerText = "☁️ Synchronisé avec HA";
+                    document.getElementById('statut-synchro').innerText = "☁️ Synchronisé (Webhook)";
                 } else {
-                    document.getElementById('statut-synchro').innerText = "⚠️ Tâche non trouvée (Créée au prochain export)";
+                    document.getElementById('statut-synchro').innerText = "⚠️ Données introuvables, mode local";
                     chargerLocalSecours();
                 }
             } catch (e) {
-                console.error("Erreur de synchro :", e);
+                console.error("Erreur synchro:", e);
                 document.getElementById('statut-synchro').innerText = "🔌 Mode Local (Hors ligne)";
                 chargerLocalSecours();
             }
@@ -130,6 +135,7 @@
             document.getElementById('param-nom-obj').value = data.nom_objectif || "";
             document.getElementById('param-cible-obj').value = data.cible_objectif || 50;
             document.getElementById('param-ha-url').value = haUrl;
+            document.getElementById('param-ha-token').value = haToken;
 
             const aujourdhuiIso = new Date().toISOString().split('T')[0];
             document.getElementById('depense-date').value = aujourdhuiIso;
@@ -216,7 +222,10 @@
             const nvNom = document.getElementById('param-nom-obj').value.trim();
             const nvCible = parseFloat(document.getElementById('param-cible-obj').value);
             haUrl = document.getElementById('param-ha-url').value.trim();
+            haToken = document.getElementById('param-ha-token').value.trim();
+            
             localStorage.setItem('ha_url', haUrl);
+            localStorage.setItem('ha_token', haToken);
 
             if (!isNaN(nvSolde)) data.solde = nvSolde;
             if (nvNom) data.nom_objectif = nvNom;
@@ -292,7 +301,6 @@
         </div>
         <div class="synchro-status" id="statut-synchro">🔄 Initialisation...</div>
 
-        <!-- SOLDE -->
         <div class="card solde-card">
             <div style="font-weight: 600; opacity: 0.9;">Argent de poche disponible</div>
             <div class="montant" id="solde">0.00 €</div>
@@ -300,7 +308,6 @@
             <div class="solde-actions"><button onclick="ouvrirGain()">➕ Recevoir</button><button onclick="ouvrirDepense()">🛒 Un Achat</button></div>
         </div>
         
-        <!-- TIRELIRE -->
         <div class="card tirelire-card">
             <h3>🐷 Tirelire (Épargne)</h3>
             <div class="montant" id="tirelire">0.00 €</div>
@@ -316,7 +323,6 @@
             <button class="btn-retrait" style="background: var(--orange)" onclick="ouvrirRetrait('tirelire')">Récupérer de l'argent ↩</button>
         </div>
 
-        <!-- OBJECTIF -->
         <div class="card objectif-card">
             <h3 id="titre-objectif">🎯 Mon Objectif</h3>
             <div class="montant" id="obj-val">0.00 €</div>
@@ -334,11 +340,9 @@
             <button class="btn-retrait" style="background: var(--blue)" onclick="ouvrirRetrait('objectif_courant')">Récupérer pour acheter ↩</button>
         </div>
 
-        <!-- HISTORIQUE -->
         <div class="card"><h3>📊 Mon Historique</h3><div class="liste-historique" id="liste-historique"></div></div>
     </div>
 
-    <!-- MODALS (Gain, Depense, Retrait) -->
     <div class="modal" id="modal-gain">
         <div class="modal-content">
             <h2>➕ Recevoir</h2>
@@ -368,7 +372,6 @@
         </div>
     </div>
 
-    <!-- REGLAGES -->
     <div class="modal" id="modal-parametres">
         <div class="modal-content">
             <h2>⚙️ Réglages & Synchro</h2>
@@ -376,8 +379,15 @@
             <div class="form-group"><label>Nom de l'objectif</label><input type="text" id="param-nom-obj"></div>
             <div class="form-group"><label>Cible objectif (€)</label><input type="number" inputmode="decimal" id="param-cible-obj"></div>
             <div class="param-section">
-                <label style="font-weight: bold; display:block; margin-bottom: 8px;">☁️ URL Nabu Casa (uniquement)</label>
-                <div class="form-group"><input type="text" id="param-ha-url" placeholder="https://xxx.ui.nabu.casa"></div>
+                <label style="font-weight: bold; display:block; margin-bottom: 4px;">☁️ Connexion Home Assistant</label>
+                <div class="form-group">
+                    <label>URL Nabu Casa</label>
+                    <input type="text" id="param-ha-url" placeholder="https://xxx.ui.nabu.casa">
+                </div>
+                <div class="form-group">
+                    <label>Jeton d'accès (Token Long Terme)</label>
+                    <input type="password" id="param-ha-token" placeholder="Coller le jeton HA ici...">
+                </div>
             </div>
             <div style="margin-top: 20px; border-top: 2px dashed #eee; padding-top: 10px;"><button style="background: var(--red); width: 100%;" onclick="ouvrirSecuriteReinit()">⚠️ Tout Réinitialiser</button></div>
             <div class="modal-actions" style="margin-top: 15px;"><button class="btn-secondary" onclick="fermerParametres()">Fermer</button><button style="background: var(--primary);" onclick="enregistrerParametres()">Enregistrer</button></div>
