@@ -3,29 +3,148 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mon Budget Pro</title>
+    <title>Mon Budget Connecté</title>
     <script>
-        // Charger ou initialiser les données
-        let data = JSON.parse(localStorage.getItem('budgetDataPro')) || { 
+        // Initialisation des données par défaut
+        let data = { 
             solde: 0, 
             tirelire: 0, 
+            objectif_courant: 0,
+            nom_objectif: "Mon Objectif",
+            cible_objectif: 50,
             dernier_mois_credit: "",
-            historique: [],
-            objectifs: [
-                { id: 0, nom: "Mon Objectif 1", courant: 0, cible: 50 },
-                { id: 1, nom: "Mon Objectif 2", courant: 0, cible: 100 },
-                { id: 2, nom: "Mon Objectif 3", courant: 0, cible: 200 }
-            ]
+            historique: []
         };
 
-        let cibleRetraitEnCours = ""; // 'tirelire' ou 'obj_0', 'obj_1', 'obj_2'
+        // Paramètres de connexion Home Assistant
+        let haUrl = localStorage.getItem('ha_url') || "";
+        let haToken = localStorage.getItem('ha_token') || "";
+        let cibleRetraitEnCours = "";
 
-        function sauvegarder() {
-            localStorage.setItem('budgetDataPro', JSON.stringify(data));
-            afficher();
+        // Charger localement en secours au démarrage
+        function chargerLocalSecours() {
+            let localData = localStorage.getItem('budgetDataConnecte');
+            if (localData) {
+                data = JSON.parse(localData);
+            }
         }
 
-        // Argent de poche automatique (15€ tous les mois au 1er du mois)
+        // --- SYNCHRONISATION HOME ASSISTANT ---
+
+        async function appelerAPI(service, action, corps) {
+            if (!haUrl || !haToken) return null;
+            const urlNettoyee = haUrl.replace(/\/$/, ""); // Enlever le slash de fin si présent
+            try {
+                const reponse = await fetch(`${urlNettoyee}/api/services/${service}/${action}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${haToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(corps)
+                });
+                return await reponse.json();
+            } catch (erreur) {
+                console.error("Erreur API Home Assistant:", erreur);
+                return null;
+            }
+        }
+
+        async function chargerDepuisHomeAssistant() {
+            if (!haUrl || !haToken) {
+                chargerLocalSecours();
+                afficher();
+                verifierArgentDePoche();
+                return;
+            }
+
+            document.getElementById('statut-synchro').innerText = "🔄 Synchronisation...";
+            
+            // Étape 1: Récupérer les tâches de la liste "Application Budget"
+            // On utilise le service todo.get_items pour récupérer le contenu
+            try {
+                const urlNettoyee = haUrl.replace(/\/$/, "");
+                const reponse = await fetch(`${urlNettoyee}/api/services/todo/get_items`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${haToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ entity_id: "todo.application_budget" })
+                });
+                
+                const resultat = await reponse.json();
+                // Extraction des éléments de la liste
+                const items = resultat[0]?.result?.["todo.application_budget"]?.items || [];
+                const tacheData = items.find(i => i.summary === "data_budget");
+
+                if (tacheData && tacheData.description) {
+                    // On décode le JSON stocké dans la description de la tâche
+                    data = JSON.parse(tacheData.description);
+                    localStorage.setItem('budgetDataConnecte', JSON.stringify(data));
+                    document.getElementById('statut-synchro').innerText = "☁️ Synchronisé avec HA";
+                } else {
+                    // Si la tâche n'existe pas encore ou est vide
+                    document.getElementById('statut-synchro').innerText = "⚠️ Tâche 'data_budget' introuvable, création au premier export";
+                    chargerLocalSecours();
+                }
+            } catch (e) {
+                console.error("Impossible de joindre HA, mode local activé.", e);
+                document.getElementById('statut-synchro').innerText = "🔌 Mode Local (Hors ligne)";
+                chargerLocalSecours();
+            }
+
+            afficher();
+            verifierArgentDePoche();
+        }
+
+        async function sauvegarder() {
+            // Toujours sauvegarder localement par sécurité
+            localStorage.setItem('budgetDataConnecte', JSON.stringify(data));
+            afficher();
+
+            if (!haUrl || !haToken) return;
+
+            document.getElementById('statut-synchro').innerText = "⏳ Envoi vers HA...";
+
+            // Récupérer d'abord l'ID de la tâche pour pouvoir la mettre à jour
+            try {
+                const urlNettoyee = haUrl.replace(/\/$/, "");
+                const reponse = await fetch(`${urlNettoyee}/api/services/todo/get_items`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${haToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ entity_id: "todo.application_budget" })
+                });
+                const resultat = await reponse.json();
+                const items = resultat[0]?.result?.["todo.application_budget"]?.items || [];
+                const tacheData = items.find(i => i.summary === "data_budget");
+
+                const jsonString = JSON.stringify(data);
+
+                if (tacheData) {
+                    // La tâche existe, on la met à jour avec le service todo.update_item
+                    await appelerAPI('todo', 'update_item', {
+                        entity_id: 'todo.application_budget',
+                        item: tacheData.uid,
+                        rename: 'data_budget',
+                        description: jsonString
+                    });
+                } else {
+                    // La tâche n'existe pas, on la crée avec todo.add_item
+                    await appelerAPI('todo', 'add_item', {
+                        entity_id: 'todo.application_budget',
+                        item: 'data_budget',
+                        description: jsonString
+                    });
+                }
+                document.getElementById('statut-synchro').innerText = "☁️ Sauvegardé sur HA";
+            } catch (e) {
+                document.getElementById('statut-synchro').innerText = "❌ Échec envoi HA (Sauvé en local)";
+            }
+        }
+
+        // --- FONCTIONS DE L'APPLICATION ---
+
         function verifierArgentDePoche() {
             const aujourdhui = new Date();
             const annee = aujourdhui.getFullYear();
@@ -50,7 +169,6 @@
             }
         }
 
-        // Obtenir le badge en fonction de la fortune totale locale
         function obtenirBadge(total) {
             if (total < 20) return { nom: "🌱 Écureuil Débutant", couleur: "#7f8c8d" };
             if (total < 70) return { nom: "🎯 Apprenti Épargnant", couleur: "#3498db" };
@@ -59,7 +177,6 @@
             return { nom: "👑 Maître du Budget", couleur: "#27ae60" };
         }
 
-        // Obtenir la couleur de la jauge selon le pourcentage
         function obtenirCouleurJauge(p) {
             if (p < 40) return "var(--orange)";
             if (p < 80) return "var(--blue)";
@@ -67,70 +184,45 @@
         }
 
         function afficher() {
-            // Calculs globaux
-            const totalObjectifs = data.objectifs.reduce((sum, obj) => sum + obj.courant, 0);
-            const fortuneTotale = data.solde + data.tirelire + totalObjectifs;
+            const fortuneTotale = data.solde + data.tirelire + (data.objectif_courant || 0);
 
             document.getElementById('solde').innerText = data.solde.toFixed(2) + " €";
             document.getElementById('tirelire').innerText = data.tirelire.toFixed(2) + " €";
+            document.getElementById('obj-val').innerText = (data.objectif_courant || 0).toFixed(2) + " €";
             
-            // Badge
+            document.getElementById('titre-objectif').innerText = "🎯 " + (data.nom_objectif || "Mon Objectif");
+            document.getElementById('obj-cible-text').innerText = "sur " + (data.cible_objectif || 50).toFixed(2) + " €";
+
+            let pourcentage = 0;
+            if (data.cible_objectif > 0) {
+                pourcentage = ((data.objectif_courant || 0) / data.cible_objectif) * 100;
+                if (pourcentage > 100) pourcentage = 100;
+            }
+            const barre = document.getElementById('barre-progression');
+            barre.style.width = pourcentage + "%";
+            barre.style.background = obtenirCouleurJauge(pourcentage);
+            document.getElementById('pourcentage-text').innerText = Math.round(pourcentage) + "%";
+
             const badge = obtenirBadge(fortuneTotale);
             const badgeEl = document.getElementById('badge-statut');
             badgeEl.innerText = badge.nom;
             badgeEl.style.backgroundColor = badge.couleur;
 
-            // Rendu des 3 objectifs
-            const containerObj = document.getElementById('container-objectifs');
-            containerObj.innerHTML = "";
-
-            data.objectifs.forEach((obj, index) => {
-                let pourcentage = obj.cible > 0 ? (obj.courant / obj.cible) * 100 : 0;
-                if (pourcentage > 100) pourcentage = 100;
-                const couleurBarre = obtenirCouleurJauge(pourcentage);
-
-                const card = document.createElement('div');
-                card.className = 'card objectif-card';
-                card.innerHTML = `
-                    <h3>🎯 ${obj.nom}</h3>
-                    <div class="montant">${obj.courant.toFixed(2)} €</div>
-                    <div class="progress-container">
-                        <div class="progress-bar" style="width: ${pourcentage}%; background: ${couleurBarre}"></div>
-                    </div>
-                    <div class="progress-info">
-                        <span>${Math.round(pourcentage)}%</span>
-                        <span>sur ${obj.cible.toFixed(2)} €</span>
-                    </div>
-                    <div class="btn-grid">
-                        <button style="background:var(--blue)" onclick="transfererVersObjectif(${index}, 1)">+ 1 €</button>
-                        <button style="background:var(--blue)" onclick="transfererVersObjectif(${index}, 5)">+ 5 €</button>
-                        <button style="background:var(--blue)" onclick="transfererVersObjectif(${index}, 10)">+ 10 €</button>
-                    </div>
-                    <div class="action-input">
-                        <input type="number" inputmode="decimal" id="input-obj-${index}" placeholder="Autre montant...">
-                        <button style="background:var(--blue); opacity: 0.9;" onclick="actionObjectifPerso(${index})">OK</button>
-                    </div>
-                    <button class="btn-retrait" style="background: var(--blue)" onclick="ouvrirRetrait('obj_${index}')">Récupérer pour acheter ↩</button>
-                `;
-                containerObj.appendChild(card);
-
-                // Remplir aussi le formulaire des paramètres
-                document.getElementById(`param-obj-nom-${index}`).value = obj.nom;
-                document.getElementById(`param-obj-cible-${index}`).value = obj.cible;
-            });
-
-            // Pré-remplir le solde global dans les réglages
+            // Pré-remplir réglages
             document.getElementById('param-solde').value = data.solde;
+            document.getElementById('param-nom-obj').value = data.nom_objectif || "";
+            document.getElementById('param-cible-obj').value = data.cible_objectif || 50;
+            document.getElementById('param-ha-url').value = haUrl;
+            document.getElementById('param-ha-token').value = haToken;
 
-            // Dates du jour par défaut
             const aujourdhuiIso = new Date().toISOString().split('T')[0];
             document.getElementById('depense-date').value = aujourdhuiIso;
             document.getElementById('gain-date').value = aujourdhuiIso;
 
-            // Historique
             const listeHistorique = document.getElementById('liste-historique');
             listeHistorique.innerHTML = "";
-            if (data.historique.length === 0) {
+            
+            if (!data.historique || data.historique.length === 0) {
                 listeHistorique.innerHTML = "<div class='vide'>Aucune opération enregistrée.</div>";
             } else {
                 [...data.historique].reverse().forEach(item => {
@@ -150,43 +242,6 @@
             }
         }
 
-        // Transferts vers Tirelire
-        function transfererTirelire(montant) {
-            const m = parseFloat(montant);
-            if (!m || m <= 0) return;
-            if (data.solde >= m) { data.solde -= m; data.tirelire += m; sauvegarder(); } 
-            else { alert("Solde insuffisant !"); }
-        }
-
-        function actionTirelirePerso() {
-            const input = document.getElementById('input-tirelire');
-            transfererTirelire(input.value);
-            input.value = '';
-        }
-
-        // Transferts vers Objectifs
-        function transfererVersObjectif(index, montant) {
-            const m = parseFloat(montant);
-            if (!m || m <= 0) return;
-            if (data.solde >= m) {
-                const obj = data.objectifs[index];
-                const ancienMontant = obj.courant;
-                data.solde -= m;
-                obj.courant += m;
-                sauvegarder();
-                if (obj.courant >= obj.cible && ancienMontant < obj.cible) {
-                    setTimeout(() => { alert(`🥳 BRAVO ! Tu as atteint ton objectif pour "${obj.nom}" (${obj.cible.toFixed(2)} €) ! 🎉🏆`); }, 400);
-                }
-            } else { alert("Solde insuffisant !"); }
-        }
-
-        function actionObjectifPerso(index) {
-            const input = document.getElementById(`input-obj-${index}`);
-            transfererVersObjectif(index, input.value);
-            input.value = '';
-        }
-
-        // Fenêtres Modales opérations de base
         function ouvrirGain() { document.getElementById('modal-gain').style.display = 'flex'; }
         function fermerGain() { document.getElementById('modal-gain').style.display = 'none'; }
         function enregistrerGain() {
@@ -214,19 +269,33 @@
                 document.getElementById('depense-montant').value = '';
                 document.getElementById('depense-desc').value = '';
                 sauvegarder(); fermerDepense();
-            } else { alert("Solde disponible insuffisant !"); }
+            } else { alert("Solde insuffisant !"); }
         }
 
-        // Retrait / Récupération d'argent
+        function transferer(cible, montant) {
+            const m = parseFloat(montant);
+            if (!m || m <= 0) return;
+            if (data.solde >= m) {
+                const ancien = data[cible] || 0;
+                data.solde -= m;
+                data[cible] = (data[cible] || 0) + m;
+                sauvegarder();
+                if (cible === 'objectif_courant' && data.objectif_courant >= data.cible_objectif && ancien < data.cible_objectif) {
+                    setTimeout(() => { alert(`🥳 BRAVO ! Tu as atteint ton objectif pour "${data.nom_objectif}" ! 🎉🏆`); }, 400);
+                }
+            } else { alert("Solde insuffisant !"); }
+        }
+
+        function actionEpargnePerso(cible, inputId) {
+            const input = document.getElementById(inputId);
+            transferer(cible, input.value);
+            input.value = '';
+        }
+
         function ouvrirRetrait(cible) {
             cibleRetraitEnCours = cible;
-            let nom = "la Tirelire";
-            let max = data.tirelire;
-            if (cible.startsWith('obj_')) {
-                const idx = parseInt(cible.split('_')[1]);
-                nom = `l'Objectif : ${data.objectifs[idx].nom}`;
-                max = data.objectifs[idx].courant;
-            }
+            const nom = cible === 'tirelire' ? "la Tirelire" : `l'Objectif (${data.nom_objectif})`;
+            const max = data[cible] || 0;
             document.getElementById('retrait-titre').innerText = `↩ Récupérer de ` + nom;
             document.getElementById('retrait-max').innerText = `Maximum disponible : ${max.toFixed(2)} €`;
             document.getElementById('retrait-montant').value = '';
@@ -236,78 +305,47 @@
         function validerRetrait() {
             const m = parseFloat(document.getElementById('retrait-montant').value);
             if (!m || m <= 0) { alert("Indique un montant valide."); return; }
-            
-            if (cibleRetraitEnCours === 'tirelire') {
-                if (m <= data.tirelire) { data.tirelire -= m; data.solde += m; } 
-                else { alert("Montant trop élevé !"); return; }
-            } else if (cibleRetraitEnCours.startsWith('obj_')) {
-                const idx = parseInt(cibleRetraitEnCours.split('_')[1]);
-                if (m <= data.objectifs[idx].courant) { data.objectifs[idx].courant -= m; data.solde += m; } 
-                else { alert("Montant trop élevé !"); return; }
-            }
-            sauvegarder(); fermerRetrait();
+            if (m <= (data[cibleRetraitEnCours] || 0)) {
+                data[cibleRetraitEnCours] -= m;
+                data.solde += m;
+                sauvegarder(); fermerRetrait();
+            } else { alert("Montant indisponible !"); }
         }
 
-        // Réglages & Config
         function ouvrirParametres() { document.getElementById('modal-parametres').style.display = 'flex'; }
         function fermerParametres() { document.getElementById('modal-parametres').style.display = 'none'; }
         function enregistrerParametres() {
             const nvSolde = parseFloat(document.getElementById('param-solde').value);
+            const nvNom = document.getElementById('param-nom-obj').value.trim();
+            const nvCible = parseFloat(document.getElementById('param-cible-obj').value);
+            
+            // Récupération des données HA
+            haUrl = document.getElementById('param-ha-url').value.trim();
+            haToken = document.getElementById('param-ha-token').value.trim();
+            localStorage.setItem('ha_url', haUrl);
+            localStorage.setItem('ha_token', haToken);
+
             if (!isNaN(nvSolde)) data.solde = nvSolde;
+            if (nvNom) data.nom_objectif = nvNom;
+            if (!isNaN(nvCible) && nvCible >= 0) data.cible_objectif = nvCible;
 
-            for (let i = 0; i < 3; i++) {
-                const n = document.getElementById(`param-obj-nom-${i}`).value.trim();
-                const c = parseFloat(document.getElementById(`param-obj-cible-${i}`).value);
-                if (n) data.objectifs[i].nom = n;
-                if (!isNaN(c) && c >= 0) data.objectifs[i].cible = c;
-            }
             sauvegarder(); fermerParametres();
+            // Tenter de rafraîchir ou re-valider la synchro après enregistrement
+            chargerDepuisHomeAssistant();
         }
 
-        // Sauvegarde fichiers (Export / Import)
-        function exporterDonnees() {
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: "text/plain;charset=utf-8" });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.download = "mon_budget_sauvegarde.txt";
-            link.click();
-        }
-        function declencherImportation() { document.getElementById('fichier-import').click(); }
-        function importerDonnees(event) {
-            const fichier = event.target.files[0];
-            if (!fichier) return;
-            if (prompt("🔒 Saisis le code PIN (1607) pour valider l'importation :") !== "1607") {
-                alert("❌ Code PIN incorrect. Importation annulée.");
-                event.target.value = ''; return;
-            }
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const parsed = JSON.parse(e.target.result);
-                    if (parsed && typeof parsed.solde === 'number' && Array.isArray(parsed.objectifs)) {
-                        data = parsed; sauvegarder(); alert("📥 Données importées avec succès !"); fermerParametres();
-                    } else { alert("❌ Fichier de sauvegarde invalide."); }
-                } catch (err) { alert("❌ Erreur lors de la lecture."); }
-            };
-            reader.readAsText(fichier);
-            event.target.value = '';
-        }
-
-        // Reinit globale
         function ouvrirSecuriteReinit() { document.getElementById('code-pincode').value = ''; document.getElementById('modal-securite').style.display = 'flex'; }
         function fermerSecuriteReinit() { document.getElementById('modal-securite').style.display = 'none'; }
         function validerReinitialiserTout() {
             if (document.getElementById('code-pincode').value === "1607") {
-                data = { solde: 0, tirelire: 0, dernier_mois_credit: "", historique: [], objectifs: [
-                    { id: 0, nom: "Mon Objectif 1", courant: 0, cible: 50 },
-                    { id: 1, nom: "Mon Objectif 2", courant: 0, cible: 100 },
-                    { id: 2, nom: "Mon Objectif 3", courant: 0, cible: 200 }
-                ]};
+                data = { solde: 0, tirelire: 0, objectif_courant: 0, nom_objectif: "Mon Objectif", cible_objectif: 50, dernier_mois_credit: "", historique: [] };
                 sauvegarder(); fermerSecuriteReinit(); fermerParametres(); alert("Application remise à zéro !");
             } else { alert("❌ Code PIN incorrect."); }
         }
 
-        window.onload = function() { afficher(); verifierArgentDePoche(); };
+        window.onload = function() {
+            chargerDepuisHomeAssistant();
+        };
     </script>
     <style>
         :root {
@@ -318,11 +356,12 @@
         .container { max-width: 450px; margin: 0 auto; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
         .header h1 { font-size: 1.5em; margin: 0; }
+        .synchro-status { font-size: 0.75em; color: #7f8c8d; text-align: center; margin-bottom: 10px; font-weight: 600;}
         .btn-param { background: none; border: none; font-size: 1.6em; cursor: pointer; color: #7f8c8d; }
         .card { background: var(--card-bg); padding: 20px; border-radius: 24px; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); }
-        .solde-card { background: linear-gradient(135deg, #1abc9c, #2ecc71); color: white; text-align: center; position: relative;}
+        .solde-card { background: linear-gradient(135deg, #1abc9c, #2ecc71); color: white; text-align: center; }
         .solde-card .montant { color: white; }
-        .badge { display: inline-block; padding: 5px 12px; border-radius: 20px; font-size: 0.8em; font-weight: bold; color: white; margin-top: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .badge { display: inline-block; padding: 5px 12px; border-radius: 20px; font-size: 0.8em; font-weight: bold; color: white; margin-top: 5px; }
         .tirelire-card { background-color: #ffe6d9; }
         .objectif-card { background-color: #dbeaff; }
         .montant { font-size: 2.2em; font-weight: 800; text-align: center; margin: 10px 0; }
@@ -362,11 +401,14 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Mon Budget Pro 💸</h1>
+            <h1>Mon Budget Connecté 💸</h1>
             <button class="btn-param" onclick="ouvrirParametres()">⚙️</button>
         </div>
+        
+        <!-- Indicateur de synchro cloud -->
+        <div class="synchro-status" id="statut-synchro">🔄 Initialisation...</div>
 
-        <!-- SOLDE GLOBAL ET BADGE -->
+        <!-- SOLDE GLOBAL -->
         <div class="card solde-card">
             <div style="font-weight: 600; opacity: 0.9;">Argent de poche disponible</div>
             <div class="montant" id="solde">0.00 €</div>
@@ -380,22 +422,42 @@
         
         <!-- TIRELIRE -->
         <div class="card tirelire-card">
-            <h3>🐷 Tirelire (Épargne globale)</h3>
+            <h3>🐷 Tirelire (Épargne)</h3>
             <div class="montant" id="tirelire">0.00 €</div>
             <div class="btn-grid">
-                <button style="background:var(--orange)" onclick="transfererTirelire(1)">+ 1 €</button>
-                <button style="background:var(--orange)" onclick="transfererTirelire(5)">+ 5 €</button>
-                <button style="background:var(--orange)" onclick="transfererTirelire(10)">+ 10 €</button>
+                <button style="background:var(--orange)" onclick="transferer('tirelire', 1)">+ 1 €</button>
+                <button style="background:var(--orange)" onclick="transferer('tirelire', 5)">+ 5 €</button>
+                <button style="background:var(--orange)" onclick="transferer('tirelire', 10)">+ 10 €</button>
             </div>
             <div class="action-input">
                 <input type="number" inputmode="decimal" id="input-tirelire" placeholder="Autre montant...">
-                <button style="background:var(--orange);" onclick="actionTirelirePerso()">OK</button>
+                <button style="background:var(--orange);" onclick="actionEpargnePerso('tirelire', 'input-tirelire')">OK</button>
             </div>
-            <button class="btn-retrait" style="background: var(--orange)" onclick="ouvrirRetrait('tirelire')">Récupérer de la tirelire ↩</button>
+            <button class="btn-retrait" style="background: var(--orange)" onclick="ouvrirRetrait('tirelire')">Récupérer de l'argent ↩</button>
         </div>
 
-        <!-- BLOC CONTENEUR DES 3 OBJECTIFS -->
-        <div id="container-objectifs"></div>
+        <!-- UNIQUE OBJECTIF -->
+        <div class="card objectif-card">
+            <h3 id="titre-objectif">🎯 Mon Objectif</h3>
+            <div class="montant" id="obj-val">0.00 €</div>
+            <div class="progress-container">
+                <div class="progress-bar" id="barre-progression"></div>
+            </div>
+            <div class="progress-info">
+                <span id="pourcentage-text">0%</span>
+                <span id="obj-cible-text">sur 50.00 €</span>
+            </div>
+            <div class="btn-grid">
+                <button style="background:var(--blue)" onclick="transferer('objectif_courant', 1)">+ 1 €</button>
+                <button style="background:var(--blue)" onclick="transferer('objectif_courant', 5)">+ 5 €</button>
+                <button style="background:var(--blue)" onclick="transferer('objectif_courant', 10)">+ 10 €</button>
+            </div>
+            <div class="action-input">
+                <input type="number" inputmode="decimal" id="input-objectif" placeholder="Autre montant...">
+                <button style="background:var(--blue);" onclick="actionEpargnePerso('objectif_courant', 'input-objectif')">OK</button>
+            </div>
+            <button class="btn-retrait" style="background: var(--blue)" onclick="ouvrirRetrait('objectif_courant')">Récupérer pour acheter ↩</button>
+        </div>
 
         <!-- HISTORIQUE -->
         <div class="card">
@@ -409,7 +471,7 @@
         <div class="modal-content">
             <h2>➕ Recevoir de l'argent</h2>
             <div class="form-group"><label>Montant reçu (€)</label><input type="number" inputmode="decimal" id="gain-montant"></div>
-            <div class="form-group"><label>Provenance / Raison</label><input type="text" id="gain-desc" placeholder="Ex: Anniversaire..."></div>
+            <div class="form-group"><label>Provenance</label><input type="text" id="gain-desc" placeholder="Ex: Argent de poche..."></div>
             <div class="form-group"><label>Date</label><input type="date" id="gain-date"></div>
             <div class="modal-actions">
                 <button class="btn-secondary" onclick="fermerGain()">Annuler</button>
@@ -423,7 +485,7 @@
         <div class="modal-content">
             <h2>🛒 Enregistrer un achat</h2>
             <div class="form-group"><label>Montant (€)</label><input type="number" inputmode="decimal" id="depense-montant"></div>
-            <div class="form-group"><label>Qu'as-tu acheté ?</label><input type="text" id="depense-desc" placeholder="Ex: Livre, Jeu..."></div>
+            <div class="form-group"><label>Qu'as-tu acheté ?</label><input type="text" id="depense-desc" placeholder="Ex: Glace..."></div>
             <div class="form-group"><label>Date</label><input type="date" id="depense-date"></div>
             <div class="modal-actions">
                 <button class="btn-secondary" onclick="fermerDepense()">Annuler</button>
@@ -435,9 +497,9 @@
     <!-- MODAL RETRAIT -->
     <div class="modal" id="modal-retrait">
         <div class="modal-content">
-            <h2 id="retrait-titre">↩ Récupérer de l'argent</h2>
+            <h2 id="retrait-titre">↩ Récupérer</h2>
             <div id="retrait-max" style="font-size: 0.9em; color: #7f8c8d; margin-bottom: 12px;"></div>
-            <div class="form-group"><label>Combien veux-tu retirer ? (€)</label><input type="number" inputmode="decimal" id="retrait-montant"></div>
+            <div class="form-group"><label>Montant à retirer (€)</label><input type="number" inputmode="decimal" id="retrait-montant"></div>
             <div class="modal-actions">
                 <button class="btn-secondary" onclick="fermerRetrait()">Annuler</button>
                 <button style="background: var(--primary);" onclick="validerRetrait()">Confirmer</button>
@@ -448,35 +510,22 @@
     <!-- MODAL PARAMETRES -->
     <div class="modal" id="modal-parametres">
         <div class="modal-content">
-            <h2>⚙️ Réglages complets</h2>
-            <div class="form-group"><label>Modifier Solde Poche (€)</label><input type="number" inputmode="decimal" id="param-solde"></div>
+            <h2>⚙️ Réglages & Synchro</h2>
+            <div class="form-group"><label>Modifier Solde (€)</label><input type="number" inputmode="decimal" id="param-solde"></div>
+            <div class="form-group"><label>Nom de l'objectif</label><input type="text" id="param-nom-obj"></div>
+            <div class="form-group"><label>Cible objectif (€)</label><input type="number" inputmode="decimal" id="param-cible-obj"></div>
 
-            <!-- Ajustements Objectifs -->
+            <!-- Configuration Synchro HA -->
             <div class="param-section">
-                <label style="font-weight: bold; display:block; margin-bottom: 8px;">🎯 Configuration des 3 Objectifs</label>
-                
-                <div style="background: #f8f9fa; padding: 10px; border-radius: 12px; margin-bottom: 8px;">
-                    <label style="font-size:0.8em;">Objectif 1 : Nom & Cible (€)</label>
-                    <div style="display:flex; gap: 5px;"><input type="text" id="param-obj-nom-0"><input type="number" id="param-obj-cible-0" style="width:80px;"></div>
+                <label style="font-weight: bold; display:block; margin-bottom: 8px;">☁️ Connexion Home Assistant</label>
+                <div class="form-group">
+                    <label>URL Nabu Casa (ex: https://xxx.ui.nabu.casa)</label>
+                    <input type="text" id="param-ha-url" placeholder="https://...">
                 </div>
-                <div style="background: #f8f9fa; padding: 10px; border-radius: 12px; margin-bottom: 8px;">
-                    <label style="font-size:0.8em;">Objectif 2 : Nom & Cible (€)</label>
-                    <div style="display:flex; gap: 5px;"><input type="text" id="param-obj-nom-1"><input type="number" id="param-obj-cible-1" style="width:80px;"></div>
+                <div class="form-group">
+                    <label>Jeton d'accès de longue durée (Token)</label>
+                    <input type="password" id="param-ha-token" placeholder="Coller le jeton HA...">
                 </div>
-                <div style="background: #f8f9fa; padding: 10px; border-radius: 12px;">
-                    <label style="font-size:0.8em;">Objectif 3 : Nom & Cible (€)</label>
-                    <div style="display:flex; gap: 5px;"><input type="text" id="param-obj-nom-2"><input type="number" id="param-obj-cible-2" style="width:80px;"></div>
-                </div>
-            </div>
-
-            <!-- Export / Import -->
-            <div class="param-section">
-                <label style="font-weight: 600; font-size: 0.9em; display:block; margin-bottom: 5px;">💾 Sauvegarde des fichiers</label>
-                <div style="display: flex; gap: 10px;">
-                    <button style="background: var(--blue); flex: 1; font-size:0.85em; padding: 10px;" onclick="exporterDonnees()">📥 Exporter</button>
-                    <button style="background: var(--orange); flex: 1; font-size:0.85em; padding: 10px;" onclick="declencherImportation()">📤 Importer</button>
-                </div>
-                <input type="file" id="fichier-import" accept=".txt" style="display: none;" onchange="importerDonnees(event)">
             </div>
 
             <!-- Reinit -->
@@ -495,7 +544,7 @@
     <div class="modal" id="modal-securite" style="z-index: 1100;">
         <div class="modal-content">
             <h2 style="color: var(--red);">🔒 Code de Sécurité</h2>
-            <p style="font-size: 0.85em; color: #5d6a6b; margin-bottom: 12px;">Saisis le code PIN secret pour réinitialiser l'application :</p>
+            <p style="font-size: 0.85em; color: #5d6a6b; margin-bottom: 12px;">Saisis le code PIN secret (1607) pour réinitialiser :</p>
             <div class="form-group"><input type="password" inputmode="numeric" id="code-pincode" maxlength="4" style="text-align: center; font-size: 1.4em; letter-spacing: 8px;"></div>
             <div class="modal-actions">
                 <button class="btn-secondary" onclick="fermerSecuriteReinit()">Annuler</button>
