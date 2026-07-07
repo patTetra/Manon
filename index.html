@@ -5,22 +5,42 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mon Budget</title>
     <script>
-        // Charger les données au démarrage avec de nouvelles variables pour l'objectif
+        // Charger les données au démarrage
         let data = JSON.parse(localStorage.getItem('budgetData')) || { 
             solde: 0, 
             tirelire: 0, 
             objectif_courant: 0,
             nom_objectif: "Mon Objectif",
-            cible_objectif: 50
+            cible_objectif: 50,
+            dernier_mois_credit: "" 
         };
 
-        // Compatibilité si les anciennes données n'avaient pas les nouveaux champs
+        // Compatibilité avec les anciennes sauvegardes
         if (!data.nom_objectif) data.nom_objectif = "Mon Objectif";
         if (!data.cible_objectif) data.cible_objectif = 50;
+        if (!data.dernier_mois_credit) data.dernier_mois_credit = "";
 
         function sauvegarder() {
             localStorage.setItem('budgetData', JSON.stringify(data));
             afficher();
+        }
+
+        // Argent de poche automatique (15€ tous les 1er du mois)
+        function verifierArgentDePoche() {
+            const aujourdhui = new Date();
+            const annee = aujourdhui.getFullYear();
+            const mois = String(aujourdhui.getMonth() + 1).padStart(2, '0');
+            const moisCourantStr = `${annee}-${mois}`;
+
+            if (data.dernier_mois_credit !== moisCourantStr) {
+                data.solde += 15;
+                data.dernier_mois_credit = moisCourantStr;
+                sauvegarder();
+                
+                setTimeout(() => {
+                    alert("🎉 C'est le nouveau mois ! Tes 15 € d'argent de poche ont été ajoutés à ton solde !");
+                }, 500);
+            }
         }
 
         function afficher() {
@@ -28,20 +48,18 @@
             document.getElementById('tirelire').innerText = data.tirelire.toFixed(2) + " €";
             document.getElementById('obj-val').innerText = data.objectif_courant.toFixed(2) + " €";
             
-            // Mise à jour des textes de l'objectif
             document.getElementById('titre-objectif').innerText = "🎯 " + data.nom_objectif;
             document.getElementById('obj-cible-text').innerText = "sur " + data.cible_objectif.toFixed(2) + " €";
 
-            // Calcul et mise à jour de la barre de progression
             let pourcentage = 0;
             if (data.cible_objectif > 0) {
                 pourcentage = (data.objectif_courant / data.cible_objectif) * 100;
-                if (pourcentage > 100) pourcentage = 100; // Capé à 100%
+                if (pourcentage > 100) pourcentage = 100;
             }
             document.getElementById('barre-progression').style.width = pourcentage + "%";
             document.getElementById('pourcentage-text').innerText = Math.round(pourcentage) + "%";
 
-            // Pré-remplir les champs des paramètres
+            // Pré-remplir les paramètres
             document.getElementById('param-solde').value = data.solde;
             document.getElementById('param-nom-obj').value = data.nom_objectif;
             document.getElementById('param-cible-obj').value = data.cible_objectif;
@@ -57,39 +75,61 @@
             sauvegarder();
         }
 
+        // Fonction générique pour transférer un montant fixe ou personnalisé
         function transferer(cible, montant) {
             const m = parseFloat(montant);
-            if (!m) return;
-            
-            if (montant > 0) {
-                if (data.solde >= m) {
-                    data.solde -= m;
-                    data[cible] += m;
-                } else {
-                    alert("Solde insuffisant pour mettre de côté !");
-                    return;
-                }
+            if (!m || m <= 0) return;
+
+            if (data.solde >= m) {
+                data.solde -= m;
+                data[cible] += m;
+                sauvegarder();
             } else {
-                const valeurAbsolue = Math.abs(m);
-                if (data[cible] >= valeurAbsolue) {
-                    data[cible] -= valeurAbsolue;
-                    data.solde += valeurAbsolue;
-                } else {
-                    alert("Il n'y a pas assez d'argent ici !");
-                    return;
-                }
+                alert("Solde insuffisant dans ton argent de poche !");
             }
-            sauvegarder();
         }
 
-        // Fonctions pour la fenêtre de paramètres
-        function ouvrirParametres() {
-            document.getElementById('modal-parametres').style.display = 'flex';
+        // Action spécifique pour le bouton de validation du montant personnalisé
+        function actionEpargnePerso(cible, inputId) {
+            const input = document.getElementById(inputId);
+            const montant = parseFloat(input.value);
+            if (!montant || montant <= 0) return;
+
+            if (data.solde >= montant) {
+                data.solde -= montant;
+                data[cible] += montant;
+                input.value = ''; // Vide la case
+                sauvegarder();
+            } else {
+                alert("Solde insuffisant dans ton argent de poche !");
+            }
         }
 
-        function fermerParametres() {
-            document.getElementById('modal-parametres').style.display = 'none';
+        // Action de récupération (retrait)
+        function recupererArgent(cible) {
+            const montantDispo = data[cible];
+            if (montantDispo <= 0) {
+                alert("Il n'y a pas d'argent à récupérer ici !");
+                return;
+            }
+
+            const saisie = prompt(`Combien veux-tu récupérer ? (Maximum disponible : ${montantDispo.toFixed(2)} €)`);
+            const montant = parseFloat(saisie);
+            
+            if (!montant || montant <= 0) return;
+
+            if (montant <= montantDispo) {
+                data[cible] -= montant;
+                data.solde += montant;
+                sauvegarder();
+            } else {
+                alert("Tu ne peux pas récupérer plus que ce que tu as !");
+            }
         }
+
+        // Paramètres
+        function ouvrirParametres() { document.getElementById('modal-parametres').style.display = 'flex'; }
+        function fermerParametres() { document.getElementById('modal-parametres').style.display = 'none'; }
 
         function enregistrerParametres() {
             const nvSolde = parseFloat(document.getElementById('param-solde').value);
@@ -104,7 +144,10 @@
             fermerParametres();
         }
 
-        window.onload = afficher;
+        window.onload = function() {
+            afficher();
+            verifierArgentDePoche();
+        };
     </script>
     <style>
         :root {
@@ -126,7 +169,6 @@
         
         .container { max-width: 450px; margin: 0 auto; position: relative; }
         
-        /* En-tête avec bouton paramètres */
         .header {
             display: flex;
             justify-content: space-between;
@@ -164,15 +206,13 @@
         
         h3 { margin-top: 0; margin-bottom: 5px; font-size: 1.2em; display: flex; align-items: center; gap: 8px;}
         
-        /* Barre de progression */
         .progress-container {
             background: #eee;
             border-radius: 10px;
             height: 14px;
             width: 100%;
-            margin: 10px 0;
+            margin: 10px 0 5px 0;
             overflow: hidden;
-            position: relative;
         }
         .progress-bar {
             background: var(--blue);
@@ -185,24 +225,25 @@
             justify-content: space-between;
             font-size: 0.85em;
             color: #7f8c8d;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
         }
-
-        .btn-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0; }
+        
+        .btn-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; }
         
         button { 
             border: none; 
-            padding: 12px 8px; 
+            padding: 12px 15px; 
             border-radius: 12px; 
             font-weight: bold; 
             color: white; 
             cursor: pointer; 
             font-size: 0.95em;
+            white-space: nowrap;
         }
         button:active { transform: scale(0.95); }
-        button.btn-retrait { background-color: #e74c3c !important; }
+        button.btn-retrait { background-color: #e74c3c; width: 100%; margin-top: 12px;}
         
-        .action-input { display: flex; gap: 8px; margin-top: 10px; }
+        .action-input { display: flex; gap: 8px; margin-top: 8px; }
         input { 
             flex: 1; 
             padding: 12px; 
@@ -211,11 +252,12 @@
             font-size: 1em;
             outline: none;
             box-sizing: border-box;
+            min-width: 0;
         }
         input:focus { border-color: var(--primary); }
         .btn-add { background: var(--text-main); }
 
-        /* Fenêtre Modale de Paramètres */
+        /* Modale */
         .modal {
             display: none;
             position: fixed;
@@ -233,7 +275,6 @@
             border-radius: 24px;
             width: 100%;
             max-width: 400px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
         }
         .modal-content h2 { margin-top: 0; font-size: 1.4em; margin-bottom: 20px;}
         .form-group { margin-bottom: 15px; }
@@ -245,39 +286,49 @@
 </head>
 <body>
     <div class="container">
+        <!-- EN-TETE -->
         <div class="header">
             <h1>Mon Budget 💸</h1>
             <button class="btn-param" onclick="ouvrirParametres()">⚙️</button>
         </div>
 
+        <!-- BLOC SOLDE -->
         <div class="card solde-card">
             <div style="text-align:center; font-weight: 600; opacity: 0.9;">Argent de poche disponible</div>
             <div class="montant" id="solde">0.00 €</div>
             
             <div class="action-input">
-                <input type="number" id="input-solde" placeholder="Ex: 10" min="0" step="any">
-                <button class="btn-add" onclick="ajouterSolde()">Ajouter</button>
+                <input type="number" inputmode="decimal" id="input-solde" placeholder="Ajouter de l'argent (Ex: 10)">
+                <button class="btn-add" onclick="ajouterSolde()">+ Ajouter</button>
             </div>
         </div>
         
+        <!-- BLOC TIRELIRE -->
         <div class="card">
             <h3><span>🐷</span> Tirelire (Épargne)</h3>
             <div class="montant" id="tirelire">0.00 €</div>
-            <div style="font-size: 0.85em; color: #7f8c8d; text-align: center;">Mettre de côté :</div>
+            
+            <!-- Boutons prédéfinis -->
             <div class="btn-grid">
                 <button style="background:var(--orange)" onclick="transferer('tirelire', 1)">+ 1 €</button>
                 <button style="background:var(--orange)" onclick="transferer('tirelire', 5)">+ 5 €</button>
                 <button style="background:var(--orange)" onclick="transferer('tirelire', 10)">+ 10 €</button>
             </div>
-            <div class="btn-grid" style="grid-template-columns: 1fr;">
-                <button class="btn-retrait" onclick="transferer('tirelire', -prompt('Combien veux-tu récupérer ?'))">Tout ou partie récupérer ↩</button>
+            
+            <!-- Saisie personnalisée numérique -->
+            <div class="action-input">
+                <input type="number" inputmode="decimal" id="input-tirelire" placeholder="Autre montant...">
+                <button style="background:var(--orange); opacity: 0.9;" onclick="actionEpargnePerso('tirelire', 'input-tirelire')">OK</button>
             </div>
+            <button class="btn-retrait" onclick="recupererArgent('tirelire')">Récupérer de l'argent ↩</button>
         </div>
 
+        <!-- BLOC OBJECTIF -->
         <div class="card">
             <h3 id="titre-objectif">🎯 Mon Objectif</h3>
             <div class="montant" id="obj-val">0.00 €</div>
             
+            <!-- Barre de progression -->
             <div class="progress-container">
                 <div class="progress-bar" id="barre-progression"></div>
             </div>
@@ -286,35 +337,40 @@
                 <span id="obj-cible-text">sur 50.00 €</span>
             </div>
 
-            <div style="font-size: 0.85em; color: #7f8c8d; text-align: center;">Ajouter au projet :</div>
+            <!-- Boutons prédéfinis -->
             <div class="btn-grid">
                 <button style="background:var(--blue)" onclick="transferer('objectif_courant', 1)">+ 1 €</button>
                 <button style="background:var(--blue)" onclick="transferer('objectif_courant', 5)">+ 5 €</button>
                 <button style="background:var(--blue)" onclick="transferer('objectif_courant', 10)">+ 10 €</button>
             </div>
-            <div class="btn-grid" style="grid-template-columns: 1fr;">
-                <button class="btn-retrait" onclick="transferer('objectif_courant', -prompt('Combien veux-tu récupérer ?'))">Récupérer pour acheter ↩</button>
+
+            <!-- Saisie personnalisée numérique -->
+            <div class="action-input">
+                <input type="number" inputmode="decimal" id="input-objectif" placeholder="Autre montant...">
+                <button style="background:var(--blue); opacity: 0.9;" onclick="actionEpargnePerso('objectif_courant', 'input-objectif')">OK</button>
             </div>
+            <button class="btn-retrait" onclick="recupererArgent('objectif_courant')">Récupérer pour acheter ↩</button>
         </div>
     </div>
 
+    <!-- MODAL PARAMETRES -->
     <div class="modal" id="modal-parametres">
         <div class="modal-content">
             <h2>⚙️ Réglages</h2>
             
             <div class="form-group">
                 <label for="param-solde">Modifier le Solde actuel (€)</label>
-                <input type="number" id="param-solde" step="any">
+                <input type="number" inputmode="decimal" id="param-solde">
             </div>
 
             <div class="form-group">
                 <label for="param-nom-obj">Nom de l'objectif</label>
-                <input type="text" id="param-nom-obj" placeholder="Ex: Vélo, Jeu vidéo...">
+                <input type="text" id="param-nom-obj">
             </div>
 
             <div class="form-group">
                 <label for="param-cible-obj">Montant de l'objectif à atteindre (€)</label>
-                <input type="number" id="param-cible-obj" min="0" step="any">
+                <input type="number" inputmode="decimal" id="param-cible-obj">
             </div>
 
             <div class="modal-actions">
