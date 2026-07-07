@@ -28,7 +28,7 @@
                 
                 const resultat = await reponse.json();
                 
-                // Extraction correcte des tâches depuis le retour direct du webhook
+                // CORRECTION ICI : Le webhook renvoie directement l'objet contenant "items"
                 const items = resultat.items || [];
                 const tacheData = items.find(i => i.summary === "data_budget");
 
