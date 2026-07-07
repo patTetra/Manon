@@ -13,10 +13,10 @@
             nom_objectif: "Mon Objectif",
             cible_objectif: 50,
             dernier_mois_credit: "",
-            historique: [] // Historique global (gains et dépenses)
+            historique: []
         };
 
-        // Variables temporaires pour savoir quelle cible on est en train de vider
+        // Variables temporaires
         let cibleRetraitEnCours = "";
 
         // Compatibilité avec les anciennes sauvegardes
@@ -25,7 +25,6 @@
         if (!data.dernier_mois_credit) data.dernier_mois_credit = "";
         if (!data.historique) {
             data.historique = [];
-            // Migration des anciennes dépenses vers le nouvel historique si nécessaire
             if (data.depenses) {
                 data.depenses.forEach(d => {
                     data.historique.push({ type: 'depense', montant: d.montant, desc: d.desc, date: d.date });
@@ -85,7 +84,7 @@
             document.getElementById('param-nom-obj').value = data.nom_objectif;
             document.getElementById('param-cible-obj').value = data.cible_objectif;
 
-            // Mettre à jour les dates par défaut des modales
+            // Mettre à jour les dates par défaut
             const aujourdhui = new Date().toISOString().split('T')[0];
             document.getElementById('depense-date').value = aujourdhui;
             document.getElementById('gain-date').value = aujourdhui;
@@ -121,7 +120,7 @@
 
         // Fenêtre Ajouter de l'argent
         function ouvrirGain() { document.getElementById('modal-gain').style.display = 'flex'; }
-        function fermerGain() { document.getElementById('modal-gain').style.none = 'none'; document.getElementById('modal-gain').style.display = 'none';}
+        function fermerGain() { document.getElementById('modal-gain').style.display = 'none'; }
         
         function enregistrerGain() {
             const inputMontant = document.getElementById('gain-montant');
@@ -264,8 +263,19 @@
             fermerParametres();
         }
 
-        function reinitialiserTout() {
-            if (confirm("⚠️ Es-tu sûr(e) de vouloir TOUT réinitialiser ? Cela va effacer le solde, la tirelire, l'objectif et TOUT l'historique !")) {
+        // Fonctions pour la sécurité de réinitialisation
+        function ouvrirSecuriteReinit() {
+            document.getElementById('code-pincode').value = '';
+            document.getElementById('modal-securite').style.display = 'flex';
+        }
+        function fermerSecuriteReinit() {
+            document.getElementById('modal-securite').style.display = 'none';
+        }
+
+        function validerReinitialiserTout() {
+            const pinSaisi = document.getElementById('code-pincode').value;
+            
+            if (pinSaisi === "1607") {
                 data = { 
                     solde: 0, 
                     tirelire: 0, 
@@ -276,8 +286,11 @@
                     historique: []
                 };
                 sauvegarder();
+                fermerSecuriteReinit();
                 fermerParametres();
-                alert("L'application a été remise à zéro !");
+                alert("L'application a été remise à zéro avec succès !");
+            } else {
+                alert("❌ Code PIN incorrect. Réinitialisation annulée.");
             }
         }
 
@@ -340,7 +353,6 @@
         }
         .solde-card .montant { color: white; }
 
-        /* Couleurs pastel plus soutenues et dynamiques */
         .tirelire-card { background-color: #ffe6d9; }
         .objectif-card { background-color: #dbeaff; }
         
@@ -385,7 +397,6 @@
         button:active { transform: scale(0.95); }
         button.btn-retrait { background-color: var(--red); width: 100%; margin-top: 12px;}
         
-        /* Boutons de la carte solde */
         .solde-actions { display: flex; gap: 10px; margin-top: 15px; }
         .solde-actions button { flex: 1; padding: 12px 10px; font-size: 0.9em; }
         button.btn-solde-action { background-color: rgba(255, 255, 255, 0.25); border: 1.5px solid white; }
@@ -405,7 +416,6 @@
         }
         input:focus { border-color: var(--text-main); }
 
-        /* Structure de l'historique unifié */
         .liste-historique { max-height: 280px; overflow-y: auto; margin-top: 10px; }
         .hist-item {
             display: flex;
@@ -512,7 +522,7 @@
             <button class="btn-retrait" style="background: var(--blue)" onclick="ouvrirRetrait('objectif_courant')">Récupérer pour acheter ↩</button>
         </div>
 
-        <!-- BLOC HISTORIQUE UNIQUE (ENTREES / SORTIES) -->
+        <!-- BLOC HISTORIQUE -->
         <div class="card">
             <h3><span>📊</span> Mon Historique (Suivi)</h3>
             <div class="liste-historique" id="liste-historique"></div>
@@ -523,22 +533,18 @@
     <div class="modal" id="modal-gain">
         <div class="modal-content">
             <h2>➕ Recevoir de l'argent</h2>
-            
             <div class="form-group">
                 <label for="gain-montant">Montant reçu (€)</label>
                 <input type="number" inputmode="decimal" id="gain-montant" placeholder="Ex: 10">
             </div>
-
             <div class="form-group">
                 <label for="gain-desc">D'où vient cet argent ? (Provenance)</label>
-                <input type="text" id="gain-desc" placeholder="Ex: Anniversaire, Tâche ménagère, Mamie...">
+                <input type="text" id="gain-desc" placeholder="Ex: Anniversaire, Tâche ménagère...">
             </div>
-
             <div class="form-group">
                 <label for="gain-date">Date de réception</label>
                 <input type="date" id="gain-date">
             </div>
-
             <div class="modal-actions">
                 <button style="background: #bdc3c7; color: #2d3436;" onclick="fermerGain()">Annuler</button>
                 <button style="background: var(--primary); color: white;" onclick="enregistrerGain()">Ajouter au solde</button>
@@ -551,12 +557,10 @@
         <div class="modal-content">
             <h2 id="retrait-titre">↩ Récupérer de l'argent</h2>
             <div id="retrait-max" style="font-size: 0.9em; color: #7f8c8d; margin-bottom: 15px;"></div>
-            
             <div class="form-group">
                 <label for="retrait-montant">Combien veux-tu récupérer ? (€)</label>
                 <input type="number" inputmode="decimal" id="retrait-montant" placeholder="Ex: 5">
             </div>
-
             <div class="modal-actions">
                 <button style="background: #bdc3c7; color: #2d3436;" onclick="fermerRetrait()">Annuler</button>
                 <button style="background: var(--primary); color: white;" onclick="validerRetrait()">Confirmer</button>
@@ -568,22 +572,18 @@
     <div class="modal" id="modal-depense">
         <div class="modal-content">
             <h2>🛒 Nouvel Achat</h2>
-            
             <div class="form-group">
                 <label for="depense-montant">Montant de la dépense (€)</label>
                 <input type="number" inputmode="decimal" id="depense-montant" placeholder="Ex: 4.50">
             </div>
-
             <div class="form-group">
                 <label for="depense-desc">Qu'as-tu acheté ? (Description)</label>
                 <input type="text" id="depense-desc" placeholder="Ex: Glace, Bande dessinée...">
             </div>
-
             <div class="form-group">
                 <label for="depense-date">Date de l'achat</label>
                 <input type="date" id="depense-date">
             </div>
-
             <div class="modal-actions">
                 <button style="background: #bdc3c7; color: #2d3436;" onclick="fermerDepense()">Annuler</button>
                 <button style="background: var(--red); color: white;" onclick="enregistrerDepense()">Valider l'achat</button>
@@ -595,29 +595,42 @@
     <div class="modal" id="modal-parametres">
         <div class="modal-content">
             <h2>⚙️ Réglages</h2>
-            
             <div class="form-group">
                 <label for="param-solde">Modifier le Solde actuel (€)</label>
                 <input type="number" inputmode="decimal" id="param-solde">
             </div>
-
             <div class="form-group">
                 <label for="param-nom-obj">Nom de l'objectif</label>
                 <input type="text" id="param-nom-obj">
             </div>
-
             <div class="form-group">
                 <label for="param-cible-obj">Montant de l'objectif à atteindre (€)</label>
                 <input type="number" inputmode="decimal" id="param-cible-obj">
             </div>
-
             <div style="margin-top: 25px; padding-top: 15px; border-top: 2px dashed #eee;">
-                <button style="background: var(--red); color: white; width: 100%;" onclick="reinitialiserTout()">⚠️ Tout Réinitialiser</button>
+                <button style="background: var(--red); color: white; width: 100%;" onclick="ouvrirSecuriteReinit()">⚠️ Tout Réinitialiser</button>
             </div>
-
             <div class="modal-actions" style="margin-top: 15px;">
                 <button style="background: #bdc3c7; color: #2d3436;" onclick="fermerParametres()">Fermer</button>
                 <button style="background: var(--primary); color: white;" onclick="enregistrerParametres()">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- NOUVELLE MODAL DE SECURITE (CODE PIN) -->
+    <div class="modal" id="modal-securite" style="z-index: 1100;">
+        <div class="modal-content">
+            <h2 style="color: var(--red);">🔒 Code de Sécurité</h2>
+            <p style="font-size: 0.9em; color: #5d6a6b; margin-bottom: 15px;">
+                La réinitialisation va effacer tout l'historique et remettre les compteurs à zéro. Saisis le code secret pour confirmer :
+            </p>
+            <div class="form-group">
+                <label for="code-pincode">Code PIN</label>
+                <input type="password" inputmode="numeric" id="code-pincode" pattern="[0-9]*" maxlength="4" placeholder="••••" style="text-align: center; font-size: 1.4em; letter-spacing: 10px;">
+            </div>
+            <div class="modal-actions">
+                <button style="background: #bdc3c7; color: #2d3436;" onclick="fermerSecuriteReinit()">Annuler</button>
+                <button style="background: var(--red); color: white;" onclick="validerReinitialiserTout()">Confirmer</button>
             </div>
         </div>
     </div>
