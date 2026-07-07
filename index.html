@@ -38,7 +38,7 @@
             afficher();
         }
 
-        // Argent de poche automatique (15€ tous les 1er du mois)
+        // Argent de poche automatique (15€ tous les mois)
         function verifierArgentDePoche() {
             const aujourdhui = new Date();
             const annee = aujourdhui.getFullYear();
@@ -46,13 +46,15 @@
             const moisCourantStr = `${annee}-${mois}`;
 
             if (data.dernier_mois_credit !== moisCourantStr) {
-                const dateIso = aujourdhui.toISOString().split('T')[0];
+                // On force la date au 1er du mois pour l'historique
+                const datePremierDuMois = `${annee}-${mois}-01`;
+                
                 data.solde += 15;
                 data.historique.push({
                     type: 'gain',
                     montant: 15,
                     desc: "💰 Argent de poche du mois",
-                    date: dateIso
+                    date: datePremierDuMois
                 });
                 data.dernier_mois_credit = moisCourantStr;
                 sauvegarder();
@@ -84,10 +86,10 @@
             document.getElementById('param-nom-obj').value = data.nom_objectif;
             document.getElementById('param-cible-obj').value = data.cible_objectif;
 
-            // Mettre à jour les dates par défaut
-            const aujourdhui = new Date().toISOString().split('T')[0];
-            document.getElementById('depense-date').value = aujourdhui;
-            document.getElementById('gain-date').value = aujourdhui;
+            // Mettre à jour les dates par défaut (aujourd'hui)
+            const aujourdhuiIso = new Date().toISOString().split('T')[0];
+            document.getElementById('depense-date').value = aujourdhuiIso;
+            document.getElementById('gain-date').value = aujourdhuiIso;
 
             // Afficher l'historique complet
             const listeHistorique = document.getElementById('liste-historique');
@@ -149,7 +151,7 @@
             if (cible === 'objectif_courant') {
                 if (data.objectif_courant >= data.cible_objectif && (data.objectif_courant - montantAjoute) < data.cible_objectif) {
                     setTimeout(() => {
-                        alert(`🥳 BRAVO ! Tu as atteint ton objectif pour "${data.nom_objectif}" (${data.cible_objectif.toFixed(2)} €) ! Tu peux être fière de toi ! 🎉🏆`);
+                        alert(`🥳 BRAVO ! Tu as atteint ton objectif pour "${data.nom_objectif}" (${data.cible_objectif.toFixed(2)} €) ! Tu peux être fier(e) de toi ! 🎉🏆`);
                     }, 400);
                 }
             }
@@ -617,7 +619,7 @@
         </div>
     </div>
 
-    <!-- NOUVELLE MODAL DE SECURITE (CODE PIN) -->
+    <!-- MODAL DE SECURITE (CODE PIN) -->
     <div class="modal" id="modal-securite" style="z-index: 1100;">
         <div class="modal-content">
             <h2 style="color: var(--red);">🔒 Code de Sécurité</h2>
