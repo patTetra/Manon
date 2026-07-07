@@ -27,7 +27,8 @@
                 });
                 
                 const resultat = await reponse.json();
-                // Extraction correcte des tâches depuis la réponse du Webhook HA
+                
+                // Extraction correcte des tâches depuis le retour direct du webhook
                 const items = resultat.items || [];
                 const tacheData = items.find(i => i.summary === "data_budget");
 
