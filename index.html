@@ -27,9 +27,29 @@
                 });
                 
                 const resultat = await reponse.json();
+                console.log("Réponse brute de HA :", resultat);
                 
-                // CORRECTION ICI : Le webhook renvoie directement l'objet contenant "items"
-                const items = resultat.items || [];
+                // RECHERCHE ULTRA-RESILIENTE DES ITEMS
+                let items = [];
+                if (resultat && Array.isArray(resultat.items)) {
+                    items = resultat.items;
+                } else if (resultat && resultat.retour_lire && Array.isArray(resultat.retour_lire.items)) {
+                    items = resultat.retour_lire.items;
+                } else if (resultat && resultat['todo.application_budget'] && Array.isArray(resultat['todo.application_budget'].items)) {
+                    items = resultat['todo.application_budget'].items;
+                } else if (resultat) {
+                    // Si HA a imbriqué les données ailleurs, on cherche le premier tableau disponible
+                    for (let cle in resultat) {
+                        if (resultat[cle] && Array.isArray(resultat[cle])) {
+                            items = resultat[cle];
+                            break;
+                        } else if (resultat[cle] && Array.isArray(resultat[cle].items)) {
+                            items = resultat[cle].items;
+                            break;
+                        }
+                    }
+                }
+
                 const tacheData = items.find(i => i.summary === "data_budget");
 
                 if (tacheData && tacheData.description) {
@@ -37,11 +57,11 @@
                     localStorage.setItem('budgetDataConnecte', JSON.stringify(data));
                     document.getElementById('statut-synchro').innerText = "☁️ Synchronisé avec HA";
                 } else {
-                    document.getElementById('statut-synchro').innerText = "⚠️ Tâche créée au prochain export";
+                    document.getElementById('statut-synchro').innerText = "⚠️ Tâche non trouvée (Créée au prochain export)";
                     chargerLocalSecours();
                 }
             } catch (e) {
-                console.error(e);
+                console.error("Erreur de synchro :", e);
                 document.getElementById('statut-synchro').innerText = "🔌 Mode Local (Hors ligne)";
                 chargerLocalSecours();
             }
