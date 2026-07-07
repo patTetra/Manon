@@ -12,13 +12,15 @@
             objectif_courant: 0,
             nom_objectif: "Mon Objectif",
             cible_objectif: 50,
-            dernier_mois_credit: "" 
+            dernier_mois_credit: "",
+            depenses: [] // Liste des dépenses stockées
         };
 
         // Compatibilité avec les anciennes sauvegardes
         if (!data.nom_objectif) data.nom_objectif = "Mon Objectif";
         if (!data.cible_objectif) data.cible_objectif = 50;
         if (!data.dernier_mois_credit) data.dernier_mois_credit = "";
+        if (!data.depenses) data.depenses = [];
 
         function sauvegarder() {
             localStorage.setItem('budgetData', JSON.stringify(data));
@@ -63,6 +65,36 @@
             document.getElementById('param-solde').value = data.solde;
             document.getElementById('param-nom-obj').value = data.nom_objectif;
             document.getElementById('param-cible-obj').value = data.cible_objectif;
+
+            // Mettre à jour la date du jour par défaut dans le formulaire de dépense
+            const aujourdhui = new Date().toISOString().split('T')[0];
+            document.getElementById('depense-date').value = aujourdhui;
+
+            // Afficher l'historique des dépenses
+            const listeDepenses = document.getElementById('liste-depenses');
+            listeDepenses.innerHTML = "";
+            
+            if (data.depenses.length === 0) {
+                listeDepenses.innerHTML = "<div class='vide'>Aucune dépense enregistrée pour le moment.</div>";
+            } else {
+                // On affiche du plus récent au plus ancien
+                const depensesInversees = [...data.depenses].reverse();
+                depensesInversees.forEach(dep => {
+                    // Formater la date en français (JJ/MM/AAAA)
+                    const dateFormatee = dep.date.split('-').reverse().join('/');
+                    
+                    const item = document.createElement('div');
+                    item.className = 'depense-item';
+                    item.innerHTML = `
+                        <div>
+                            <div class="depense-desc">${dep.desc}</div>
+                            <div class="depense-date">${dateFormatee}</div>
+                        </div>
+                        <div class="depense-montant">- ${dep.montant.toFixed(2)} €</div>
+                    `;
+                    listeDepenses.appendChild(item);
+                });
+            }
         }
 
         function ajouterSolde() {
@@ -75,7 +107,6 @@
             sauvegarder();
         }
 
-        // Fonction générique pour transférer un montant fixe ou personnalisé
         function transferer(cible, montant) {
             const m = parseFloat(montant);
             if (!m || m <= 0) return;
@@ -89,7 +120,6 @@
             }
         }
 
-        // Action spécifique pour le bouton de validation du montant personnalisé
         function actionEpargnePerso(cible, inputId) {
             const input = document.getElementById(inputId);
             const montant = parseFloat(input.value);
@@ -98,14 +128,13 @@
             if (data.solde >= montant) {
                 data.solde -= montant;
                 data[cible] += montant;
-                input.value = ''; // Vide la case
+                input.value = '';
                 sauvegarder();
             } else {
                 alert("Solde insuffisant dans ton argent de poche !");
             }
         }
 
-        // Action de récupération (retrait)
         function recupererArgent(cible) {
             const montantDispo = data[cible];
             if (montantDispo <= 0) {
@@ -127,6 +156,39 @@
             }
         }
 
+        // Dépenses
+        function ouvrirDepense() { document.getElementById('modal-depense').style.display = 'flex'; }
+        function fermerDepense() { document.getElementById('modal-depense').style.display = 'none'; }
+
+        function enregistrerDepense() {
+            const inputMontant = document.getElementById('depense-montant');
+            const inputDesc = document.getElementById('depense-desc');
+            const inputDate = document.getElementById('depense-date');
+
+            const montant = parseFloat(inputMontant.value);
+            const desc = inputDesc.value.trim();
+            const date = inputDate.value;
+
+            if (!montant || montant <= 0 || !desc || !date) {
+                alert("Remplis bien toutes les cases pour enregistrer la dépense !");
+                return;
+            }
+
+            if (data.solde >= montant) {
+                data.solde -= montant;
+                data.depenses.push({ montant, desc, date });
+                
+                // Réinitialiser les champs
+                inputMontant.value = '';
+                inputDesc.value = '';
+                
+                sauvegarder();
+                fermerDepense();
+            } else {
+                alert("Aïe ! Ton solde disponible est insuffisant pour faire cette dépense.");
+            }
+        }
+
         // Paramètres
         function ouvrirParametres() { document.getElementById('modal-parametres').style.display = 'flex'; }
         function fermerParametres() { document.getElementById('modal-parametres').style.display = 'none'; }
@@ -144,6 +206,24 @@
             fermerParametres();
         }
 
+        // Fonction de réinitialisation complète
+        function reinitialiserTout() {
+            if (confirm("⚠️ Es-tu sûr(e) de vouloir TOUT réinitialiser ? Cela va effacer le solde, la tirelire, l'objectif et TOUT l'historique des dépenses !")) {
+                data = { 
+                    solde: 0, 
+                    tirelire: 0, 
+                    objectif_courant: 0,
+                    nom_objectif: "Mon Objectif",
+                    cible_objectif: 50,
+                    dernier_mois_credit: "",
+                    depenses: []
+                };
+                sauvegarder();
+                fermerParametres();
+                alert("L'application a été remise à zéro !");
+            }
+        }
+
         window.onload = function() {
             afficher();
             verifierArgentDePoche();
@@ -157,6 +237,7 @@
             --primary: #2ecc71;
             --orange: #e67e22;
             --blue: #3498db;
+            --red: #e74c3c;
         }
         
         body { 
@@ -241,7 +322,9 @@
             white-space: nowrap;
         }
         button:active { transform: scale(0.95); }
-        button.btn-retrait { background-color: #e74c3c; width: 100%; margin-top: 12px;}
+        button.btn-retrait { background-color: var(--red); width: 100%; margin-top: 12px;}
+        button.btn-depense { background-color: rgba(255, 255, 255, 0.25); border: 1.5px solid white; width: 100%; margin-top: 15px;}
+        button.btn-depense:hover { background-color: rgba(255, 255, 255, 0.4); }
         
         .action-input { display: flex; gap: 8px; margin-top: 8px; }
         input { 
@@ -257,7 +340,22 @@
         input:focus { border-color: var(--primary); }
         .btn-add { background: var(--text-main); }
 
-        /* Modale */
+        /* Historique des dépenses */
+        .liste-historique { max-height: 250px; overflow-y: auto; margin-top: 10px; }
+        .depense-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #f1f2f6;
+        }
+        .depense-item:last-child { border-bottom: none; }
+        .depense-desc { font-weight: 600; font-size: 0.95em; }
+        .depense-date { font-size: 0.8em; color: #95a5a6; margin-top: 2px; }
+        .depense-montant { font-weight: 700; color: var(--red); font-size: 1em; }
+        .vide { text-align: center; color: #95a5a6; font-size: 0.9em; padding: 15px 0; }
+
+        /* Modales */
         .modal {
             display: none;
             position: fixed;
@@ -298,9 +396,12 @@
             <div class="montant" id="solde">0.00 €</div>
             
             <div class="action-input">
-                <input type="number" inputmode="decimal" id="input-solde" placeholder="Ajouter de l'argent (Ex: 10)">
+                <input type="number" inputmode="decimal" id="input-solde" placeholder="Ajouter de l'argent (Cadeau...)">
                 <button class="btn-add" onclick="ajouterSolde()">+ Ajouter</button>
             </div>
+            
+            <!-- Nouveau bouton pour enregistrer un achat -->
+            <button class="btn-depense" onclick="ouvrirDepense()">🛒 Enregistrer un achat (Dépense)</button>
         </div>
         
         <!-- BLOC TIRELIRE -->
@@ -308,19 +409,17 @@
             <h3><span>🐷</span> Tirelire (Épargne)</h3>
             <div class="montant" id="tirelire">0.00 €</div>
             
-            <!-- Boutons prédéfinis -->
             <div class="btn-grid">
                 <button style="background:var(--orange)" onclick="transferer('tirelire', 1)">+ 1 €</button>
                 <button style="background:var(--orange)" onclick="transferer('tirelire', 5)">+ 5 €</button>
                 <button style="background:var(--orange)" onclick="transferer('tirelire', 10)">+ 10 €</button>
             </div>
             
-            <!-- Saisie personnalisée numérique -->
             <div class="action-input">
                 <input type="number" inputmode="decimal" id="input-tirelire" placeholder="Autre montant...">
                 <button style="background:var(--orange); opacity: 0.9;" onclick="actionEpargnePerso('tirelire', 'input-tirelire')">OK</button>
             </div>
-            <button class="btn-retrait" onclick="recupererArgent('tirelire')">Récupérer de l'argent ↩</button>
+            <button class="btn-retrait" style="background: var(--orange)" onclick="recupererArgent('tirelire')">Récupérer de l'argent ↩</button>
         </div>
 
         <!-- BLOC OBJECTIF -->
@@ -328,7 +427,6 @@
             <h3 id="titre-objectif">🎯 Mon Objectif</h3>
             <div class="montant" id="obj-val">0.00 €</div>
             
-            <!-- Barre de progression -->
             <div class="progress-container">
                 <div class="progress-bar" id="barre-progression"></div>
             </div>
@@ -337,19 +435,52 @@
                 <span id="obj-cible-text">sur 50.00 €</span>
             </div>
 
-            <!-- Boutons prédéfinis -->
             <div class="btn-grid">
                 <button style="background:var(--blue)" onclick="transferer('objectif_courant', 1)">+ 1 €</button>
                 <button style="background:var(--blue)" onclick="transferer('objectif_courant', 5)">+ 5 €</button>
                 <button style="background:var(--blue)" onclick="transferer('objectif_courant', 10)">+ 10 €</button>
             </div>
 
-            <!-- Saisie personnalisée numérique -->
             <div class="action-input">
                 <input type="number" inputmode="decimal" id="input-objectif" placeholder="Autre montant...">
                 <button style="background:var(--blue); opacity: 0.9;" onclick="actionEpargnePerso('objectif_courant', 'input-objectif')">OK</button>
             </div>
-            <button class="btn-retrait" onclick="recupererArgent('objectif_courant')">Récupérer pour acheter ↩</button>
+            <button class="btn-retrait" style="background: var(--blue)" onclick="recupererArgent('objectif_courant')">Récupérer pour acheter ↩</button>
+        </div>
+
+        <!-- BLOC HISTORIQUE -->
+        <div class="card">
+            <h3><span>📜</span> Mes Achats (Historique)</h3>
+            <div class="liste-historique" id="liste-depenses">
+                <!-- Rempli automatiquement en JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL ENREGISTRER UNE DEPENSE -->
+    <div class="modal" id="modal-depense">
+        <div class="modal-content">
+            <h2>🛒 Nouvel Achat</h2>
+            
+            <div class="form-group">
+                <label for="depense-montant">Montant de la dépense (€)</label>
+                <input type="number" inputmode="decimal" id="depense-montant" placeholder="Ex: 4.50">
+            </div>
+
+            <div class="form-group">
+                <label for="depense-desc">Qu'as-tu acheté ? (Description)</label>
+                <input type="text" id="depense-desc" placeholder="Ex: Glace, Bande dessinée...">
+            </div>
+
+            <div class="form-group">
+                <label for="depense-date">Date de l'achat</label>
+                <input type="date" id="depense-date">
+            </div>
+
+            <div class="modal-actions">
+                <button style="background: #bdc3c7; color: #2d3436;" onclick="fermerDepense()">Annuler</button>
+                <button style="background: var(--red); color: white;" onclick="enregistrerDepense()">Valider l'achat</button>
+            </div>
         </div>
     </div>
 
@@ -373,8 +504,13 @@
                 <input type="number" inputmode="decimal" id="param-cible-obj">
             </div>
 
-            <div class="modal-actions">
-                <button style="background: #bdc3c7; color: #2d3436;" onclick="fermerParametres()">Annuler</button>
+            <!-- Bouton Tout Réinitialiser -->
+            <div style="margin-top: 25px; padding-top: 15px; border-top: 2px dashed #eee;">
+                <button style="background: var(--red); color: white; width: 100%;" onclick="reinitialiserTout()">⚠️ Tout Réinitialiser</button>
+            </div>
+
+            <div class="modal-actions" style="margin-top: 15px;">
+                <button style="background: #bdc3c7; color: #2d3436;" onclick="fermerParametres()">Fermer</button>
                 <button style="background: var(--primary); color: white;" onclick="enregistrerParametres()">Enregistrer</button>
             </div>
         </div>
