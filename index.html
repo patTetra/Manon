@@ -107,10 +107,8 @@
             sauvegarder();
         }
 
-        // Vérification du franchissement d'objectif
         function verifierObjectifAtteint(cible, montantAjoute) {
             if (cible === 'objectif_courant') {
-                // Si on vient d'atteindre ou dépasser la cible avec cet ajout
                 if (data.objectif_courant >= data.cible_objectif && (data.objectif_courant - montantAjoute) < data.cible_objectif) {
                     setTimeout(() => {
                         alert(`🥳 BRAVO ! Tu as atteint ton objectif pour "${data.nom_objectif}" (${data.cible_objectif.toFixed(2)} €) ! Tu peux être fière de toi ! 🎉🏆`);
@@ -149,7 +147,6 @@
             }
         }
 
-        // Ouvrir la nouvelle fenêtre de retrait personnalisée
         function ouvrirRetrait(cible) {
             cibleRetraitEnCours = cible;
             const nomAffichage = cible === 'tirelire' ? "la Tirelire" : `l'Objectif (${data.nom_objectif})`;
@@ -185,7 +182,6 @@
             }
         }
 
-        // Dépenses
         function ouvrirDepense() { document.getElementById('modal-depense').style.display = 'flex'; }
         function fermerDepense() { document.getElementById('modal-depense').style.display = 'none'; }
 
@@ -215,7 +211,6 @@
             }
         }
 
-        // Paramètres
         function ouvrirParametres() { document.getElementById('modal-parametres').style.display = 'flex'; }
         function fermerParametres() { document.getElementById('modal-parametres').style.display = 'none'; }
 
@@ -302,18 +297,27 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.04); 
         }
         
+        /* Personnalisation des fonds de cartes */
         .solde-card {
             background: linear-gradient(135deg, #1abc9c, #2ecc71);
             color: white;
         }
         .solde-card .montant { color: white; }
+
+        .tirelire-card {
+            background-color: #fff2ec; /* Orange/Rose pastel */
+        }
+
+        .objectif-card {
+            background-color: #ecf4ff; /* Bleu ciel pastel */
+        }
         
         .montant { font-size: 2.2em; font-weight: 800; color: var(--text-main); text-align: center; margin: 10px 0; }
         
         h3 { margin-top: 0; margin-bottom: 5px; font-size: 1.2em; display: flex; align-items: center; gap: 8px;}
         
         .progress-container {
-            background: #eee;
+            background: rgba(0, 0, 0, 0.06);
             border-radius: 10px;
             height: 14px;
             width: 100%;
@@ -361,6 +365,7 @@
             outline: none;
             box-sizing: border-box;
             min-width: 0;
+            background-color: white;
         }
         input:focus { border-color: var(--primary); }
         .btn-add { background: var(--text-main); }
@@ -371,7 +376,7 @@
             justify-content: space-between;
             align-items: center;
             padding: 10px 0;
-            border-bottom: 1px solid #f1f2f6;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
         }
         .depense-item:last-child { border-bottom: none; }
         .depense-desc { font-weight: 600; font-size: 0.95em; }
@@ -427,7 +432,7 @@
         </div>
         
         <!-- BLOC TIRELIRE -->
-        <div class="card">
+        <div class="card tirelire-card">
             <h3><span>🐷</span> Tirelire (Épargne)</h3>
             <div class="montant" id="tirelire">0.00 €</div>
             
@@ -445,7 +450,7 @@
         </div>
 
         <!-- BLOC OBJECTIF -->
-        <div class="card">
+        <div class="card objectif-card">
             <h3 id="titre-objectif">🎯 Mon Objectif</h3>
             <div class="montant" id="obj-val">0.00 €</div>
             
