@@ -3,57 +3,66 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mon Budget Connecté - Diagnostic</title>
+    <title>Mon Budget Connecté</title>
     <script>
         let data = { solde: 0, tirelire: 0, objectif_courant: 0, nom_objectif: "Mon Objectif", cible_objectif: 50, dernier_mois_credit: "", historique: [] };
         let haUrl = localStorage.getItem('ha_url') || "";
-        let haToken = localStorage.getItem('ha_token') || "";
+        let cibleRetraitEnCours = "";
 
         function chargerLocalSecours() {
             let localData = localStorage.getItem('budgetDataConnecte');
             if (localData) data = JSON.parse(localData);
         }
 
+        // Fonction pour éviter que l'application ne reste figée si HA ne répond pas
+        function fetchWithTimeout(url, options, timeout = 5000) {
+            return Promise.race([
+                fetch(url, options),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), timeout))
+            ]);
+        }
+
         async function chargerDepuisHomeAssistant() {
-            if (!haUrl) { chargerLocalSecours(); afficher(); return; }
-            const statutEl = document.getElementById('statut-synchro');
-            const diagEl = document.getElementById('erreur-diagnostic');
-            statutEl.innerText = "🔄 Tentative de connexion...";
-            diagEl.style.display = "none";
+            if (!haUrl) { chargerLocalSecours(); afficher(); verifierArgentDePoche(); return; }
+            document.getElementById('statut-synchro').innerText = "🔄 Synchronisation...";
             
             try {
                 const urlNettoyee = haUrl.replace(/\/$/, "");
+                const reponse = await fetchWithTimeout(`${urlNettoyee}/api/webhook/budget_app_synchro_secret_1607`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'lire' })
+                }, 6000);
                 
-                statutEl.innerText = "🔄 Test API REST...";
-                const reponse = await fetch(`${urlNettoyee}/api/states/todo.application_budget`, {
-                    method: 'GET',
-                    headers: { 
-                        'Authorization': `Bearer ${haToken}`,
-                        'Content-Type': 'application/json' 
-                    }
-                });
+                const resultat = await reponse.json();
+                console.log("Réponse de HA :", resultat);
                 
-                if (reponse.ok) {
-                    const etatEntite = await reponse.json();
-                    if (etatEntite.attributes && etatEntite.attributes.description) {
-                        data = JSON.parse(etatEntite.attributes.description);
-                        localStorage.setItem('budgetDataConnecte', JSON.stringify(data));
-                        statutEl.innerText = "☁️ Synchronisé (API REST)";
-                        afficher();
-                        return;
-                    }
-                } else {
-                    throw new Error(`Code erreur serveur : ${reponse.status} (${reponse.statusText})`);
+                // Extraction des données de la liste de tâches renvoyée par ton automatisation
+                let items = [];
+                if (resultat && Array.isArray(resultat.items)) {
+                    items = resultat.items;
+                } else if (resultat && resultat.retour_lire && Array.isArray(resultat.retour_lire.items)) {
+                    items = resultat.retour_lire.items;
+                } else if (resultat && resultat['todo.application_budget'] && Array.isArray(resultat['todo.application_budget'].items)) {
+                    items = resultat['todo.application_budget'].items;
                 }
 
+                const tacheData = items.find(i => i.summary === "data_budget");
+
+                if (tacheData && tacheData.description) {
+                    data = JSON.parse(tacheData.description);
+                    localStorage.setItem('budgetDataConnecte', JSON.stringify(data));
+                    document.getElementById('statut-synchro').innerText = "☁️ Synchronisé avec HA";
+                } else {
+                    document.getElementById('statut-synchro').innerText = "⚠️ Première synchro (Création au prochain export)";
+                    chargerLocalSecours();
+                }
             } catch (e) {
-                console.error(e);
-                statutEl.innerText = "🔌 Mode Local (Échec)";
-                diagEl.style.display = "block";
-                diagEl.innerText = `🔍 Erreur technique capturée : ${e.message}\n\n👉 Si l'erreur contient "Failed to fetch", c'est le CORS du navigateur qui bloque l'accès à Nabu Casa depuis un fichier local.`;
+                console.error("Erreur de synchro :", e);
+                document.getElementById('statut-synchro').innerText = "🔌 Mode Local (Hors ligne)";
                 chargerLocalSecours();
             }
-            afficher();
+            afficher(); verifierArgentDePoche();
         }
 
         async function sauvegarder() {
@@ -61,72 +70,326 @@
             afficher();
             if (!haUrl) return;
 
-            document.getElementById('statut-synchro').innerText = "⏳ Envoi...";
+            document.getElementById('statut-synchro').innerText = "⏳ Envoi vers HA...";
             try {
                 const urlNettoyee = haUrl.replace(/\/$/, "");
-                await fetch(`${urlNettoyee}/api/webhook/budget_app_synchro_secret_1607`, {
+                await fetchWithTimeout(`${urlNettoyee}/api/webhook/budget_app_synchro_secret_1607`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action: 'ecrire', data: JSON.stringify(data) })
-                });
+                }, 5000);
                 document.getElementById('statut-synchro').innerText = "☁️ Sauvegardé sur HA";
             } catch (e) {
-                document.getElementById('statut-synchro').innerText = "❌ Échec envoi";
+                document.getElementById('statut-synchro').innerText = "❌ Échec envoi (Sauvé en local)";
             }
         }
 
+        function verifierArgentDePoche() {
+            const aujourdhui = new Date();
+            const moisCourantStr = `${aujourdhui.getFullYear()}-${String(aujourdhui.getMonth() + 1).padStart(2, '0')}`;
+            if (data.dernier_mois_credit !== moisCourantStr) {
+                data.solde += 15;
+                data.historique.push({ type: 'gain', montant: 15, desc: "💰 Argent de poche du mois", date: `${aujourdhui.getFullYear()}-${String(aujourdhui.getMonth() + 1).padStart(2, '0')}-01` });
+                data.dernier_mois_credit = moisCourantStr;
+                sauvegarder();
+                setTimeout(() => { alert("🎉 Argent de poche du mois ajouté !"); }, 500);
+            }
+        }
+
+        function obtenirBadge(total) {
+            if (total < 20) return { nom: "🌱 Écureuil Débutant", couleur: "#7f8c8d" };
+            if (total < 70) return { nom: "🎯 Apprenti Épargnant", couleur: "#3498db" };
+            if (total < 150) return { nom: "🐷 Pro de la Tirelire", couleur: "#e67e22" };
+            if (total < 300) return { nom: "🏆 As du Trésor", couleur: "#9b59b6" };
+            return { nom: "👑 Maître du Budget", couleur: "#27ae60" };
+        }
+
         function afficher() {
+            const fortuneTotale = data.solde + data.tirelire + (data.objectif_courant || 0);
             document.getElementById('solde').innerText = data.solde.toFixed(2) + " €";
+            document.getElementById('tirelire').innerText = data.tirelire.toFixed(2) + " €";
+            document.getElementById('obj-val').innerText = (data.objectif_courant || 0).toFixed(2) + " €";
+            document.getElementById('titre-objectif').innerText = "🎯 " + (data.nom_objectif || "Mon Objectif");
+            document.getElementById('obj-cible-text').innerText = "sur " + (data.cible_objectif || 50).toFixed(2) + " €";
+
+            let pourcentage = data.cible_objectif > 0 ? ((data.objectif_courant || 0) / data.cible_objectif) * 100 : 0;
+            if (pourcentage > 100) pourcentage = 100;
+            const barre = document.getElementById('barre-progression');
+            barre.style.width = pourcentage + "%";
+            barre.style.background = pourcentage < 40 ? "var(--orange)" : (pourcentage < 80 ? "var(--blue)" : "var(--primary)");
+            document.getElementById('pourcentage-text').innerText = Math.round(pourcentage) + "%";
+
+            const badge = obtenirBadge(fortuneTotale);
+            const badgeEl = document.getElementById('badge-statut');
+            badgeEl.innerText = badge.nom; badgeEl.style.backgroundColor = badge.couleur;
+
+            document.getElementById('param-solde').value = data.solde;
+            document.getElementById('param-nom-obj').value = data.nom_objectif || "";
+            document.getElementById('param-cible-obj').value = data.cible_objectif || 50;
             document.getElementById('param-ha-url').value = haUrl;
-            document.getElementById('param-ha-token').value = haToken;
+
+            const aujourdhuiIso = new Date().toISOString().split('T')[0];
+            document.getElementById('depense-date').value = aujourdhuiIso;
+            document.getElementById('gain-date').value = aujourdhuiIso;
+
+            const listeHistorique = document.getElementById('liste-historique');
+            listeHistorique.innerHTML = "";
+            if (!data.historique || data.historique.length === 0) {
+                listeHistorique.innerHTML = "<div class='vide'>Aucune opération enregistrée.</div>";
+            } else {
+                [...data.historique].reverse().forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'hist-item';
+                    const estGain = item.type === 'gain';
+                    div.innerHTML = `<div><div class="hist-desc">${item.desc}</div><div class="hist-date">${item.date.split('-').reverse().join('/')}</div></div>
+                                    <div class="hist-montant ${estGain ? 'montant-plus' : 'montant-moins'}">${estGain ? '+' : '-'} ${item.montant.toFixed(2)} €</div>`;
+                    listeHistorique.appendChild(div);
+                });
+            }
+        }
+
+        function ouvrirGain() { document.getElementById('modal-gain').style.display = 'flex'; }
+        function fermerGain() { document.getElementById('modal-gain').style.display = 'none'; }
+        function enregistrerGain() {
+            const m = parseFloat(document.getElementById('gain-montant').value);
+            const d = document.getElementById('gain-desc').value.trim();
+            const dt = document.getElementById('gain-date').value;
+            if (!m || m <= 0 || !d || !dt) { alert("Remplis toutes les cases !"); return; }
+            data.solde += m; data.historique.push({ type: 'gain', montant: m, desc: d, date: dt });
+            document.getElementById('gain-montant').value = ''; document.getElementById('gain-desc').value = '';
+            sauvegarder(); fermerGain();
+        }
+
+        function ouvrirDepense() { document.getElementById('modal-depense').style.display = 'flex'; }
+        function fermerDepense() { document.getElementById('modal-depense').style.display = 'none'; }
+        function enregistrerDepense() {
+            const m = parseFloat(document.getElementById('depense-montant').value);
+            const d = document.getElementById('depense-desc').value.trim();
+            const dt = document.getElementById('depense-date').value;
+            if (!m || m <= 0 || !d || !dt) { alert("Remplis toutes les cases !"); return; }
+            if (data.solde >= m) {
+                data.solde -= m; data.historique.push({ type: 'depense', montant: m, desc: d, date: dt });
+                document.getElementById('depense-montant').value = ''; document.getElementById('depense-desc').value = '';
+                sauvegarder(); fermerDepense();
+            } else { alert("Solde insuffisant !"); }
+        }
+
+        function transferer(cible, montant) {
+            const m = parseFloat(montant);
+            if (!m || m <= 0) return;
+            if (data.solde >= m) {
+                const ancien = data[cible] || 0;
+                data.solde -= m; data[cible] = (data[cible] || 0) + m;
+                sauvegarder();
+                if (cible === 'objectif_courant' && data.objectif_courant >= data.cible_objectif && ancien < data.cible_objectif) {
+                    setTimeout(() => { alert(`🥳 Objectif "${data.nom_objectif}" atteint ! 🎉`); }, 400);
+                }
+            } else { alert("Solde insuffisant !"); }
+        }
+
+        function actionEpargnePerso(cible, inputId) {
+            const input = document.getElementById(inputId); transferer(cible, input.value); input.value = '';
+        }
+
+        function ouvrirRetrait(cible) {
+            cibleRetraitEnCours = cible;
+            document.getElementById('retrait-titre').innerText = `↩ Récupérer de ` + (cible === 'tirelire' ? "la Tirelire" : "l'Objectif");
+            document.getElementById('retrait-max').innerText = `Maximum disponible : ${(data[cible] || 0).toFixed(2)} €`;
+            document.getElementById('retrait-montant').value = ''; document.getElementById('modal-retrait').style.display = 'flex';
+        }
+        function fermerRetrait() { document.getElementById('modal-retrait').style.display = 'none'; }
+        function validerRetrait() {
+            const m = parseFloat(document.getElementById('retrait-montant').value);
+            if (!m || m <= 0) return;
+            if (m <= (data[cibleRetraitEnCours] || 0)) {
+                data[cibleRetraitEnCours] -= m; data.solde += m; sauvegarder(); fermerRetrait();
+            } else { alert("Montant indisponible !"); }
         }
 
         function ouvrirParametres() { document.getElementById('modal-parametres').style.display = 'flex'; }
         function fermerParametres() { document.getElementById('modal-parametres').style.display = 'none'; }
         function enregistrerParametres() {
+            const nvSolde = parseFloat(document.getElementById('param-solde').value);
+            const nvNom = document.getElementById('param-nom-obj').value.trim();
+            const nvCible = parseFloat(document.getElementById('param-cible-obj').value);
             haUrl = document.getElementById('param-ha-url').value.trim();
-            haToken = document.getElementById('param-ha-token').value.trim();
             localStorage.setItem('ha_url', haUrl);
-            localStorage.setItem('ha_token', haToken);
-            fermerParametres(); 
-            chargerDepuisHomeAssistant();
+
+            if (!isNaN(nvSolde)) data.solde = nvSolde;
+            if (nvNom) data.nom_objectif = nvNom;
+            if (!isNaN(nvCible) && nvCible >= 0) data.cible_objectif = nvCible;
+
+            sauvegarder(); fermerParametres(); chargerDepuisHomeAssistant();
+        }
+
+        function ouvrirSecuriteReinit() { document.getElementById('code-pincode').value = ''; document.getElementById('modal-securite').style.display = 'flex'; }
+        function fermerSecuriteReinit() { document.getElementById('modal-securite').style.display = 'none'; }
+        function validerReinitialiserTout() {
+            if (document.getElementById('code-pincode').value === "1607") {
+                data = { solde: 0, tirelire: 0, objectif_courant: 0, nom_objectif: "Mon Objectif", cible_objectif: 50, dernier_mois_credit: "", historique: [] };
+                sauvegarder(); fermerSecuriteReinit(); fermerParametres();
+            } else { alert("Code PIN incorrect."); }
         }
 
         window.onload = function() { chargerDepuisHomeAssistant(); };
     </script>
     <style>
-        body { font-family: sans-serif; background: #f0f2f5; padding: 20px; color: #333; }
-        .card { background: white; padding: 20px; border-radius: 12px; max-width: 400px; margin: 0 auto 15px auto; box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-align: center; }
-        .status { font-weight: bold; color: #e74c3c; margin: 10px 0; }
-        .diag { background: #fcedea; border: 1px solid #f5c2c2; color: #c0392b; padding: 12px; border-radius: 8px; text-align: left; font-family: monospace; font-size: 11px; white-space: pre-wrap; display: none; margin: 10px 0; }
-        button { background: #3498db; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; }
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
-        .modal-content { background: white; padding: 20px; border-radius: 12px; width: 90%; max-width: 350px; }
-        input { width: 100%; padding: 8px; margin: 8px 0; box-sizing: border-box; }
+        :root { --bg-color: #f7f9fa; --card-bg: #ffffff; --text-main: #2d3436; --primary: #2ecc71; --orange: #e67e22; --blue: #3498db; --red: #e74c3c; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg-color); padding: 15px; margin: 0; color: var(--text-main); }
+        .container { max-width: 450px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .header h1 { font-size: 1.5em; margin: 0; }
+        .synchro-status { font-size: 0.75em; color: #7f8c8d; text-align: center; margin-bottom: 10px; font-weight: 600;}
+        .btn-param { background: none; border: none; font-size: 1.6em; cursor: pointer; color: #7f8c8d; }
+        .card { background: var(--card-bg); padding: 20px; border-radius: 24px; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); }
+        .solde-card { background: linear-gradient(135deg, #1abc9c, #2ecc71); color: white; text-align: center; }
+        .solde-card .montant { color: white; }
+        .badge { display: inline-block; padding: 5px 12px; border-radius: 20px; font-size: 0.8em; font-weight: bold; color: white; margin-top: 5px; }
+        .tirelire-card { background-color: #ffe6d9; }
+        .objectif-card { background-color: #dbeaff; }
+        .montant { font-size: 2.2em; font-weight: 800; text-align: center; margin: 10px 0; }
+        h3 { margin-top: 0; margin-bottom: 5px; font-size: 1.15em; }
+        .progress-container { background: rgba(0, 0, 0, 0.08); border-radius: 10px; height: 12px; width: 100%; margin: 10px 0 5px 0; overflow: hidden; }
+        .progress-bar { height: 100%; width: 0%; transition: width 0.4s ease-out, background-color 0.4s; }
+        .progress-info { display: flex; justify-content: space-between; font-size: 0.85em; color: #5d6a6b; margin-bottom: 12px; }
+        .btn-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; }
+        button { border: none; padding: 12px; border-radius: 12px; font-weight: bold; color: white; cursor: pointer; font-size: 0.95em; }
+        button:active { transform: scale(0.96); }
+        button.btn-retrait { background-color: var(--red); width: 100%; margin-top: 10px; padding: 10px;}
+        .solde-actions { display: flex; gap: 10px; margin-top: 15px; }
+        .solde-actions button { flex: 1; background: rgba(255,255,255,0.25); border: 1.5px solid white; font-size: 0.9em; }
+        .action-input { display: flex; gap: 8px; margin-top: 8px; }
+        input { flex: 1; padding: 11px; border-radius: 12px; border: 2px solid #cbd5e1; font-size: 1em; outline: none; box-sizing: border-box; }
+        input:focus { border-color: var(--text-main); }
+        .liste-historique { max-height: 250px; overflow-y: auto; }
+        .hist-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(0,0,0,0.06); }
+        .hist-desc { font-weight: 600; font-size: 0.95em; }
+        .hist-date { font-size: 0.8em; color: #7f8c8d; }
+        .hist-montant { font-weight: 700; }
+        .montant-plus { color: #27ae60; }
+        .montant-moins { color: var(--red); }
+        .vide { text-align: center; color: #95a5a6; padding: 15px 0; font-size: 0.9em; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; padding: 15px; box-sizing: border-box; }
+        .modal-content { background: white; padding: 22px; border-radius: 24px; width: 100%; max-width: 400px; max-height: 85vh; overflow-y: auto; }
+        .modal-content h2 { margin-top: 0; font-size: 1.3em; margin-bottom: 15px; }
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; margin-bottom: 4px; font-weight: 600; font-size: 0.85em; }
+        .form-group input { width: 100%; }
+        .modal-actions { display: flex; gap: 10px; margin-top: 18px; }
+        .modal-actions button { flex: 1; }
+        .btn-secondary { background: #bdc3c7; color: #2d3436; }
+        .param-section { border-top: 1px solid #eee; margin-top: 15px; padding-top: 10px; }
     </style>
 </head>
 <body>
+    <div class="container">
+        <div class="header">
+            <h1>Mon Budget Connecté 💸</h1>
+            <button class="btn-param" onclick="ouvrirParametres()">⚙️</button>
+        </div>
+        <div class="synchro-status" id="statut-synchro">🔄 Initialisation...</div>
 
-    <div class="card">
-        <h2>Test de Connexion 🧪</h2>
-        <div id="statut-synchro" class="status">Initialisation...</div>
-        <div id="erreur-diagnostic" class="diag"></div>
-        <hr>
-        <p>Solde actuel : <span id="solde" style="font-weight: bold;">0.00 €</span></p>
-        <button onclick="ouvrirParametres()">⚙️ Configurer les accès</button>
+        <!-- SOLDE -->
+        <div class="card solde-card">
+            <div style="font-weight: 600; opacity: 0.9;">Argent de poche disponible</div>
+            <div class="montant" id="solde">0.00 €</div>
+            <div class="badge" id="badge-statut">🌱 Écureuil Débutant</div>
+            <div class="solde-actions"><button onclick="ouvrirGain()">➕ Recevoir</button><button onclick="ouvrirDepense()">🛒 Un Achat</button></div>
+        </div>
+        
+        <!-- TIRELIRE -->
+        <div class="card tirelire-card">
+            <h3>🐷 Tirelire (Épargne)</h3>
+            <div class="montant" id="tirelire">0.00 €</div>
+            <div class="btn-grid">
+                <button style="background:var(--orange)" onclick="transferer('tirelire', 1)">+ 1 €</button>
+                <button style="background:var(--orange)" onclick="transferer('tirelire', 5)">+ 5 €</button>
+                <button style="background:var(--orange)" onclick="transferer('tirelire', 10)">+ 10 €</button>
+            </div>
+            <div class="action-input">
+                <input type="number" inputmode="decimal" id="input-tirelire" placeholder="Autre montant...">
+                <button style="background:var(--orange);" onclick="actionEpargnePerso('tirelire', 'input-tirelire')">OK</button>
+            </div>
+            <button class="btn-retrait" style="background: var(--orange)" onclick="ouvrirRetrait('tirelire')">Récupérer de l'argent ↩</button>
+        </div>
+
+        <!-- OBJECTIF -->
+        <div class="card objectif-card">
+            <h3 id="titre-objectif">🎯 Mon Objectif</h3>
+            <div class="montant" id="obj-val">0.00 €</div>
+            <div class="progress-container"><div class="progress-bar" id="barre-progression"></div></div>
+            <div class="progress-info"><span id="pourcentage-text">0%</span><span id="obj-cible-text">sur 50.00 €</span></div>
+            <div class="btn-grid">
+                <button style="background:var(--blue)" onclick="transferer('objectif_courant', 1)">+ 1 €</button>
+                <button style="background:var(--blue)" onclick="transferer('objectif_courant', 5)">+ 5 €</button>
+                <button style="background:var(--blue)" onclick="transferer('objectif_courant', 10)">+ 10 €</button>
+            </div>
+            <div class="action-input">
+                <input type="number" inputmode="decimal" id="input-objectif" placeholder="Autre montant...">
+                <button style="background:var(--blue);" onclick="actionEpargnePerso('objectif_courant', 'input-objectif')">OK</button>
+            </div>
+            <button class="btn-retrait" style="background: var(--blue)" onclick="ouvrirRetrait('objectif_courant')">Récupérer pour acheter ↩</button>
+        </div>
+
+        <!-- HISTORIQUE -->
+        <div class="card"><h3>📊 Mon Historique</h3><div class="liste-historique" id="liste-historique"></div></div>
+    </div>
+
+    <!-- MODALS -->
+    <div class="modal" id="modal-gain">
+        <div class="modal-content">
+            <h2>➕ Recevoir</h2>
+            <div class="form-group"><label>Montant (€)</label><input type="number" inputmode="decimal" id="gain-montant"></div>
+            <div class="form-group"><label>Provenance</label><input type="text" id="gain-desc"></div>
+            <div class="form-group"><label>Date</label><input type="date" id="gain-date"></div>
+            <div class="modal-actions"><button class="btn-secondary" onclick="fermerGain()">Annuler</button><button style="background: var(--primary);" onclick="enregistrerGain()">Ajouter</button></div>
+        </div>
+    </div>
+
+    <div class="modal" id="modal-depense">
+        <div class="modal-content">
+            <h2>🛒 Un Achat</h2>
+            <div class="form-group"><label>Montant (€)</label><input type="number" inputmode="decimal" id="depense-montant"></div>
+            <div class="form-group"><label>Qu'as-tu acheté ?</label><input type="text" id="depense-desc"></div>
+            <div class="form-group"><label>Date</label><input type="date" id="depense-date"></div>
+            <div class="modal-actions"><button class="btn-secondary" onclick="fermerDepense()">Annuler</button><button style="background: var(--red);" onclick="enregistrerDepense()">Valider</button></div>
+        </div>
+    </div>
+
+    <div class="modal" id="modal-retrait">
+        <div class="modal-content">
+            <h2 id="retrait-titre">↩ Récupérer</h2>
+            <div id="retrait-max" style="font-size: 0.9em; color: #7f8c8d; margin-bottom: 12px;"></div>
+            <div class="form-group"><label>Montant (€)</label><input type="number" inputmode="decimal" id="retrait-montant"></div>
+            <div class="modal-actions"><button class="btn-secondary" onclick="fermerRetrait()">Annuler</button><button style="background: var(--primary);" onclick="validerRetrait()">Confirmer</button></div>
+        </div>
     </div>
 
     <!-- REGLAGES -->
     <div class="modal" id="modal-parametres">
         <div class="modal-content">
-            <h3>Configuration</h3>
-            <label>URL Nabu Casa :</label>
-            <input type="text" id="param-ha-url">
-            <label>Jeton (Token Long Terme) :</label>
-            <input type="password" id="param-ha-token">
-            <button onclick="enregistrerParametres()">Valider et Tester</button>
+            <h2>⚙️ Réglages & Synchro</h2>
+            <div class="form-group"><label>Modifier Solde (€)</label><input type="number" inputmode="decimal" id="param-solde"></div>
+            <div class="form-group"><label>Nom de l'objectif</label><input type="text" id="param-nom-obj"></div>
+            <div class="form-group"><label>Cible objectif (€)</label><input type="number" inputmode="decimal" id="param-cible-obj"></div>
+            <div class="param-section">
+                <label style="font-weight: bold; display:block; margin-bottom: 8px;">☁️ Connexion Home Assistant</label>
+                <div class="form-group">
+                    <label>URL Nabu Casa</label>
+                    <input type="text" id="param-ha-url" placeholder="https://xxx.ui.nabu.casa">
+                </div>
+            </div>
+            <div style="margin-top: 20px; border-top: 2px dashed #eee; padding-top: 10px;"><button style="background: var(--red); width: 100%;" onclick="ouvrirSecuriteReinit()">⚠️ Tout Réinitialiser</button></div>
+            <div class="modal-actions" style="margin-top: 15px;"><button class="btn-secondary" onclick="fermerParametres()">Fermer</button><button style="background: var(--primary);" onclick="enregistrerParametres()">Enregistrer</button></div>
         </div>
     </div>
 
+    <div class="modal" id="modal-securite" style="z-index: 1100;">
+        <div class="modal-content">
+            <h2 style="color: var(--red);">🔒 Code PIN (1607)</h2>
+            <div class="form-group"><input type="password" inputmode="numeric" id="code-pincode" maxlength="4" style="text-align: center; font-size: 1.4em;"></div>
+            <div class="modal-actions"><button class="btn-secondary" onclick="fermerSecuriteReinit()">Annuler</button><button style="background: var(--red);" onclick="validerReinitialiserTout()">Confirmer</button></div>
+        </div>
+    </div>
 </body>
 </html>
