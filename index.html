@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mon Budget Connecté</title>
+    <title>Mon Budget Connected</title>
     <script>
         let data = { solde: 0, tirelire: 0, objectif_courant: 0, nom_objectif: "Mon Objectif", cible_objectif: 50, dernier_mois_credit: "", historique: [] };
         let haUrl = localStorage.getItem('ha_url') || "";
@@ -33,7 +33,7 @@
                     body: JSON.stringify({ action: 'lire' })
                 }, 6000);
                 
-                const texteReponse = await reponse.text();
+                let texteReponse = await reponse.text();
                 console.log("Texte brut reçu de HA :", texteReponse);
                 
                 let resultat = null;
@@ -41,17 +41,24 @@
                     try {
                         resultat = JSON.parse(texteReponse);
                     } catch(e) {
-                        console.log("Erreur de parsing JSON discret, HA a renvoyé un format alternatif.");
+                        console.log("Erreur de parsing JSON global.");
                     }
                 }
                 
+                // Déballage robuste de la variable texte envoyée par HA
+                if (resultat && typeof resultat.retour_lire === 'string') {
+                    try {
+                        resultat.retour_lire = JSON.parse(resultat.retour_lire);
+                    } catch(e) {
+                        console.log("Erreur de décodage du sous-JSON.");
+                    }
+                }
+
                 let items = [];
-                if (resultat && Array.isArray(resultat.items)) {
+                if (resultat && resultat.retour_lire && resultat.retour_lire['todo.application_budget'] && Array.isArray(resultat.retour_lire['todo.application_budget'].items)) {
+                    items = resultat.retour_lire['todo.application_budget'].items;
+                } else if (resultat && resultat.items) {
                     items = resultat.items;
-                } else if (resultat && resultat.retour_lire && Array.isArray(resultat.retour_lire.items)) {
-                    items = resultat.retour_lire.items;
-                } else if (resultat && resultat['todo.application_budget'] && Array.isArray(resultat['todo.application_budget'].items)) {
-                    items = resultat['todo.application_budget'].items;
                 }
 
                 const tacheData = items.find(i => i.summary === "data_budget");
@@ -238,7 +245,15 @@
             } else { alert("Code PIN incorrect."); }
         }
 
-        window.onload = function() { chargerDepuisHomeAssistant(); };
+        window.onload = function() {
+            chargerDepuisHomeAssistant();
+            // Deuxième lecture de secours automatique après chargement si bloqué sur "Prêt"
+            setTimeout(() => {
+                if (document.getElementById('statut-synchro').innerText.includes("Prêt")) {
+                    chargerDepuisHomeAssistant();
+                }
+            }, 1500);
+        };
     </script>
     <style>
         :root { --bg-color: #f7f9fa; --card-bg: #ffffff; --text-main: #2d3436; --primary: #2ecc71; --orange: #e67e22; --blue: #3498db; --red: #e74c3c; }
