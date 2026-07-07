@@ -5,167 +5,74 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mon Budget Connecté</title>
     <script>
-        // Initialisation des données par défaut
-        let data = { 
-            solde: 0, 
-            tirelire: 0, 
-            objectif_courant: 0,
-            nom_objectif: "Mon Objectif",
-            cible_objectif: 50,
-            dernier_mois_credit: "",
-            historique: []
-        };
-
-        // Paramètres de connexion Home Assistant
+        let data = { solde: 0, tirelire: 0, objectif_courant: 0, nom_objectif: "Mon Objectif", cible_objectif: 50, dernier_mois_credit: "", historique: [] };
         let haUrl = localStorage.getItem('ha_url') || "";
-        let haToken = localStorage.getItem('ha_token') || "";
         let cibleRetraitEnCours = "";
 
-        // Charger localement en secours au démarrage
         function chargerLocalSecours() {
             let localData = localStorage.getItem('budgetDataConnecte');
-            if (localData) {
-                data = JSON.parse(localData);
-            }
-        }
-
-        // --- SYNCHRONISATION HOME ASSISTANT ---
-
-        async function appelerAPI(service, action, corps) {
-            if (!haUrl || !haToken) return null;
-            const urlNettoyee = haUrl.replace(/\/$/, ""); // Enlever le slash de fin si présent
-            try {
-                const reponse = await fetch(`${urlNettoyee}/api/services/${service}/${action}`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${haToken}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(corps)
-                });
-                return await reponse.json();
-            } catch (erreur) {
-                console.error("Erreur API Home Assistant:", erreur);
-                return null;
-            }
+            if (localData) data = JSON.parse(localData);
         }
 
         async function chargerDepuisHomeAssistant() {
-            if (!haUrl || !haToken) {
-                chargerLocalSecours();
-                afficher();
-                verifierArgentDePoche();
-                return;
-            }
-
+            if (!haUrl) { chargerLocalSecours(); afficher(); verifierArgentDePoche(); return; }
             document.getElementById('statut-synchro').innerText = "🔄 Synchronisation...";
             
-            // Étape 1: Récupérer les tâches de la liste "Application Budget"
-            // On utilise le service todo.get_items pour récupérer le contenu
             try {
                 const urlNettoyee = haUrl.replace(/\/$/, "");
-                const reponse = await fetch(`${urlNettoyee}/api/services/todo/get_items`, {
+                const reponse = await fetch(`${urlNettoyee}/api/webhook/budget_app_synchro_secret_1607`, {
                     method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${haToken}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ entity_id: "todo.application_budget" })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'lire' })
                 });
                 
                 const resultat = await reponse.json();
-                // Extraction des éléments de la liste
-                const items = resultat[0]?.result?.["todo.application_budget"]?.items || [];
+                const items = resultat.items || [];
                 const tacheData = items.find(i => i.summary === "data_budget");
 
                 if (tacheData && tacheData.description) {
-                    // On décode le JSON stocké dans la description de la tâche
                     data = JSON.parse(tacheData.description);
                     localStorage.setItem('budgetDataConnecte', JSON.stringify(data));
                     document.getElementById('statut-synchro').innerText = "☁️ Synchronisé avec HA";
                 } else {
-                    // Si la tâche n'existe pas encore ou est vide
-                    document.getElementById('statut-synchro').innerText = "⚠️ Tâche 'data_budget' introuvable, création au premier export";
+                    document.getElementById('statut-synchro').innerText = "⚠️ Tâche créée au prochain export";
                     chargerLocalSecours();
                 }
             } catch (e) {
-                console.error("Impossible de joindre HA, mode local activé.", e);
                 document.getElementById('statut-synchro').innerText = "🔌 Mode Local (Hors ligne)";
                 chargerLocalSecours();
             }
-
-            afficher();
-            verifierArgentDePoche();
+            afficher(); verifierArgentDePoche();
         }
 
         async function sauvegarder() {
-            // Toujours sauvegarder localement par sécurité
             localStorage.setItem('budgetDataConnecte', JSON.stringify(data));
             afficher();
-
-            if (!haUrl || !haToken) return;
+            if (!haUrl) return;
 
             document.getElementById('statut-synchro').innerText = "⏳ Envoi vers HA...";
-
-            // Récupérer d'abord l'ID de la tâche pour pouvoir la mettre à jour
             try {
                 const urlNettoyee = haUrl.replace(/\/$/, "");
-                const reponse = await fetch(`${urlNettoyee}/api/services/todo/get_items`, {
+                await fetch(`${urlNettoyee}/api/webhook/budget_app_synchro_secret_1607`, {
                     method: 'POST',
-                    headers: { 'Authorization': `Bearer ${haToken}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ entity_id: "todo.application_budget" })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'ecrire', data: JSON.stringify(data) })
                 });
-                const resultat = await reponse.json();
-                const items = resultat[0]?.result?.["todo.application_budget"]?.items || [];
-                const tacheData = items.find(i => i.summary === "data_budget");
-
-                const jsonString = JSON.stringify(data);
-
-                if (tacheData) {
-                    // La tâche existe, on la met à jour avec le service todo.update_item
-                    await appelerAPI('todo', 'update_item', {
-                        entity_id: 'todo.application_budget',
-                        item: tacheData.uid,
-                        rename: 'data_budget',
-                        description: jsonString
-                    });
-                } else {
-                    // La tâche n'existe pas, on la crée avec todo.add_item
-                    await appelerAPI('todo', 'add_item', {
-                        entity_id: 'todo.application_budget',
-                        item: 'data_budget',
-                        description: jsonString
-                    });
-                }
                 document.getElementById('statut-synchro').innerText = "☁️ Sauvegardé sur HA";
             } catch (e) {
-                document.getElementById('statut-synchro').innerText = "❌ Échec envoi HA (Sauvé en local)";
+                document.getElementById('statut-synchro').innerText = "❌ Échec envoi (Sauvé en local)";
             }
         }
 
-        // --- FONCTIONS DE L'APPLICATION ---
-
         function verifierArgentDePoche() {
             const aujourdhui = new Date();
-            const annee = aujourdhui.getFullYear();
-            const mois = String(aujourdhui.getMonth() + 1).padStart(2, '0');
-            const moisCourantStr = `${annee}-${mois}`;
-
+            const moisCourantStr = `${aujourdhui.getFullYear()}-${String(aujourdhui.getMonth() + 1).padStart(2, '0')}`;
             if (data.dernier_mois_credit !== moisCourantStr) {
-                const datePremierDuMois = `${annee}-${mois}-01`;
                 data.solde += 15;
-                data.historique.push({
-                    type: 'gain',
-                    montant: 15,
-                    desc: "💰 Argent de poche du mois",
-                    date: datePremierDuMois
-                });
+                data.historique.push({ type: 'gain', montant: 15, desc: "💰 Argent de poche du mois", date: `${aujourdhui.getFullYear()}-${String(aujourdhui.getMonth() + 1).padStart(2, '0')}-01` });
                 data.dernier_mois_credit = moisCourantStr;
                 sauvegarder();
-                
-                setTimeout(() => {
-                    alert("🎉 C'est le nouveau mois ! Tes 15 € d'argent de poche ont été ajoutés !");
-                }, 500);
+                setTimeout(() => { alert("🎉 Argent de poche du mois ajouté !"); }, 500);
             }
         }
 
@@ -177,43 +84,29 @@
             return { nom: "👑 Maître du Budget", couleur: "#27ae60" };
         }
 
-        function obtenirCouleurJauge(p) {
-            if (p < 40) return "var(--orange)";
-            if (p < 80) return "var(--blue)";
-            return "var(--primary)";
-        }
-
         function afficher() {
             const fortuneTotale = data.solde + data.tirelire + (data.objectif_courant || 0);
-
             document.getElementById('solde').innerText = data.solde.toFixed(2) + " €";
             document.getElementById('tirelire').innerText = data.tirelire.toFixed(2) + " €";
             document.getElementById('obj-val').innerText = (data.objectif_courant || 0).toFixed(2) + " €";
-            
             document.getElementById('titre-objectif').innerText = "🎯 " + (data.nom_objectif || "Mon Objectif");
             document.getElementById('obj-cible-text').innerText = "sur " + (data.cible_objectif || 50).toFixed(2) + " €";
 
-            let pourcentage = 0;
-            if (data.cible_objectif > 0) {
-                pourcentage = ((data.objectif_courant || 0) / data.cible_objectif) * 100;
-                if (pourcentage > 100) pourcentage = 100;
-            }
+            let pourcentage = data.cible_objectif > 0 ? ((data.objectif_courant || 0) / data.cible_objectif) * 100 : 0;
+            if (pourcentage > 100) pourcentage = 100;
             const barre = document.getElementById('barre-progression');
             barre.style.width = pourcentage + "%";
-            barre.style.background = obtenirCouleurJauge(pourcentage);
+            barre.style.background = pourcentage < 40 ? "var(--orange)" : (pourcentage < 80 ? "var(--blue)" : "var(--primary)");
             document.getElementById('pourcentage-text').innerText = Math.round(pourcentage) + "%";
 
             const badge = obtenirBadge(fortuneTotale);
             const badgeEl = document.getElementById('badge-statut');
-            badgeEl.innerText = badge.nom;
-            badgeEl.style.backgroundColor = badge.couleur;
+            badgeEl.innerText = badge.nom; badgeEl.style.backgroundColor = badge.couleur;
 
-            // Pré-remplir réglages
             document.getElementById('param-solde').value = data.solde;
             document.getElementById('param-nom-obj').value = data.nom_objectif || "";
             document.getElementById('param-cible-obj').value = data.cible_objectif || 50;
             document.getElementById('param-ha-url').value = haUrl;
-            document.getElementById('param-ha-token').value = haToken;
 
             const aujourdhuiIso = new Date().toISOString().split('T')[0];
             document.getElementById('depense-date').value = aujourdhuiIso;
@@ -221,22 +114,15 @@
 
             const listeHistorique = document.getElementById('liste-historique');
             listeHistorique.innerHTML = "";
-            
             if (!data.historique || data.historique.length === 0) {
                 listeHistorique.innerHTML = "<div class='vide'>Aucune opération enregistrée.</div>";
             } else {
                 [...data.historique].reverse().forEach(item => {
-                    const dateFormatee = item.date.split('-').reverse().join('/');
                     const div = document.createElement('div');
                     div.className = 'hist-item';
                     const estGain = item.type === 'gain';
-                    div.innerHTML = `
-                        <div>
-                            <div class="hist-desc">${item.desc}</div>
-                            <div class="hist-date">${dateFormatee}</div>
-                        </div>
-                        <div class="hist-montant ${estGain ? 'montant-plus' : 'montant-moins'}">${estGain ? '+' : '-'} ${item.montant.toFixed(2)} €</div>
-                    `;
+                    div.innerHTML = `<div><div class="hist-desc">${item.desc}</div><div class="hist-date">${item.date.split('-').reverse().join('/')}</div></div>
+                                    <div class="hist-montant ${estGain ? 'montant-plus' : 'montant-moins'}">${estGain ? '+' : '-'} ${item.montant.toFixed(2)} €</div>`;
                     listeHistorique.appendChild(div);
                 });
             }
@@ -249,10 +135,8 @@
             const d = document.getElementById('gain-desc').value.trim();
             const dt = document.getElementById('gain-date').value;
             if (!m || m <= 0 || !d || !dt) { alert("Remplis toutes les cases !"); return; }
-            data.solde += m;
-            data.historique.push({ type: 'gain', montant: m, desc: d, date: dt });
-            document.getElementById('gain-montant').value = '';
-            document.getElementById('gain-desc').value = '';
+            data.solde += m; data.historique.push({ type: 'gain', montant: m, desc: d, date: dt });
+            document.getElementById('gain-montant').value = ''; document.getElementById('gain-desc').value = '';
             sauvegarder(); fermerGain();
         }
 
@@ -264,10 +148,8 @@
             const dt = document.getElementById('depense-date').value;
             if (!m || m <= 0 || !d || !dt) { alert("Remplis toutes les cases !"); return; }
             if (data.solde >= m) {
-                data.solde -= m;
-                data.historique.push({ type: 'depense', montant: m, desc: d, date: dt });
-                document.getElementById('depense-montant').value = '';
-                document.getElementById('depense-desc').value = '';
+                data.solde -= m; data.historique.push({ type: 'depense', montant: m, desc: d, date: dt });
+                document.getElementById('depense-montant').value = ''; document.getElementById('depense-desc').value = '';
                 sauvegarder(); fermerDepense();
             } else { alert("Solde insuffisant !"); }
         }
@@ -277,38 +159,30 @@
             if (!m || m <= 0) return;
             if (data.solde >= m) {
                 const ancien = data[cible] || 0;
-                data.solde -= m;
-                data[cible] = (data[cible] || 0) + m;
+                data.solde -= m; data[cible] = (data[cible] || 0) + m;
                 sauvegarder();
                 if (cible === 'objectif_courant' && data.objectif_courant >= data.cible_objectif && ancien < data.cible_objectif) {
-                    setTimeout(() => { alert(`🥳 BRAVO ! Tu as atteint ton objectif pour "${data.nom_objectif}" ! 🎉🏆`); }, 400);
+                    setTimeout(() => { alert(`🥳 Objectif "${data.nom_objectif}" atteint ! 🎉`); }, 400);
                 }
             } else { alert("Solde insuffisant !"); }
         }
 
         function actionEpargnePerso(cible, inputId) {
-            const input = document.getElementById(inputId);
-            transferer(cible, input.value);
-            input.value = '';
+            const input = document.getElementById(inputId); transferer(cible, input.value); input.value = '';
         }
 
         function ouvrirRetrait(cible) {
             cibleRetraitEnCours = cible;
-            const nom = cible === 'tirelire' ? "la Tirelire" : `l'Objectif (${data.nom_objectif})`;
-            const max = data[cible] || 0;
-            document.getElementById('retrait-titre').innerText = `↩ Récupérer de ` + nom;
-            document.getElementById('retrait-max').innerText = `Maximum disponible : ${max.toFixed(2)} €`;
-            document.getElementById('retrait-montant').value = '';
-            document.getElementById('modal-retrait').style.display = 'flex';
+            document.getElementById('retrait-titre').innerText = `↩ Récupérer de ` + (cible === 'tirelire' ? "la Tirelire" : "l'Objectif");
+            document.getElementById('retrait-max').innerText = `Maximum disponible : ${(data[cible] || 0).toFixed(2)} €`;
+            document.getElementById('retrait-montant').value = ''; document.getElementById('modal-retrait').style.display = 'flex';
         }
         function fermerRetrait() { document.getElementById('modal-retrait').style.display = 'none'; }
         function validerRetrait() {
             const m = parseFloat(document.getElementById('retrait-montant').value);
-            if (!m || m <= 0) { alert("Indique un montant valide."); return; }
+            if (!m || m <= 0) return;
             if (m <= (data[cibleRetraitEnCours] || 0)) {
-                data[cibleRetraitEnCours] -= m;
-                data.solde += m;
-                sauvegarder(); fermerRetrait();
+                data[cibleRetraitEnCours] -= m; data.solde += m; sauvegarder(); fermerRetrait();
             } else { alert("Montant indisponible !"); }
         }
 
@@ -318,20 +192,14 @@
             const nvSolde = parseFloat(document.getElementById('param-solde').value);
             const nvNom = document.getElementById('param-nom-obj').value.trim();
             const nvCible = parseFloat(document.getElementById('param-cible-obj').value);
-            
-            // Récupération des données HA
             haUrl = document.getElementById('param-ha-url').value.trim();
-            haToken = document.getElementById('param-ha-token').value.trim();
             localStorage.setItem('ha_url', haUrl);
-            localStorage.setItem('ha_token', haToken);
 
             if (!isNaN(nvSolde)) data.solde = nvSolde;
             if (nvNom) data.nom_objectif = nvNom;
             if (!isNaN(nvCible) && nvCible >= 0) data.cible_objectif = nvCible;
 
-            sauvegarder(); fermerParametres();
-            // Tenter de rafraîchir ou re-valider la synchro après enregistrement
-            chargerDepuisHomeAssistant();
+            sauvegarder(); fermerParametres(); chargerDepuisHomeAssistant();
         }
 
         function ouvrirSecuriteReinit() { document.getElementById('code-pincode').value = ''; document.getElementById('modal-securite').style.display = 'flex'; }
@@ -339,20 +207,15 @@
         function validerReinitialiserTout() {
             if (document.getElementById('code-pincode').value === "1607") {
                 data = { solde: 0, tirelire: 0, objectif_courant: 0, nom_objectif: "Mon Objectif", cible_objectif: 50, dernier_mois_credit: "", historique: [] };
-                sauvegarder(); fermerSecuriteReinit(); fermerParametres(); alert("Application remise à zéro !");
-            } else { alert("❌ Code PIN incorrect."); }
+                sauvegarder(); fermerSecuriteReinit(); fermerParametres();
+            } else { alert("Code PIN incorrect."); }
         }
 
-        window.onload = function() {
-            chargerDepuisHomeAssistant();
-        };
+        window.onload = function() { chargerDepuisHomeAssistant(); };
     </script>
     <style>
-        :root {
-            --bg-color: #f7f9fa; --card-bg: #ffffff; --text-main: #2d3436;
-            --primary: #2ecc71; --orange: #e67e22; --blue: #3498db; --red: #e74c3c;
-        }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg-color); padding: 15px; margin: 0; color: var(--text-main); }
+        :root { --bg-color: #f7f9fa; --card-bg: #ffffff; --text-main: #2d3436; --primary: #2ecc71; --orange: #e67e22; --blue: #3498db; --red: #e74c3c; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg-color); padding: 15px; margin: 0; color: var(--text-main); }
         .container { max-width: 450px; margin: 0 auto; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
         .header h1 { font-size: 1.5em; margin: 0; }
@@ -404,20 +267,14 @@
             <h1>Mon Budget Connecté 💸</h1>
             <button class="btn-param" onclick="ouvrirParametres()">⚙️</button>
         </div>
-        
-        <!-- Indicateur de synchro cloud -->
         <div class="synchro-status" id="statut-synchro">🔄 Initialisation...</div>
 
-        <!-- SOLDE GLOBAL -->
+        <!-- SOLDE -->
         <div class="card solde-card">
             <div style="font-weight: 600; opacity: 0.9;">Argent de poche disponible</div>
             <div class="montant" id="solde">0.00 €</div>
             <div class="badge" id="badge-statut">🌱 Écureuil Débutant</div>
-            
-            <div class="solde-actions">
-                <button onclick="ouvrirGain()">➕ Recevoir</button>
-                <button onclick="ouvrirDepense()">🛒 Un Achat</button>
-            </div>
+            <div class="solde-actions"><button onclick="ouvrirGain()">➕ Recevoir</button><button onclick="ouvrirDepense()">🛒 Un Achat</button></div>
         </div>
         
         <!-- TIRELIRE -->
@@ -436,17 +293,12 @@
             <button class="btn-retrait" style="background: var(--orange)" onclick="ouvrirRetrait('tirelire')">Récupérer de l'argent ↩</button>
         </div>
 
-        <!-- UNIQUE OBJECTIF -->
+        <!-- OBJECTIF -->
         <div class="card objectif-card">
             <h3 id="titre-objectif">🎯 Mon Objectif</h3>
             <div class="montant" id="obj-val">0.00 €</div>
-            <div class="progress-container">
-                <div class="progress-bar" id="barre-progression"></div>
-            </div>
-            <div class="progress-info">
-                <span id="pourcentage-text">0%</span>
-                <span id="obj-cible-text">sur 50.00 €</span>
-            </div>
+            <div class="progress-container"><div class="progress-bar" id="barre-progression"></div></div>
+            <div class="progress-info"><span id="pourcentage-text">0%</span><span id="obj-cible-text">sur 50.00 €</span></div>
             <div class="btn-grid">
                 <button style="background:var(--blue)" onclick="transferer('objectif_courant', 1)">+ 1 €</button>
                 <button style="background:var(--blue)" onclick="transferer('objectif_courant', 5)">+ 5 €</button>
@@ -460,96 +312,60 @@
         </div>
 
         <!-- HISTORIQUE -->
-        <div class="card">
-            <h3>📊 Mon Historique</h3>
-            <div class="liste-historique" id="liste-historique"></div>
-        </div>
+        <div class="card"><h3>📊 Mon Historique</h3><div class="liste-historique" id="liste-historique"></div></div>
     </div>
 
-    <!-- MODAL RECEVOIR -->
+    <!-- MODALS (Gain, Depense, Retrait) -->
     <div class="modal" id="modal-gain">
         <div class="modal-content">
-            <h2>➕ Recevoir de l'argent</h2>
-            <div class="form-group"><label>Montant reçu (€)</label><input type="number" inputmode="decimal" id="gain-montant"></div>
-            <div class="form-group"><label>Provenance</label><input type="text" id="gain-desc" placeholder="Ex: Argent de poche..."></div>
+            <h2>➕ Recevoir</h2>
+            <div class="form-group"><label>Montant (€)</label><input type="number" inputmode="decimal" id="gain-montant"></div>
+            <div class="form-group"><label>Provenance</label><input type="text" id="gain-desc"></div>
             <div class="form-group"><label>Date</label><input type="date" id="gain-date"></div>
-            <div class="modal-actions">
-                <button class="btn-secondary" onclick="fermerGain()">Annuler</button>
-                <button style="background: var(--primary);" onclick="enregistrerGain()">Ajouter</button>
-            </div>
+            <div class="modal-actions"><button class="btn-secondary" onclick="fermerGain()">Annuler</button><button style="background: var(--primary);" onclick="enregistrerGain()">Ajouter</button></div>
         </div>
     </div>
 
-    <!-- MODAL ACHAT -->
     <div class="modal" id="modal-depense">
         <div class="modal-content">
-            <h2>🛒 Enregistrer un achat</h2>
+            <h2>🛒 Un Achat</h2>
             <div class="form-group"><label>Montant (€)</label><input type="number" inputmode="decimal" id="depense-montant"></div>
-            <div class="form-group"><label>Qu'as-tu acheté ?</label><input type="text" id="depense-desc" placeholder="Ex: Glace..."></div>
+            <div class="form-group"><label>Qu'as-tu acheté ?</label><input type="text" id="depense-desc"></div>
             <div class="form-group"><label>Date</label><input type="date" id="depense-date"></div>
-            <div class="modal-actions">
-                <button class="btn-secondary" onclick="fermerDepense()">Annuler</button>
-                <button style="background: var(--red);" onclick="enregistrerDepense()">Valider</button>
-            </div>
+            <div class="modal-actions"><button class="btn-secondary" onclick="fermerDepense()">Annuler</button><button style="background: var(--red);" onclick="enregistrerDepense()">Valider</button></div>
         </div>
     </div>
 
-    <!-- MODAL RETRAIT -->
     <div class="modal" id="modal-retrait">
         <div class="modal-content">
             <h2 id="retrait-titre">↩ Récupérer</h2>
             <div id="retrait-max" style="font-size: 0.9em; color: #7f8c8d; margin-bottom: 12px;"></div>
-            <div class="form-group"><label>Montant à retirer (€)</label><input type="number" inputmode="decimal" id="retrait-montant"></div>
-            <div class="modal-actions">
-                <button class="btn-secondary" onclick="fermerRetrait()">Annuler</button>
-                <button style="background: var(--primary);" onclick="validerRetrait()">Confirmer</button>
-            </div>
+            <div class="form-group"><label>Montant (€)</label><input type="number" inputmode="decimal" id="retrait-montant"></div>
+            <div class="modal-actions"><button class="btn-secondary" onclick="fermerRetrait()">Annuler</button><button style="background: var(--primary);" onclick="validerRetrait()">Confirmer</button></div>
         </div>
     </div>
 
-    <!-- MODAL PARAMETRES -->
+    <!-- REGLAGES -->
     <div class="modal" id="modal-parametres">
         <div class="modal-content">
             <h2>⚙️ Réglages & Synchro</h2>
             <div class="form-group"><label>Modifier Solde (€)</label><input type="number" inputmode="decimal" id="param-solde"></div>
             <div class="form-group"><label>Nom de l'objectif</label><input type="text" id="param-nom-obj"></div>
             <div class="form-group"><label>Cible objectif (€)</label><input type="number" inputmode="decimal" id="param-cible-obj"></div>
-
-            <!-- Configuration Synchro HA -->
             <div class="param-section">
-                <label style="font-weight: bold; display:block; margin-bottom: 8px;">☁️ Connexion Home Assistant</label>
-                <div class="form-group">
-                    <label>URL Nabu Casa (ex: https://xxx.ui.nabu.casa)</label>
-                    <input type="text" id="param-ha-url" placeholder="https://...">
-                </div>
-                <div class="form-group">
-                    <label>Jeton d'accès de longue durée (Token)</label>
-                    <input type="password" id="param-ha-token" placeholder="Coller le jeton HA...">
-                </div>
+                <label style="font-weight: bold; display:block; margin-bottom: 8px;">☁️ URL Nabu Casa (uniquement)</label>
+                <div class="form-group"><input type="text" id="param-ha-url" placeholder="https://xxx.ui.nabu.casa"></div>
             </div>
-
-            <!-- Reinit -->
-            <div style="margin-top: 20px; border-top: 2px dashed #eee; padding-top: 10px;">
-                <button style="background: var(--red); width: 100%;" onclick="ouvrirSecuriteReinit()">⚠️ Tout Réinitialiser</button>
-            </div>
-
-            <div class="modal-actions" style="margin-top: 15px;">
-                <button class="btn-secondary" onclick="fermerParametres()">Fermer</button>
-                <button style="background: var(--primary);" onclick="enregistrerParametres()">Enregistrer</button>
-            </div>
+            <div style="margin-top: 20px; border-top: 2px dashed #eee; padding-top: 10px;"><button style="background: var(--red); width: 100%;" onclick="ouvrirSecuriteReinit()">⚠️ Tout Réinitialiser</button></div>
+            <div class="modal-actions" style="margin-top: 15px;"><button class="btn-secondary" onclick="fermerParametres()">Fermer</button><button style="background: var(--primary);" onclick="enregistrerParametres()">Enregistrer</button></div>
         </div>
     </div>
 
-    <!-- CODE PIN SECURITE -->
     <div class="modal" id="modal-securite" style="z-index: 1100;">
         <div class="modal-content">
-            <h2 style="color: var(--red);">🔒 Code de Sécurité</h2>
-            <p style="font-size: 0.85em; color: #5d6a6b; margin-bottom: 12px;">Saisis le code PIN secret (1607) pour réinitialiser :</p>
-            <div class="form-group"><input type="password" inputmode="numeric" id="code-pincode" maxlength="4" style="text-align: center; font-size: 1.4em; letter-spacing: 8px;"></div>
-            <div class="modal-actions">
-                <button class="btn-secondary" onclick="fermerSecuriteReinit()">Annuler</button>
-                <button style="background: var(--red);" onclick="validerReinitialiserTout()">Confirmer</button>
-            </div>
+            <h2 style="color: var(--red);">🔒 Code PIN (1607)</h2>
+            <div class="form-group"><input type="password" inputmode="numeric" id="code-pincode" maxlength="4" style="text-align: center; font-size: 1.4em;"></div>
+            <div class="modal-actions"><button class="btn-secondary" onclick="fermerSecuriteReinit()">Annuler</button><button style="background: var(--red);" onclick="validerReinitialiserTout()">Confirmer</button></div>
         </div>
     </div>
 </body>
