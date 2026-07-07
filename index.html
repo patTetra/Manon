@@ -220,8 +220,11 @@
             }
         }
 
-        function ouvrirDepense() { document.getElementById('modal-depense').style.display = 'flex'; }
+        function abrirDepense() { document.getElementById('modal-depense').style.display = 'flex'; }
         function fermerDepense() { document.getElementById('modal-depense').style.display = 'none'; }
+        
+        // Alias au cas où l'orthographe change
+        function ouvrirDepense() { abrirDepense(); }
 
         function enregistrerDepense() {
             const inputMontant = document.getElementById('depense-montant');
@@ -263,6 +266,54 @@
 
             sauvegarder();
             fermerParametres();
+        }
+
+        // Fonctions d'exportation et d'importation
+        function exporterDonnees() {
+            const jsonString = JSON.stringify(data, null, 2);
+            const blob = new Blob([jsonString], { type: "text/plain;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = "mon_budget_sauvegarde.txt";
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function declencherImportation() {
+            document.getElementById('fichier-import').click();
+        }
+
+        function importerDonnees(event) {
+            const fichier = event.target.files[0];
+            if (!fichier) return;
+
+            const pinSaisi = prompt("🔒 Saisis le code PIN (1607) pour valider l'importation et remplacer les données existantes :");
+            if (pinSaisi !== "1607") {
+                alert("❌ Code PIN incorrect ou opération annulée. Importation refusée.");
+                event.target.value = ''; // Réinitialise l'input
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const donneesImportees = JSON.parse(e.target.result);
+                    // Vérification sommaire de la structure
+                    if (donneesImportees && typeof donneesImportees.solde === 'number' && Array.isArray(donneesImportees.historique)) {
+                        data = donneesImportees;
+                        sauvegarder();
+                        alert("📥 Données importées avec succès !");
+                        fermerParametres();
+                    } else {
+                        alert("❌ Le fichier choisi n'est pas une sauvegarde valide.");
+                    }
+                } catch (err) {
+                    alert("❌ Erreur lors de la lecture du fichier.");
+                }
+            };
+            reader.readAsText(fichier);
+            event.target.value = ''; // Réinitialise l'input
         }
 
         // Fonctions pour la sécurité de réinitialisation
@@ -452,6 +503,8 @@
             border-radius: 24px;
             width: 100%;
             max-width: 400px;
+            max-height: 90vh;
+            overflow-y: auto;
         }
         .modal-content h2 { margin-top: 0; font-size: 1.4em; margin-bottom: 15px;}
         .form-group { margin-bottom: 15px; }
@@ -459,6 +512,9 @@
         .form-group input { width: 100%; }
         .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
         .modal-actions button { flex: 1; }
+        
+        .btn-secondary { background: #bdc3c7; color: #2d3436; }
+        .btn-export-group { display: flex; gap: 10px; margin-top: 8px; }
     </style>
 </head>
 <body>
@@ -476,7 +532,7 @@
             
             <div class="solde-actions">
                 <button class="btn-solde-action" onclick="ouvrirGain()">➕ Recevoir Argent</button>
-                <button class="btn-solde-action" onclick="ouvrirDepense()">🛒 Enregistrer Achat</button>
+                <button class="btn-solde-action" onclick="abrirDepense()">🛒 Enregistrer Achat</button>
             </div>
         </div>
         
@@ -548,7 +604,7 @@
                 <input type="date" id="gain-date">
             </div>
             <div class="modal-actions">
-                <button style="background: #bdc3c7; color: #2d3436;" onclick="fermerGain()">Annuler</button>
+                <button class="btn-secondary" onclick="fermerGain()">Annuler</button>
                 <button style="background: var(--primary); color: white;" onclick="enregistrerGain()">Ajouter au solde</button>
             </div>
         </div>
@@ -564,7 +620,7 @@
                 <input type="number" inputmode="decimal" id="retrait-montant" placeholder="Ex: 5">
             </div>
             <div class="modal-actions">
-                <button style="background: #bdc3c7; color: #2d3436;" onclick="fermerRetrait()">Annuler</button>
+                <button class="btn-secondary" onclick="fermerRetrait()">Annuler</button>
                 <button style="background: var(--primary); color: white;" onclick="validerRetrait()">Confirmer</button>
             </div>
         </div>
@@ -587,7 +643,7 @@
                 <input type="date" id="depense-date">
             </div>
             <div class="modal-actions">
-                <button style="background: #bdc3c7; color: #2d3436;" onclick="fermerDepense()">Annuler</button>
+                <button class="btn-secondary" onclick="fermerDepense()">Annuler</button>
                 <button style="background: var(--red); color: white;" onclick="enregistrerDepense()">Valider l'achat</button>
             </div>
         </div>
@@ -609,11 +665,24 @@
                 <label for="param-cible-obj">Montant de l'objectif à atteindre (€)</label>
                 <input type="number" inputmode="decimal" id="param-cible-obj">
             </div>
+
+            <!-- SECTION EXPORT / IMPORT -->
+            <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9em;">💾 Sauvegarde des données</label>
+                <div class="btn-export-group">
+                    <button style="background: var(--blue); flex: 1; font-size: 0.85em; padding: 10px;" onclick="exporterDonnees()">📥 Exporter</button>
+                    <button style="background: var(--orange); flex: 1; font-size: 0.85em; padding: 10px;" onclick="declencherImportation()">📤 Importer</button>
+                </div>
+                <input type="file" id="fichier-import" accept=".txt" style="display: none;" onchange="importerDonnees(event)">
+            </div>
+
+            <!-- RESET -->
             <div style="margin-top: 25px; padding-top: 15px; border-top: 2px dashed #eee;">
                 <button style="background: var(--red); color: white; width: 100%;" onclick="ouvrirSecuriteReinit()">⚠️ Tout Réinitialiser</button>
             </div>
+
             <div class="modal-actions" style="margin-top: 15px;">
-                <button style="background: #bdc3c7; color: #2d3436;" onclick="fermerParametres()">Fermer</button>
+                <button class="btn-secondary" onclick="fermerParametres()">Fermer</button>
                 <button style="background: var(--primary); color: white;" onclick="enregistrerParametres()">Enregistrer</button>
             </div>
         </div>
@@ -631,7 +700,7 @@
                 <input type="password" inputmode="numeric" id="code-pincode" pattern="[0-9]*" maxlength="4" placeholder="••••" style="text-align: center; font-size: 1.4em; letter-spacing: 10px;">
             </div>
             <div class="modal-actions">
-                <button style="background: #bdc3c7; color: #2d3436;" onclick="fermerSecuriteReinit()">Annuler</button>
+                <button class="btn-secondary" onclick="fermerSecuriteReinit()">Annuler</button>
                 <button style="background: var(--red); color: white;" onclick="validerReinitialiserTout()">Confirmer</button>
             </div>
         </div>
