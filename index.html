@@ -13,8 +13,11 @@
             nom_objectif: "Mon Objectif",
             cible_objectif: 50,
             dernier_mois_credit: "",
-            depenses: [] // Liste des dépenses stockées
+            depenses: []
         };
+
+        // Variables temporaires pour savoir quelle cible on est en train de vider
+        let cibleRetraitEnCours = "";
 
         // Compatibilité avec les anciennes sauvegardes
         if (!data.nom_objectif) data.nom_objectif = "Mon Objectif";
@@ -66,7 +69,7 @@
             document.getElementById('param-nom-obj').value = data.nom_objectif;
             document.getElementById('param-cible-obj').value = data.cible_objectif;
 
-            // Mettre à jour la date du jour par défaut dans le formulaire de dépense
+            // Mettre à jour la date du jour par défaut
             const aujourdhui = new Date().toISOString().split('T')[0];
             document.getElementById('depense-date').value = aujourdhui;
 
@@ -77,12 +80,9 @@
             if (data.depenses.length === 0) {
                 listeDepenses.innerHTML = "<div class='vide'>Aucune dépense enregistrée pour le moment.</div>";
             } else {
-                // On affiche du plus récent au plus ancien
                 const depensesInversees = [...data.depenses].reverse();
                 depensesInversees.forEach(dep => {
-                    // Formater la date en français (JJ/MM/AAAA)
                     const dateFormatee = dep.date.split('-').reverse().join('/');
-                    
                     const item = document.createElement('div');
                     item.className = 'depense-item';
                     item.innerHTML = `
@@ -107,6 +107,18 @@
             sauvegarder();
         }
 
+        // Vérification du franchissement d'objectif
+        function verifierObjectifAtteint(cible, montantAjoute) {
+            if (cible === 'objectif_courant') {
+                // Si on vient d'atteindre ou dépasser la cible avec cet ajout
+                if (data.objectif_courant >= data.cible_objectif && (data.objectif_courant - montantAjoute) < data.cible_objectif) {
+                    setTimeout(() => {
+                        alert(`🥳 BRAVO ! Tu as atteint ton objectif pour "${data.nom_objectif}" (${data.cible_objectif.toFixed(2)} €) ! Tu peux être fière de toi ! 🎉🏆`);
+                    }, 400);
+                }
+            }
+        }
+
         function transferer(cible, montant) {
             const m = parseFloat(montant);
             if (!m || m <= 0) return;
@@ -115,6 +127,7 @@
                 data.solde -= m;
                 data[cible] += m;
                 sauvegarder();
+                verifierObjectifAtteint(cible, m);
             } else {
                 alert("Solde insuffisant dans ton argent de poche !");
             }
@@ -130,27 +143,43 @@
                 data[cible] += montant;
                 input.value = '';
                 sauvegarder();
+                verifierObjectifAtteint(cible, montant);
             } else {
                 alert("Solde insuffisant dans ton argent de poche !");
             }
         }
 
-        function recupererArgent(cible) {
-            const montantDispo = data[cible];
-            if (montantDispo <= 0) {
-                alert("Il n'y a pas d'argent à récupérer ici !");
+        // Ouvrir la nouvelle fenêtre de retrait personnalisée
+        function ouvrirRetrait(cible) {
+            cibleRetraitEnCours = cible;
+            const nomAffichage = cible === 'tirelire' ? "la Tirelire" : `l'Objectif (${data.nom_objectif})`;
+            const maxDispo = data[cible].toFixed(2);
+            
+            document.getElementById('retrait-titre').innerText = `↩ Récupérer de ` + nomAffichage;
+            document.getElementById('retrait-max').innerText = `Maximum disponible : ${maxDispo} €`;
+            document.getElementById('retrait-montant').value = '';
+            document.getElementById('modal-retrait').style.display = 'flex';
+        }
+
+        function fermerRetrait() {
+            document.getElementById('modal-retrait').style.display = 'none';
+        }
+
+        function validerRetrait() {
+            const input = document.getElementById('retrait-montant');
+            const montant = parseFloat(input.value);
+            const montantDispo = data[cibleRetraitEnCours];
+
+            if (!montant || montant <= 0) {
+                alert("Indique un montant valide à récupérer.");
                 return;
             }
 
-            const saisie = prompt(`Combien veux-tu récupérer ? (Maximum disponible : ${montantDispo.toFixed(2)} €)`);
-            const montant = parseFloat(saisie);
-            
-            if (!montant || montant <= 0) return;
-
             if (montant <= montantDispo) {
-                data[cible] -= montant;
+                data[cibleRetraitEnCours] -= montant;
                 data.solde += montant;
                 sauvegarder();
+                fermerRetrait();
             } else {
                 alert("Tu ne peux pas récupérer plus que ce que tu as !");
             }
@@ -177,11 +206,8 @@
             if (data.solde >= montant) {
                 data.solde -= montant;
                 data.depenses.push({ montant, desc, date });
-                
-                // Réinitialiser les champs
                 inputMontant.value = '';
                 inputDesc.value = '';
-                
                 sauvegarder();
                 fermerDepense();
             } else {
@@ -206,7 +232,6 @@
             fermerParametres();
         }
 
-        // Fonction de réinitialisation complète
         function reinitialiserTout() {
             if (confirm("⚠️ Es-tu sûr(e) de vouloir TOUT réinitialiser ? Cela va effacer le solde, la tirelire, l'objectif et TOUT l'historique des dépenses !")) {
                 data = { 
@@ -340,7 +365,6 @@
         input:focus { border-color: var(--primary); }
         .btn-add { background: var(--text-main); }
 
-        /* Historique des dépenses */
         .liste-historique { max-height: 250px; overflow-y: auto; margin-top: 10px; }
         .depense-item {
             display: flex;
@@ -374,7 +398,7 @@
             width: 100%;
             max-width: 400px;
         }
-        .modal-content h2 { margin-top: 0; font-size: 1.4em; margin-bottom: 20px;}
+        .modal-content h2 { margin-top: 0; font-size: 1.4em; margin-bottom: 10px;}
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9em; }
         .form-group input { width: 100%; }
@@ -399,8 +423,6 @@
                 <input type="number" inputmode="decimal" id="input-solde" placeholder="Ajouter de l'argent (Cadeau...)">
                 <button class="btn-add" onclick="ajouterSolde()">+ Ajouter</button>
             </div>
-            
-            <!-- Nouveau bouton pour enregistrer un achat -->
             <button class="btn-depense" onclick="ouvrirDepense()">🛒 Enregistrer un achat (Dépense)</button>
         </div>
         
@@ -419,7 +441,7 @@
                 <input type="number" inputmode="decimal" id="input-tirelire" placeholder="Autre montant...">
                 <button style="background:var(--orange); opacity: 0.9;" onclick="actionEpargnePerso('tirelire', 'input-tirelire')">OK</button>
             </div>
-            <button class="btn-retrait" style="background: var(--orange)" onclick="recupererArgent('tirelire')">Récupérer de l'argent ↩</button>
+            <button class="btn-retrait" style="background: var(--orange)" onclick="ouvrirRetrait('tirelire')">Récupérer de l'argent ↩</button>
         </div>
 
         <!-- BLOC OBJECTIF -->
@@ -445,14 +467,30 @@
                 <input type="number" inputmode="decimal" id="input-objectif" placeholder="Autre montant...">
                 <button style="background:var(--blue); opacity: 0.9;" onclick="actionEpargnePerso('objectif_courant', 'input-objectif')">OK</button>
             </div>
-            <button class="btn-retrait" style="background: var(--blue)" onclick="recupererArgent('objectif_courant')">Récupérer pour acheter ↩</button>
+            <button class="btn-retrait" style="background: var(--blue)" onclick="ouvrirRetrait('objectif_courant')">Récupérer pour acheter ↩</button>
         </div>
 
         <!-- BLOC HISTORIQUE -->
         <div class="card">
             <h3><span>📜</span> Mes Achats (Historique)</h3>
-            <div class="liste-historique" id="liste-depenses">
-                <!-- Rempli automatiquement en JS -->
+            <div class="liste-historique" id="liste-depenses"></div>
+        </div>
+    </div>
+
+    <!-- NOUVELLE MODAL RECUPERER / RETRAIT (NUMERIQUE) -->
+    <div class="modal" id="modal-retrait">
+        <div class="modal-content">
+            <h2 id="retrait-titre">↩ Récupérer de l'argent</h2>
+            <div id="retrait-max" style="font-size: 0.9em; color: #7f8c8d; margin-bottom: 15px;"></div>
+            
+            <div class="form-group">
+                <label for="retrait-montant">Combien veux-tu récupérer ? (€)</label>
+                <input type="number" inputmode="decimal" id="retrait-montant" placeholder="Ex: 5">
+            </div>
+
+            <div class="modal-actions">
+                <button style="background: #bdc3c7; color: #2d3436;" onclick="fermerRetrait()">Annuler</button>
+                <button style="background: var(--primary); color: white;" onclick="validerRetrait()">Confirmer</button>
             </div>
         </div>
     </div>
@@ -504,7 +542,6 @@
                 <input type="number" inputmode="decimal" id="param-cible-obj">
             </div>
 
-            <!-- Bouton Tout Réinitialiser -->
             <div style="margin-top: 25px; padding-top: 15px; border-top: 2px dashed #eee;">
                 <button style="background: var(--red); color: white; width: 100%;" onclick="reinitialiserTout()">⚠️ Tout Réinitialiser</button>
             </div>
