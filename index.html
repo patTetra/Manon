@@ -3,42 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mon Budget</title>
+    <title>Mon Budget Pro</title>
     <script>
-        // Charger les données au démarrage
-        let data = JSON.parse(localStorage.getItem('budgetData')) || { 
+        // Charger ou initialiser les données
+        let data = JSON.parse(localStorage.getItem('budgetDataPro')) || { 
             solde: 0, 
             tirelire: 0, 
-            objectif_courant: 0,
-            nom_objectif: "Mon Objectif",
-            cible_objectif: 50,
             dernier_mois_credit: "",
-            historique: []
+            historique: [],
+            objectifs: [
+                { id: 0, nom: "Mon Objectif 1", courant: 0, cible: 50 },
+                { id: 1, nom: "Mon Objectif 2", courant: 0, cible: 100 },
+                { id: 2, nom: "Mon Objectif 3", courant: 0, cible: 200 }
+            ]
         };
 
-        // Variables temporaires
-        let cibleRetraitEnCours = "";
-
-        // Compatibilité avec les anciennes sauvegardes
-        if (!data.nom_objectif) data.nom_objectif = "Mon Objectif";
-        if (!data.cible_objectif) data.cible_objectif = 50;
-        if (!data.dernier_mois_credit) data.dernier_mois_credit = "";
-        if (!data.historique) {
-            data.historique = [];
-            if (data.depenses) {
-                data.depenses.forEach(d => {
-                    data.historique.push({ type: 'depense', montant: d.montant, desc: d.desc, date: d.date });
-                });
-                delete data.depenses;
-            }
-        }
+        let cibleRetraitEnCours = ""; // 'tirelire' ou 'obj_0', 'obj_1', 'obj_2'
 
         function sauvegarder() {
-            localStorage.setItem('budgetData', JSON.stringify(data));
+            localStorage.setItem('budgetDataPro', JSON.stringify(data));
             afficher();
         }
 
-        // Argent de poche automatique (15€ tous les mois)
+        // Argent de poche automatique (15€ tous les mois au 1er du mois)
         function verifierArgentDePoche() {
             const aujourdhui = new Date();
             const annee = aujourdhui.getFullYear();
@@ -46,9 +33,7 @@
             const moisCourantStr = `${annee}-${mois}`;
 
             if (data.dernier_mois_credit !== moisCourantStr) {
-                // On force la date au 1er du mois pour l'historique
                 const datePremierDuMois = `${annee}-${mois}-01`;
-                
                 data.solde += 15;
                 data.historique.push({
                     type: 'gain',
@@ -60,591 +45,402 @@
                 sauvegarder();
                 
                 setTimeout(() => {
-                    alert("🎉 C'est le nouveau mois ! Tes 15 € d'argent de poche ont été ajoutés à ton solde !");
+                    alert("🎉 C'est le nouveau mois ! Tes 15 € d'argent de poche ont été ajoutés !");
                 }, 500);
             }
         }
 
+        // Obtenir le badge en fonction de la fortune totale locale
+        function obtenirBadge(total) {
+            if (total < 20) return { nom: "🌱 Écureuil Débutant", couleur: "#7f8c8d" };
+            if (total < 70) return { nom: "🎯 Apprenti Épargnant", couleur: "#3498db" };
+            if (total < 150) return { nom: "🐷 Pro de la Tirelire", couleur: "#e67e22" };
+            if (total < 300) return { nom: "🏆 As du Trésor", couleur: "#9b59b6" };
+            return { nom: "👑 Maître du Budget", couleur: "#27ae60" };
+        }
+
+        // Obtenir la couleur de la jauge selon le pourcentage
+        function obtenirCouleurJauge(p) {
+            if (p < 40) return "var(--orange)";
+            if (p < 80) return "var(--blue)";
+            return "var(--primary)";
+        }
+
         function afficher() {
+            // Calculs globaux
+            const totalObjectifs = data.objectifs.reduce((sum, obj) => sum + obj.courant, 0);
+            const fortuneTotale = data.solde + data.tirelire + totalObjectifs;
+
             document.getElementById('solde').innerText = data.solde.toFixed(2) + " €";
             document.getElementById('tirelire').innerText = data.tirelire.toFixed(2) + " €";
-            document.getElementById('obj-val').innerText = data.objectif_courant.toFixed(2) + " €";
             
-            document.getElementById('titre-objectif').innerText = "🎯 " + data.nom_objectif;
-            document.getElementById('obj-cible-text').innerText = "sur " + data.cible_objectif.toFixed(2) + " €";
+            // Badge
+            const badge = obtenirBadge(fortuneTotale);
+            const badgeEl = document.getElementById('badge-statut');
+            badgeEl.innerText = badge.nom;
+            badgeEl.style.backgroundColor = badge.couleur;
 
-            let pourcentage = 0;
-            if (data.cible_objectif > 0) {
-                pourcentage = (data.objectif_courant / data.cible_objectif) * 100;
+            // Rendu des 3 objectifs
+            const containerObj = document.getElementById('container-objectifs');
+            containerObj.innerHTML = "";
+
+            data.objectifs.forEach((obj, index) => {
+                let pourcentage = obj.cible > 0 ? (obj.courant / obj.cible) * 100 : 0;
                 if (pourcentage > 100) pourcentage = 100;
-            }
-            document.getElementById('barre-progression').style.width = pourcentage + "%";
-            document.getElementById('pourcentage-text').innerText = Math.round(pourcentage) + "%";
+                const couleurBarre = obtenirCouleurJauge(pourcentage);
 
-            // Pré-remplir les paramètres
+                const card = document.createElement('div');
+                card.className = 'card objectif-card';
+                card.innerHTML = `
+                    <h3>🎯 ${obj.nom}</h3>
+                    <div class="montant">${obj.courant.toFixed(2)} €</div>
+                    <div class="progress-container">
+                        <div class="progress-bar" style="width: ${pourcentage}%; background: ${couleurBarre}"></div>
+                    </div>
+                    <div class="progress-info">
+                        <span>${Math.round(pourcentage)}%</span>
+                        <span>sur ${obj.cible.toFixed(2)} €</span>
+                    </div>
+                    <div class="btn-grid">
+                        <button style="background:var(--blue)" onclick="transfererVersObjectif(${index}, 1)">+ 1 €</button>
+                        <button style="background:var(--blue)" onclick="transfererVersObjectif(${index}, 5)">+ 5 €</button>
+                        <button style="background:var(--blue)" onclick="transfererVersObjectif(${index}, 10)">+ 10 €</button>
+                    </div>
+                    <div class="action-input">
+                        <input type="number" inputmode="decimal" id="input-obj-${index}" placeholder="Autre montant...">
+                        <button style="background:var(--blue); opacity: 0.9;" onclick="actionObjectifPerso(${index})">OK</button>
+                    </div>
+                    <button class="btn-retrait" style="background: var(--blue)" onclick="ouvrirRetrait('obj_${index}')">Récupérer pour acheter ↩</button>
+                `;
+                containerObj.appendChild(card);
+
+                // Remplir aussi le formulaire des paramètres
+                document.getElementById(`param-obj-nom-${index}`).value = obj.nom;
+                document.getElementById(`param-obj-cible-${index}`).value = obj.cible;
+            });
+
+            // Pré-remplir le solde global dans les réglages
             document.getElementById('param-solde').value = data.solde;
-            document.getElementById('param-nom-obj').value = data.nom_objectif;
-            document.getElementById('param-cible-obj').value = data.cible_objectif;
 
-            // Mettre à jour les dates par défaut (aujourd'hui)
+            // Dates du jour par défaut
             const aujourdhuiIso = new Date().toISOString().split('T')[0];
             document.getElementById('depense-date').value = aujourdhuiIso;
             document.getElementById('gain-date').value = aujourdhuiIso;
 
-            // Afficher l'historique complet
+            // Historique
             const listeHistorique = document.getElementById('liste-historique');
             listeHistorique.innerHTML = "";
-            
             if (data.historique.length === 0) {
-                listeHistorique.innerHTML = "<div class='vide'>Aucune opération enregistrée pour le moment.</div>";
+                listeHistorique.innerHTML = "<div class='vide'>Aucune opération enregistrée.</div>";
             } else {
-                const histInverse = [...data.historique].reverse();
-                histInverse.forEach(item => {
+                [...data.historique].reverse().forEach(item => {
                     const dateFormatee = item.date.split('-').reverse().join('/');
                     const div = document.createElement('div');
                     div.className = 'hist-item';
-                    
                     const estGain = item.type === 'gain';
-                    const signe = estGain ? '+' : '-';
-                    const classeMontant = estGain ? 'montant-plus' : 'montant-moins';
-
                     div.innerHTML = `
                         <div>
                             <div class="hist-desc">${item.desc}</div>
                             <div class="hist-date">${dateFormatee}</div>
                         </div>
-                        <div class="hist-montant ${classeMontant}">${signe} ${item.montant.toFixed(2)} €</div>
+                        <div class="hist-montant ${estGain ? 'montant-plus' : 'montant-moins'}">${estGain ? '+' : '-'} ${item.montant.toFixed(2)} €</div>
                     `;
                     listeHistorique.appendChild(div);
                 });
             }
         }
 
-        // Fenêtre Ajouter de l'argent
-        function ouvrirGain() { document.getElementById('modal-gain').style.display = 'flex'; }
-        function fermerGain() { document.getElementById('modal-gain').style.display = 'none'; }
-        
-        function enregistrerGain() {
-            const inputMontant = document.getElementById('gain-montant');
-            const inputDesc = document.getElementById('gain-desc');
-            const inputDate = document.getElementById('gain-date');
-
-            const montant = parseFloat(inputMontant.value);
-            const desc = inputDesc.value.trim();
-            const date = inputDate.value;
-
-            if (!montant || montant <= 0 || !desc || !date) {
-                alert("Remplis toutes les cases pour ajouter l'argent !");
-                return;
-            }
-
-            data.solde += montant;
-            data.historique.push({ type: 'gain', montant, desc, date });
-            
-            inputMontant.value = '';
-            inputDesc.value = '';
-            sauvegarder();
-            fermerGain();
-        }
-
-        function verifierObjectifAtteint(cible, montantAjoute) {
-            if (cible === 'objectif_courant') {
-                if (data.objectif_courant >= data.cible_objectif && (data.objectif_courant - montantAjoute) < data.cible_objectif) {
-                    setTimeout(() => {
-                        alert(`🥳 BRAVO ! Tu as atteint ton objectif pour "${data.nom_objectif}" (${data.cible_objectif.toFixed(2)} €) ! Tu peux être fier(e) de toi ! 🎉🏆`);
-                    }, 400);
-                }
-            }
-        }
-
-        function transferer(cible, montant) {
+        // Transferts vers Tirelire
+        function transfererTirelire(montant) {
             const m = parseFloat(montant);
             if (!m || m <= 0) return;
+            if (data.solde >= m) { data.solde -= m; data.tirelire += m; sauvegarder(); } 
+            else { alert("Solde insuffisant !"); }
+        }
 
+        function actionTirelirePerso() {
+            const input = document.getElementById('input-tirelire');
+            transfererTirelire(input.value);
+            input.value = '';
+        }
+
+        // Transferts vers Objectifs
+        function transfererVersObjectif(index, montant) {
+            const m = parseFloat(montant);
+            if (!m || m <= 0) return;
+            if (data.solde >= m) {
+                const obj = data.objectifs[index];
+                const ancienMontant = obj.courant;
+                data.solde -= m;
+                obj.courant += m;
+                sauvegarder();
+                if (obj.courant >= obj.cible && ancienMontant < obj.cible) {
+                    setTimeout(() => { alert(`🥳 BRAVO ! Tu as atteint ton objectif pour "${obj.nom}" (${obj.cible.toFixed(2)} €) ! 🎉🏆`); }, 400);
+                }
+            } else { alert("Solde insuffisant !"); }
+        }
+
+        function actionObjectifPerso(index) {
+            const input = document.getElementById(`input-obj-${index}`);
+            transfererVersObjectif(index, input.value);
+            input.value = '';
+        }
+
+        // Fenêtres Modales opérations de base
+        function ouvrirGain() { document.getElementById('modal-gain').style.display = 'flex'; }
+        function fermerGain() { document.getElementById('modal-gain').style.display = 'none'; }
+        function enregistrerGain() {
+            const m = parseFloat(document.getElementById('gain-montant').value);
+            const d = document.getElementById('gain-desc').value.trim();
+            const dt = document.getElementById('gain-date').value;
+            if (!m || m <= 0 || !d || !dt) { alert("Remplis toutes les cases !"); return; }
+            data.solde += m;
+            data.historique.push({ type: 'gain', montant: m, desc: d, date: dt });
+            document.getElementById('gain-montant').value = '';
+            document.getElementById('gain-desc').value = '';
+            sauvegarder(); fermerGain();
+        }
+
+        function ouvrirDepense() { document.getElementById('modal-depense').style.display = 'flex'; }
+        function fermerDepense() { document.getElementById('modal-depense').style.display = 'none'; }
+        function enregistrerDepense() {
+            const m = parseFloat(document.getElementById('depense-montant').value);
+            const d = document.getElementById('depense-desc').value.trim();
+            const dt = document.getElementById('depense-date').value;
+            if (!m || m <= 0 || !d || !dt) { alert("Remplis toutes les cases !"); return; }
             if (data.solde >= m) {
                 data.solde -= m;
-                data[cible] += m;
-                sauvegarder();
-                verifierObjectifAtteint(cible, m);
-            } else {
-                alert("Solde insuffisant dans ton argent de poche !");
-            }
+                data.historique.push({ type: 'depense', montant: m, desc: d, date: dt });
+                document.getElementById('depense-montant').value = '';
+                document.getElementById('depense-desc').value = '';
+                sauvegarder(); fermerDepense();
+            } else { alert("Solde disponible insuffisant !"); }
         }
 
-        function actionEpargnePerso(cible, inputId) {
-            const input = document.getElementById(inputId);
-            const montant = parseFloat(input.value);
-            if (!montant || montant <= 0) return;
-
-            if (data.solde >= montant) {
-                data.solde -= montant;
-                data[cible] += montant;
-                input.value = '';
-                sauvegarder();
-                verifierObjectifAtteint(cible, montant);
-            } else {
-                alert("Solde insuffisant dans ton argent de poche !");
-            }
-        }
-
+        // Retrait / Récupération d'argent
         function ouvrirRetrait(cible) {
             cibleRetraitEnCours = cible;
-            const nomAffichage = cible === 'tirelire' ? "la Tirelire" : `l'Objectif (${data.nom_objectif})`;
-            const maxDispo = data[cible].toFixed(2);
-            
-            document.getElementById('retrait-titre').innerText = `↩ Récupérer de ` + nomAffichage;
-            document.getElementById('retrait-max').innerText = `Maximum disponible : ${maxDispo} €`;
+            let nom = "la Tirelire";
+            let max = data.tirelire;
+            if (cible.startsWith('obj_')) {
+                const idx = parseInt(cible.split('_')[1]);
+                nom = `l'Objectif : ${data.objectifs[idx].nom}`;
+                max = data.objectifs[idx].courant;
+            }
+            document.getElementById('retrait-titre').innerText = `↩ Récupérer de ` + nom;
+            document.getElementById('retrait-max').innerText = `Maximum disponible : ${max.toFixed(2)} €`;
             document.getElementById('retrait-montant').value = '';
             document.getElementById('modal-retrait').style.display = 'flex';
         }
-
         function fermerRetrait() { document.getElementById('modal-retrait').style.display = 'none'; }
-
         function validerRetrait() {
-            const input = document.getElementById('retrait-montant');
-            const montant = parseFloat(input.value);
-            const montantDispo = data[cibleRetraitEnCours];
-
-            if (!montant || montant <= 0) {
-                alert("Indique un montant valide à récupérer.");
-                return;
+            const m = parseFloat(document.getElementById('retrait-montant').value);
+            if (!m || m <= 0) { alert("Indique un montant valide."); return; }
+            
+            if (cibleRetraitEnCours === 'tirelire') {
+                if (m <= data.tirelire) { data.tirelire -= m; data.solde += m; } 
+                else { alert("Montant trop élevé !"); return; }
+            } else if (cibleRetraitEnCours.startsWith('obj_')) {
+                const idx = parseInt(cibleRetraitEnCours.split('_')[1]);
+                if (m <= data.objectifs[idx].courant) { data.objectifs[idx].courant -= m; data.solde += m; } 
+                else { alert("Montant trop élevé !"); return; }
             }
-
-            if (montant <= montantDispo) {
-                data[cibleRetraitEnCours] -= montant;
-                data.solde += montant;
-                sauvegarder();
-                fermerRetrait();
-            } else {
-                alert("Tu ne peux pas récupérer plus que ce que tu as !");
-            }
+            sauvegarder(); fermerRetrait();
         }
 
-        function abrirDepense() { document.getElementById('modal-depense').style.display = 'flex'; }
-        function fermerDepense() { document.getElementById('modal-depense').style.display = 'none'; }
-        
-        // Alias au cas où l'orthographe change
-        function ouvrirDepense() { abrirDepense(); }
-
-        function enregistrerDepense() {
-            const inputMontant = document.getElementById('depense-montant');
-            const inputDesc = document.getElementById('depense-desc');
-            const inputDate = document.getElementById('depense-date');
-
-            const montant = parseFloat(inputMontant.value);
-            const desc = inputDesc.value.trim();
-            const date = inputDate.value;
-
-            if (!montant || montant <= 0 || !desc || !date) {
-                alert("Remplis bien toutes les cases pour enregistrer la dépense !");
-                return;
-            }
-
-            if (data.solde >= montant) {
-                data.solde -= montant;
-                data.historique.push({ type: 'depense', montant, desc, date });
-                inputMontant.value = '';
-                inputDesc.value = '';
-                sauvegarder();
-                fermerDepense();
-            } else {
-                alert("Aïe ! Ton solde disponible est insuffisant pour faire cette dépense.");
-            }
-        }
-
+        // Réglages & Config
         function ouvrirParametres() { document.getElementById('modal-parametres').style.display = 'flex'; }
         function fermerParametres() { document.getElementById('modal-parametres').style.display = 'none'; }
-
         function enregistrerParametres() {
             const nvSolde = parseFloat(document.getElementById('param-solde').value);
-            const nvNom = document.getElementById('param-nom-obj').value.trim();
-            const nvCible = parseFloat(document.getElementById('param-cible-obj').value);
-
             if (!isNaN(nvSolde)) data.solde = nvSolde;
-            if (nvNom) data.nom_objectif = nvNom;
-            if (!isNaN(nvCible) && nvCible >= 0) data.cible_objectif = nvCible;
 
-            sauvegarder();
-            fermerParametres();
+            for (let i = 0; i < 3; i++) {
+                const n = document.getElementById(`param-obj-nom-${i}`).value.trim();
+                const c = parseFloat(document.getElementById(`param-obj-cible-${i}`).value);
+                if (n) data.objectifs[i].nom = n;
+                if (!isNaN(c) && c >= 0) data.objectifs[i].cible = c;
+            }
+            sauvegarder(); fermerParametres();
         }
 
-        // Fonctions d'exportation et d'importation
+        // Sauvegarde fichiers (Export / Import)
         function exporterDonnees() {
-            const jsonString = JSON.stringify(data, null, 2);
-            const blob = new Blob([jsonString], { type: "text/plain;charset=utf-8" });
-            const url = URL.createObjectURL(blob);
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: "text/plain;charset=utf-8" });
             const link = document.createElement("a");
-            link.href = url;
+            link.href = URL.createObjectURL(blob);
             link.download = "mon_budget_sauvegarde.txt";
             link.click();
-            URL.revokeObjectURL(url);
         }
-
-        function declencherImportation() {
-            document.getElementById('fichier-import').click();
-        }
-
+        function declencherImportation() { document.getElementById('fichier-import').click(); }
         function importerDonnees(event) {
             const fichier = event.target.files[0];
             if (!fichier) return;
-
-            const pinSaisi = prompt("🔒 Saisis le code PIN (1607) pour valider l'importation et remplacer les données existantes :");
-            if (pinSaisi !== "1607") {
-                alert("❌ Code PIN incorrect ou opération annulée. Importation refusée.");
-                event.target.value = ''; // Réinitialise l'input
-                return;
+            if (prompt("🔒 Saisis le code PIN (1607) pour valider l'importation :") !== "1607") {
+                alert("❌ Code PIN incorrect. Importation annulée.");
+                event.target.value = ''; return;
             }
-
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
-                    const donneesImportees = JSON.parse(e.target.result);
-                    // Vérification sommaire de la structure
-                    if (donneesImportees && typeof donneesImportees.solde === 'number' && Array.isArray(donneesImportees.historique)) {
-                        data = donneesImportees;
-                        sauvegarder();
-                        alert("📥 Données importées avec succès !");
-                        fermerParametres();
-                    } else {
-                        alert("❌ Le fichier choisi n'est pas une sauvegarde valide.");
-                    }
-                } catch (err) {
-                    alert("❌ Erreur lors de la lecture du fichier.");
-                }
+                    const parsed = JSON.parse(e.target.result);
+                    if (parsed && typeof parsed.solde === 'number' && Array.isArray(parsed.objectifs)) {
+                        data = parsed; sauvegarder(); alert("📥 Données importées avec succès !"); fermerParametres();
+                    } else { alert("❌ Fichier de sauvegarde invalide."); }
+                } catch (err) { alert("❌ Erreur lors de la lecture."); }
             };
             reader.readAsText(fichier);
-            event.target.value = ''; // Réinitialise l'input
+            event.target.value = '';
         }
 
-        // Fonctions pour la sécurité de réinitialisation
-        function ouvrirSecuriteReinit() {
-            document.getElementById('code-pincode').value = '';
-            document.getElementById('modal-securite').style.display = 'flex';
-        }
-        function fermerSecuriteReinit() {
-            document.getElementById('modal-securite').style.display = 'none';
-        }
-
+        // Reinit globale
+        function ouvrirSecuriteReinit() { document.getElementById('code-pincode').value = ''; document.getElementById('modal-securite').style.display = 'flex'; }
+        function fermerSecuriteReinit() { document.getElementById('modal-securite').style.display = 'none'; }
         function validerReinitialiserTout() {
-            const pinSaisi = document.getElementById('code-pincode').value;
-            
-            if (pinSaisi === "1607") {
-                data = { 
-                    solde: 0, 
-                    tirelire: 0, 
-                    objectif_courant: 0,
-                    nom_objectif: "Mon Objectif",
-                    cible_objectif: 50,
-                    dernier_mois_credit: "",
-                    historique: []
-                };
-                sauvegarder();
-                fermerSecuriteReinit();
-                fermerParametres();
-                alert("L'application a été remise à zéro avec succès !");
-            } else {
-                alert("❌ Code PIN incorrect. Réinitialisation annulée.");
-            }
+            if (document.getElementById('code-pincode').value === "1607") {
+                data = { solde: 0, tirelire: 0, dernier_mois_credit: "", historique: [], objectifs: [
+                    { id: 0, nom: "Mon Objectif 1", courant: 0, cible: 50 },
+                    { id: 1, nom: "Mon Objectif 2", courant: 0, cible: 100 },
+                    { id: 2, nom: "Mon Objectif 3", courant: 0, cible: 200 }
+                ]};
+                sauvegarder(); fermerSecuriteReinit(); fermerParametres(); alert("Application remise à zéro !");
+            } else { alert("❌ Code PIN incorrect."); }
         }
 
-        window.onload = function() {
-            afficher();
-            verifierArgentDePoche();
-        };
+        window.onload = function() { afficher(); verifierArgentDePoche(); };
     </script>
     <style>
         :root {
-            --bg-color: #f7f9fa;
-            --card-bg: #ffffff;
-            --text-main: #2d3436;
-            --primary: #2ecc71;
-            --orange: #e67e22;
-            --blue: #3498db;
-            --red: #e74c3c;
+            --bg-color: #f7f9fa; --card-bg: #ffffff; --text-main: #2d3436;
+            --primary: #2ecc71; --orange: #e67e22; --blue: #3498db; --red: #e74c3c;
         }
-        
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
-            background: var(--bg-color); 
-            padding: 15px; 
-            margin: 0;
-            color: var(--text-main);
-        }
-        
-        .container { max-width: 450px; margin: 0 auto; position: relative; }
-        
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            padding: 0 5px;
-        }
-        .header h1 { font-size: 1.5em; margin: 0; font-weight: 700; }
-        .btn-param {
-            background: none;
-            border: none;
-            font-size: 1.6em;
-            cursor: pointer;
-            padding: 5px;
-            color: #7f8c8d;
-            transition: transform 0.3s;
-        }
-        .btn-param:hover { transform: rotate(45deg); color: var(--text-main); }
-
-        .card { 
-            background: var(--card-bg); 
-            padding: 20px; 
-            border-radius: 24px; 
-            margin-bottom: 15px; 
-            box-shadow: 0 4px 15px rgba(0,0,0,0.04); 
-        }
-        
-        .solde-card {
-            background: linear-gradient(135deg, #1abc9c, #2ecc71);
-            color: white;
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg-color); padding: 15px; margin: 0; color: var(--text-main); }
+        .container { max-width: 450px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .header h1 { font-size: 1.5em; margin: 0; }
+        .btn-param { background: none; border: none; font-size: 1.6em; cursor: pointer; color: #7f8c8d; }
+        .card { background: var(--card-bg); padding: 20px; border-radius: 24px; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); }
+        .solde-card { background: linear-gradient(135deg, #1abc9c, #2ecc71); color: white; text-align: center; position: relative;}
         .solde-card .montant { color: white; }
-
+        .badge { display: inline-block; padding: 5px 12px; border-radius: 20px; font-size: 0.8em; font-weight: bold; color: white; margin-top: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         .tirelire-card { background-color: #ffe6d9; }
         .objectif-card { background-color: #dbeaff; }
-        
-        .montant { font-size: 2.2em; font-weight: 800; color: var(--text-main); text-align: center; margin: 10px 0; }
-        
-        h3 { margin-top: 0; margin-bottom: 5px; font-size: 1.2em; display: flex; align-items: center; gap: 8px;}
-        
-        .progress-container {
-            background: rgba(0, 0, 0, 0.08);
-            border-radius: 10px;
-            height: 14px;
-            width: 100%;
-            margin: 10px 0 5px 0;
-            overflow: hidden;
-        }
-        .progress-bar {
-            background: var(--blue);
-            height: 100%;
-            width: 0%;
-            transition: width 0.5s ease-out;
-        }
-        .progress-info {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.85em;
-            color: #5d6a6b;
-            margin-bottom: 15px;
-        }
-        
+        .montant { font-size: 2.2em; font-weight: 800; text-align: center; margin: 10px 0; }
+        h3 { margin-top: 0; margin-bottom: 5px; font-size: 1.15em; }
+        .progress-container { background: rgba(0, 0, 0, 0.08); border-radius: 10px; height: 12px; width: 100%; margin: 10px 0 5px 0; overflow: hidden; }
+        .progress-bar { height: 100%; width: 0%; transition: width 0.4s ease-out, background-color 0.4s; }
+        .progress-info { display: flex; justify-content: space-between; font-size: 0.85em; color: #5d6a6b; margin-bottom: 12px; }
         .btn-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; }
-        
-        button { 
-            border: none; 
-            padding: 12px 15px; 
-            border-radius: 12px; 
-            font-weight: bold; 
-            color: white; 
-            cursor: pointer; 
-            font-size: 0.95em;
-            white-space: nowrap;
-        }
-        button:active { transform: scale(0.95); }
-        button.btn-retrait { background-color: var(--red); width: 100%; margin-top: 12px;}
-        
+        button { border: none; padding: 12px; border-radius: 12px; font-weight: bold; color: white; cursor: pointer; font-size: 0.95em; }
+        button:active { transform: scale(0.96); }
+        button.btn-retrait { background-color: var(--red); width: 100%; margin-top: 10px; padding: 10px;}
         .solde-actions { display: flex; gap: 10px; margin-top: 15px; }
-        .solde-actions button { flex: 1; padding: 12px 10px; font-size: 0.9em; }
-        button.btn-solde-action { background-color: rgba(255, 255, 255, 0.25); border: 1.5px solid white; }
-        button.btn-solde-action:hover { background-color: rgba(255, 255, 255, 0.4); }
-        
+        .solde-actions button { flex: 1; background: rgba(255,255,255,0.25); border: 1.5px solid white; font-size: 0.9em; }
         .action-input { display: flex; gap: 8px; margin-top: 8px; }
-        input { 
-            flex: 1; 
-            padding: 12px; 
-            border-radius: 12px; 
-            border: 2px solid #cbd5e1; 
-            font-size: 1em;
-            outline: none;
-            box-sizing: border-box;
-            background-color: white;
-            color: var(--text-main);
-        }
+        input { flex: 1; padding: 11px; border-radius: 12px; border: 2px solid #cbd5e1; font-size: 1em; outline: none; box-sizing: border-box; }
         input:focus { border-color: var(--text-main); }
-
-        .liste-historique { max-height: 280px; overflow-y: auto; margin-top: 10px; }
-        .hist-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 11px 0;
-            border-bottom: 1px solid rgba(0,0,0,0.06);
-        }
-        .hist-item:last-child { border-bottom: none; }
+        .liste-historique { max-height: 250px; overflow-y: auto; }
+        .hist-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(0,0,0,0.06); }
         .hist-desc { font-weight: 600; font-size: 0.95em; }
-        .hist-date { font-size: 0.8em; color: #7f8c8d; margin-top: 2px; }
-        .hist-montant { font-weight: 700; font-size: 1em; }
+        .hist-date { font-size: 0.8em; color: #7f8c8d; }
+        .hist-montant { font-weight: 700; }
         .montant-plus { color: #27ae60; }
         .montant-moins { color: var(--red); }
-        .vide { text-align: center; color: #95a5a6; font-size: 0.9em; padding: 15px 0; }
-
-        /* Modales */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5);
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            padding: 15px;
-            box-sizing: border-box;
-        }
-        .modal-content {
-            background: white;
-            padding: 25px;
-            border-radius: 24px;
-            width: 100%;
-            max-width: 400px;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-        .modal-content h2 { margin-top: 0; font-size: 1.4em; margin-bottom: 15px;}
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9em; }
+        .vide { text-align: center; color: #95a5a6; padding: 15px 0; font-size: 0.9em; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; padding: 15px; box-sizing: border-box; }
+        .modal-content { background: white; padding: 22px; border-radius: 24px; width: 100%; max-width: 400px; max-height: 85vh; overflow-y: auto; }
+        .modal-content h2 { margin-top: 0; font-size: 1.3em; margin-bottom: 15px; }
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; margin-bottom: 4px; font-weight: 600; font-size: 0.85em; }
         .form-group input { width: 100%; }
-        .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+        .modal-actions { display: flex; gap: 10px; margin-top: 18px; }
         .modal-actions button { flex: 1; }
-        
         .btn-secondary { background: #bdc3c7; color: #2d3436; }
-        .btn-export-group { display: flex; gap: 10px; margin-top: 8px; }
+        .param-section { border-top: 1px solid #eee; margin-top: 15px; padding-top: 10px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- EN-TETE -->
         <div class="header">
-            <h1>Mon Budget 💸</h1>
+            <h1>Mon Budget Pro 💸</h1>
             <button class="btn-param" onclick="ouvrirParametres()">⚙️</button>
         </div>
 
-        <!-- BLOC SOLDE -->
+        <!-- SOLDE GLOBAL ET BADGE -->
         <div class="card solde-card">
-            <div style="text-align:center; font-weight: 600; opacity: 0.9;">Argent de poche disponible</div>
+            <div style="font-weight: 600; opacity: 0.9;">Argent de poche disponible</div>
             <div class="montant" id="solde">0.00 €</div>
+            <div class="badge" id="badge-statut">🌱 Écureuil Débutant</div>
             
             <div class="solde-actions">
-                <button class="btn-solde-action" onclick="ouvrirGain()">➕ Recevoir Argent</button>
-                <button class="btn-solde-action" onclick="abrirDepense()">🛒 Enregistrer Achat</button>
+                <button onclick="ouvrirGain()">➕ Recevoir</button>
+                <button onclick="ouvrirDepense()">🛒 Un Achat</button>
             </div>
         </div>
         
-        <!-- BLOC TIRELIRE -->
+        <!-- TIRELIRE -->
         <div class="card tirelire-card">
-            <h3><span>🐷</span> Tirelire (Épargne)</h3>
+            <h3>🐷 Tirelire (Épargne globale)</h3>
             <div class="montant" id="tirelire">0.00 €</div>
-            
             <div class="btn-grid">
-                <button style="background:var(--orange)" onclick="transferer('tirelire', 1)">+ 1 €</button>
-                <button style="background:var(--orange)" onclick="transferer('tirelire', 5)">+ 5 €</button>
-                <button style="background:var(--orange)" onclick="transferer('tirelire', 10)">+ 10 €</button>
+                <button style="background:var(--orange)" onclick="transfererTirelire(1)">+ 1 €</button>
+                <button style="background:var(--orange)" onclick="transfererTirelire(5)">+ 5 €</button>
+                <button style="background:var(--orange)" onclick="transfererTirelire(10)">+ 10 €</button>
             </div>
-            
             <div class="action-input">
                 <input type="number" inputmode="decimal" id="input-tirelire" placeholder="Autre montant...">
-                <button style="background:var(--orange); opacity: 0.9;" onclick="actionEpargnePerso('tirelire', 'input-tirelire')">OK</button>
+                <button style="background:var(--orange);" onclick="actionTirelirePerso()">OK</button>
             </div>
-            <button class="btn-retrait" style="background: var(--orange)" onclick="ouvrirRetrait('tirelire')">Récupérer de l'argent ↩</button>
+            <button class="btn-retrait" style="background: var(--orange)" onclick="ouvrirRetrait('tirelire')">Récupérer de la tirelire ↩</button>
         </div>
 
-        <!-- BLOC OBJECTIF -->
-        <div class="card objectif-card">
-            <h3 id="titre-objectif">🎯 Mon Objectif</h3>
-            <div class="montant" id="obj-val">0.00 €</div>
-            
-            <div class="progress-container">
-                <div class="progress-bar" id="barre-progression"></div>
-            </div>
-            <div class="progress-info">
-                <span id="pourcentage-text">0%</span>
-                <span id="obj-cible-text">sur 50.00 €</span>
-            </div>
+        <!-- BLOC CONTENEUR DES 3 OBJECTIFS -->
+        <div id="container-objectifs"></div>
 
-            <div class="btn-grid">
-                <button style="background:var(--blue)" onclick="transferer('objectif_courant', 1)">+ 1 €</button>
-                <button style="background:var(--blue)" onclick="transferer('objectif_courant', 5)">+ 5 €</button>
-                <button style="background:var(--blue)" onclick="transferer('objectif_courant', 10)">+ 10 €</button>
-            </div>
-
-            <div class="action-input">
-                <input type="number" inputmode="decimal" id="input-objectif" placeholder="Autre montant...">
-                <button style="background:var(--blue); opacity: 0.9;" onclick="actionEpargnePerso('objectif_courant', 'input-objectif')">OK</button>
-            </div>
-            <button class="btn-retrait" style="background: var(--blue)" onclick="ouvrirRetrait('objectif_courant')">Récupérer pour acheter ↩</button>
-        </div>
-
-        <!-- BLOC HISTORIQUE -->
+        <!-- HISTORIQUE -->
         <div class="card">
-            <h3><span>📊</span> Mon Historique (Suivi)</h3>
+            <h3>📊 Mon Historique</h3>
             <div class="liste-historique" id="liste-historique"></div>
         </div>
     </div>
 
-    <!-- MODAL RECEVOIR DE L'ARGENT (GAIN) -->
+    <!-- MODAL RECEVOIR -->
     <div class="modal" id="modal-gain">
         <div class="modal-content">
             <h2>➕ Recevoir de l'argent</h2>
-            <div class="form-group">
-                <label for="gain-montant">Montant reçu (€)</label>
-                <input type="number" inputmode="decimal" id="gain-montant" placeholder="Ex: 10">
-            </div>
-            <div class="form-group">
-                <label for="gain-desc">D'où vient cet argent ? (Provenance)</label>
-                <input type="text" id="gain-desc" placeholder="Ex: Anniversaire, Tâche ménagère...">
-            </div>
-            <div class="form-group">
-                <label for="gain-date">Date de réception</label>
-                <input type="date" id="gain-date">
-            </div>
+            <div class="form-group"><label>Montant reçu (€)</label><input type="number" inputmode="decimal" id="gain-montant"></div>
+            <div class="form-group"><label>Provenance / Raison</label><input type="text" id="gain-desc" placeholder="Ex: Anniversaire..."></div>
+            <div class="form-group"><label>Date</label><input type="date" id="gain-date"></div>
             <div class="modal-actions">
                 <button class="btn-secondary" onclick="fermerGain()">Annuler</button>
-                <button style="background: var(--primary); color: white;" onclick="enregistrerGain()">Ajouter au solde</button>
+                <button style="background: var(--primary);" onclick="enregistrerGain()">Ajouter</button>
             </div>
         </div>
     </div>
 
-    <!-- MODAL RECUPERER / RETRAIT -->
+    <!-- MODAL ACHAT -->
+    <div class="modal" id="modal-depense">
+        <div class="modal-content">
+            <h2>🛒 Enregistrer un achat</h2>
+            <div class="form-group"><label>Montant (€)</label><input type="number" inputmode="decimal" id="depense-montant"></div>
+            <div class="form-group"><label>Qu'as-tu acheté ?</label><input type="text" id="depense-desc" placeholder="Ex: Livre, Jeu..."></div>
+            <div class="form-group"><label>Date</label><input type="date" id="depense-date"></div>
+            <div class="modal-actions">
+                <button class="btn-secondary" onclick="fermerDepense()">Annuler</button>
+                <button style="background: var(--red);" onclick="enregistrerDepense()">Valider</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL RETRAIT -->
     <div class="modal" id="modal-retrait">
         <div class="modal-content">
             <h2 id="retrait-titre">↩ Récupérer de l'argent</h2>
-            <div id="retrait-max" style="font-size: 0.9em; color: #7f8c8d; margin-bottom: 15px;"></div>
-            <div class="form-group">
-                <label for="retrait-montant">Combien veux-tu récupérer ? (€)</label>
-                <input type="number" inputmode="decimal" id="retrait-montant" placeholder="Ex: 5">
-            </div>
+            <div id="retrait-max" style="font-size: 0.9em; color: #7f8c8d; margin-bottom: 12px;"></div>
+            <div class="form-group"><label>Combien veux-tu retirer ? (€)</label><input type="number" inputmode="decimal" id="retrait-montant"></div>
             <div class="modal-actions">
                 <button class="btn-secondary" onclick="fermerRetrait()">Annuler</button>
-                <button style="background: var(--primary); color: white;" onclick="validerRetrait()">Confirmer</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL ENREGISTRER UNE DEPENSE -->
-    <div class="modal" id="modal-depense">
-        <div class="modal-content">
-            <h2>🛒 Nouvel Achat</h2>
-            <div class="form-group">
-                <label for="depense-montant">Montant de la dépense (€)</label>
-                <input type="number" inputmode="decimal" id="depense-montant" placeholder="Ex: 4.50">
-            </div>
-            <div class="form-group">
-                <label for="depense-desc">Qu'as-tu acheté ? (Description)</label>
-                <input type="text" id="depense-desc" placeholder="Ex: Glace, Bande dessinée...">
-            </div>
-            <div class="form-group">
-                <label for="depense-date">Date de l'achat</label>
-                <input type="date" id="depense-date">
-            </div>
-            <div class="modal-actions">
-                <button class="btn-secondary" onclick="fermerDepense()">Annuler</button>
-                <button style="background: var(--red); color: white;" onclick="enregistrerDepense()">Valider l'achat</button>
+                <button style="background: var(--primary);" onclick="validerRetrait()">Confirmer</button>
             </div>
         </div>
     </div>
@@ -652,56 +448,58 @@
     <!-- MODAL PARAMETRES -->
     <div class="modal" id="modal-parametres">
         <div class="modal-content">
-            <h2>⚙️ Réglages</h2>
-            <div class="form-group">
-                <label for="param-solde">Modifier le Solde actuel (€)</label>
-                <input type="number" inputmode="decimal" id="param-solde">
-            </div>
-            <div class="form-group">
-                <label for="param-nom-obj">Nom de l'objectif</label>
-                <input type="text" id="param-nom-obj">
-            </div>
-            <div class="form-group">
-                <label for="param-cible-obj">Montant de l'objectif à atteindre (€)</label>
-                <input type="number" inputmode="decimal" id="param-cible-obj">
+            <h2>⚙️ Réglages complets</h2>
+            <div class="form-group"><label>Modifier Solde Poche (€)</label><input type="number" inputmode="decimal" id="param-solde"></div>
+
+            <!-- Ajustements Objectifs -->
+            <div class="param-section">
+                <label style="font-weight: bold; display:block; margin-bottom: 8px;">🎯 Configuration des 3 Objectifs</label>
+                
+                <div style="background: #f8f9fa; padding: 10px; border-radius: 12px; margin-bottom: 8px;">
+                    <label style="font-size:0.8em;">Objectif 1 : Nom & Cible (€)</label>
+                    <div style="display:flex; gap: 5px;"><input type="text" id="param-obj-nom-0"><input type="number" id="param-obj-cible-0" style="width:80px;"></div>
+                </div>
+                <div style="background: #f8f9fa; padding: 10px; border-radius: 12px; margin-bottom: 8px;">
+                    <label style="font-size:0.8em;">Objectif 2 : Nom & Cible (€)</label>
+                    <div style="display:flex; gap: 5px;"><input type="text" id="param-obj-nom-1"><input type="number" id="param-obj-cible-1" style="width:80px;"></div>
+                </div>
+                <div style="background: #f8f9fa; padding: 10px; border-radius: 12px;">
+                    <label style="font-size:0.8em;">Objectif 3 : Nom & Cible (€)</label>
+                    <div style="display:flex; gap: 5px;"><input type="text" id="param-obj-nom-2"><input type="number" id="param-obj-cible-2" style="width:80px;"></div>
+                </div>
             </div>
 
-            <!-- SECTION EXPORT / IMPORT -->
-            <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee;">
-                <label style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9em;">💾 Sauvegarde des données</label>
-                <div class="btn-export-group">
-                    <button style="background: var(--blue); flex: 1; font-size: 0.85em; padding: 10px;" onclick="exporterDonnees()">📥 Exporter</button>
-                    <button style="background: var(--orange); flex: 1; font-size: 0.85em; padding: 10px;" onclick="declencherImportation()">📤 Importer</button>
+            <!-- Export / Import -->
+            <div class="param-section">
+                <label style="font-weight: 600; font-size: 0.9em; display:block; margin-bottom: 5px;">💾 Sauvegarde des fichiers</label>
+                <div style="display: flex; gap: 10px;">
+                    <button style="background: var(--blue); flex: 1; font-size:0.85em; padding: 10px;" onclick="exporterDonnees()">📥 Exporter</button>
+                    <button style="background: var(--orange); flex: 1; font-size:0.85em; padding: 10px;" onclick="declencherImportation()">📤 Importer</button>
                 </div>
                 <input type="file" id="fichier-import" accept=".txt" style="display: none;" onchange="importerDonnees(event)">
             </div>
 
-            <!-- RESET -->
-            <div style="margin-top: 25px; padding-top: 15px; border-top: 2px dashed #eee;">
-                <button style="background: var(--red); color: white; width: 100%;" onclick="ouvrirSecuriteReinit()">⚠️ Tout Réinitialiser</button>
+            <!-- Reinit -->
+            <div style="margin-top: 20px; border-top: 2px dashed #eee; padding-top: 10px;">
+                <button style="background: var(--red); width: 100%;" onclick="ouvrirSecuriteReinit()">⚠️ Tout Réinitialiser</button>
             </div>
 
             <div class="modal-actions" style="margin-top: 15px;">
                 <button class="btn-secondary" onclick="fermerParametres()">Fermer</button>
-                <button style="background: var(--primary); color: white;" onclick="enregistrerParametres()">Enregistrer</button>
+                <button style="background: var(--primary);" onclick="enregistrerParametres()">Enregistrer</button>
             </div>
         </div>
     </div>
 
-    <!-- MODAL DE SECURITE (CODE PIN) -->
+    <!-- CODE PIN SECURITE -->
     <div class="modal" id="modal-securite" style="z-index: 1100;">
         <div class="modal-content">
             <h2 style="color: var(--red);">🔒 Code de Sécurité</h2>
-            <p style="font-size: 0.9em; color: #5d6a6b; margin-bottom: 15px;">
-                La réinitialisation va effacer tout l'historique et remettre les compteurs à zéro. Saisis le code secret pour confirmer :
-            </p>
-            <div class="form-group">
-                <label for="code-pincode">Code PIN</label>
-                <input type="password" inputmode="numeric" id="code-pincode" pattern="[0-9]*" maxlength="4" placeholder="••••" style="text-align: center; font-size: 1.4em; letter-spacing: 10px;">
-            </div>
+            <p style="font-size: 0.85em; color: #5d6a6b; margin-bottom: 12px;">Saisis le code PIN secret pour réinitialiser l'application :</p>
+            <div class="form-group"><input type="password" inputmode="numeric" id="code-pincode" maxlength="4" style="text-align: center; font-size: 1.4em; letter-spacing: 8px;"></div>
             <div class="modal-actions">
                 <button class="btn-secondary" onclick="fermerSecuriteReinit()">Annuler</button>
-                <button style="background: var(--red); color: white;" onclick="validerReinitialiserTout()">Confirmer</button>
+                <button style="background: var(--red);" onclick="validerReinitialiserTout()">Confirmer</button>
             </div>
         </div>
     </div>
