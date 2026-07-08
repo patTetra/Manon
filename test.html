@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Application Budget - API</title>
+    <title>Application Budget - Diagnostic API</title>
     <style>
         :root {
             --bg-color: #1a1a1a;
@@ -133,6 +133,7 @@
 
     <div id="loader" class="loader">Connexion à Home Assistant...</div>
 
+    <!-- Panneau de configuration de l'API -->
     <div id="configPanel" class="config-panel" style="display: none;">
         <h3>🔑 Configuration des accès Home Assistant</h3>
         <div class="config-field">
@@ -147,6 +148,7 @@
         <button class="btn btn-danger" onclick="toggleConfig(false)">Annuler</button>
     </div>
 
+    <!-- Dashboard -->
     <div id="dashboard" style="display: none;">
         <div class="kpi-grid">
             <div class="card">
@@ -211,10 +213,7 @@
         let url = document.getElementById("haUrlInput").value.trim();
         let token = document.getElementById("haTokenInput").value.trim();
 
-        // Nettoyer l'URL des slashes à la fin si nécessaire
-        if (url.endsWith('/')) {
-            url = url.slice(0, -1);
-        }
+        if (url.endsWith('/')) url = url.slice(0, -1);
 
         if (!url || !token) {
             alert("Veuillez remplir l'URL et le Jeton d'accès.");
@@ -242,7 +241,6 @@
         loader.style.display = "block";
         dashboard.style.display = "none";
 
-        // Cibler l'entité todo de l'application budget
         const apiUrl = `${baseUrl}/api/states/todo.application_budget`;
 
         try {
@@ -254,13 +252,13 @@
                 }
             });
 
-            if (!response.ok) {
-                throw new Error(`Erreur HTTP : ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`Erreur HTTP : ${response.status}`);
 
             const entityState = await response.json();
             
-            // Extraction et nettoyage du JSON contenu dans l'attribut description ou le state de l'entité
+            // diagnostic temporaire pour voir la structure exacte reçue de Home Assistant
+            alert("Structure reçue :\n" + JSON.stringify(entityState, null, 2));
+
             let rawJsonText = "";
             if (entityState.attributes && entityState.attributes.description) {
                 rawJsonText = entityState.attributes.description;
@@ -268,16 +266,11 @@
                 rawJsonText = entityState.state;
             }
 
-            if (!rawJsonText || rawJsonText === "unknown") {
-                throw new Error("L'entité todo.application_budget ne contient aucune donnée.");
-            }
-
             const budgetData = JSON.parse(rawJsonText.trim());
             renderDashboard(budgetData);
 
         } catch (error) {
-            alert("Erreur de communication API :\n\n" + error.message);
-            toggleConfig(true);
+            alert("Erreur d'analyse des données :\n" + error.message);
         } finally {
             loader.style.display = "none";
         }
@@ -285,14 +278,17 @@
 
     function renderDashboard(data) {
         document.getElementById("dashboard").style.display = "block";
-        document.getElementById("valSolde").innerText = `${data.solde} €`;
-        document.getElementById("valTirelire").innerText = `${data.tirelire} €`;
+        
+        // Gestion adaptative si les clés diffèrent légèrement
+        document.getElementById("valSolde").innerText = `${data.solde ?? data.solde_restant ?? '0'} €`;
+        document.getElementById("valTirelire").innerText = `${data.tirelire ?? '0'} €`;
         document.getElementById("lblObjectif").innerText = data.nom_objectif || "Objectif";
         
         const cible = data.cible_objective || data.cible_objectif || 1;
-        document.getElementById("valObjectifProgression").innerText = `${data.objectif_courant} / ${cible} €`;
+        const actuel = data.objectif_courant ?? 0;
+        document.getElementById("valObjectifProgression").innerText = `${actuel} / ${cible} €`;
         
-        const pourcentage = Math.min(100, Math.round((data.objectif_courant / cible) * 100));
+        const pourcentage = Math.min(100, Math.round((actuel / cible) * 100));
         document.getElementById("barObjectif").style.width = `${pourcentage}%`;
 
         const tbody = document.getElementById("tableHistory");
@@ -310,7 +306,7 @@
                 tr.innerHTML = `
                     <td>${formatDate(item.date)}</td>
                     <td><span class="badge ${badgeClass}">${labelType}</span></td>
-                    <td>${item.desc}</td>
+                    <td>${item.desc || item.description || ''}</td>
                     <td style="text-align: right; font-weight: bold;" class="${amountClass}">${sign}${item.montant} €</td>
                 `;
                 tbody.appendChild(tr);
