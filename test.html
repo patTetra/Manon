@@ -117,7 +117,7 @@
         .badge-depense { background-color: rgba(231, 76, 60, 0.2); color: #e74c3c; }
 
         .loader { text-align: center; color: var(--text-secondary); padding: 20px; display: none; }
-        .footer-link { text-align: center; margin-top: 40px; font-size: 11px; color: #444; cursor: pointer; text-decoration: underline; }
+        .footer-link { text-align: center; margin-top: 40px; font-size: 13px; color: #666; cursor: pointer; text-decoration: underline; padding: 10px; }
     </style>
 </head>
 <body>
@@ -135,11 +135,11 @@
     <div id="configPanel" class="config-panel" style="display: none;">
         <h3>🔑 Configuration des accès Home Assistant</h3>
         <div class="config-field">
-            <label for="nabuUrl">URL Nabu Casa :</label>
+            <label for="haUrlInput">URL Nabu Casa de base :</label>
             <input type="url" id="haUrlInput" placeholder="https://xxxxxxxxxxxxxxx.ui.nabu.casa">
         </div>
         <div class="config-field">
-            <label for="haToken">Jeton d'accès (Token) :</label>
+            <label for="haTokenInput">Jeton d'accès (Token) :</label>
             <input type="password" id="haTokenInput" placeholder="Collez votre token ici...">
         </div>
         <button class="btn" onclick="saveConfig()">Enregistrer les accès</button>
@@ -216,7 +216,6 @@
             return;
         }
 
-        // Nettoyage ultra-agressif de l'URL au cas où on colle un endpoint complet
         if (url.includes("/api")) {
             url = url.split("/api")[0];
         }
@@ -242,8 +241,6 @@
         dashboard.style.display = "none";
 
         const finalUrl = `${baseUrl}/api/template`;
-        
-        // Template Jinja2 qui va chercher partout où le JSON peut se trouver
         const jinjaTemplate = `{% set desc = state_attr('todo.application_budget', 'description') %}{% if desc and 'solde' in desc %}{{ desc }}{% else %}{% set items = state_attr('todo.application_budget', 'todo_items') %}{% if items %}{% for item in items %}{% if 'solde' in item.description %}{{ item.description }}{% endif %}{% endfor %}{% endif %}{% endif %}`;
 
         try {
@@ -262,7 +259,6 @@
             const cleanText = rawText.trim();
 
             if (!cleanText || cleanText === "None") {
-                // Si l'extraction échoue, on affiche la structure brute pour comprendre
                 const debugResponse = await fetch(`${baseUrl}/api/states/todo.application_budget`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
@@ -276,7 +272,7 @@
 
         } catch (error) {
             alert("Erreur : " + error.message);
-        } else {
+        } finally {
             loader.style.display = "none";
         }
     }
