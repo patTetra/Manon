@@ -70,53 +70,17 @@
         .btn-danger { background-color: #e74c3c; }
         .btn:hover { opacity: 0.9; }
 
-        .kpi-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-
-        .card {
-            background-color: var(--card-bg);
-            border-radius: 12px;
-            padding: 15px;
-            border: 1px solid var(--border-color);
-            text-align: center;
-        }
-
-        .card-title { font-size: 13px; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 5px; }
-        .card-value { font-size: 24px; font-weight: bold; }
-        .text-green { color: var(--accent-green); }
-        .text-orange { color: var(--accent-orange); }
-
-        .goal-card {
-            background-color: var(--card-bg);
-            border-radius: 12px;
-            padding: 15px;
-            border: 1px solid var(--border-color);
-            margin-bottom: 20px;
-        }
-        .goal-header { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 8px; }
-        .progress-bar-bg { background-color: #111; border-radius: 10px; height: 12px; width: 100%; overflow: hidden; }
-        .progress-bar-fill { background-color: var(--accent-blue); height: 100%; width: 0%; transition: width 0.5s ease; }
-
-        .history-card {
-            background-color: var(--card-bg);
-            border-radius: 12px;
-            padding: 15px;
-            border: 1px solid var(--border-color);
-        }
-        .history-card h2 { font-size: 16px; margin-top: 0; margin-bottom: 15px; color: var(--text-secondary); }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { text-align: left; padding: 10px 8px; font-size: 14px; border-bottom: 1px solid var(--border-color); }
-        th { color: var(--text-secondary); font-weight: normal; font-size: 12px; }
-        
-        .badge { padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; }
-        .badge-gain { background-color: rgba(46, 204, 113, 0.2); color: var(--accent-green); }
-        .badge-depense { background-color: rgba(231, 76, 60, 0.2); color: #e74c3c; }
-
         .loader { text-align: center; color: var(--text-secondary); padding: 20px; display: none; }
+        
+        /* Bouton discret en bas de page */
+        .footer-link {
+            text-align: center;
+            margin-top: 40px;
+            font-size: 11px;
+            color: #444;
+            cursor: pointer;
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -124,89 +88,71 @@
 <div class="container">
     <h1>📊 Application Budget</h1>
 
-    <div id="configPanel" class="config-panel" style="display: none;">
-        <h3>🔑 Configuration de l'accès</h3>
-        <p style="font-size: 12px; color: var(--text-secondary);">Entrez vos accès une fois, ou utilisez un lien incluant vos paramètres pour une configuration automatique.</p>
-        <div class="config-field">
-            <label for="nabuUrl">URL Nabu Casa de base :</label>
-            <input type="url" id="nabuUrl" placeholder="https://xxxxxxxxxxxxxxx.ui.nabu.casa">
-        </div>
-        <div class="config-field">
-            <label for="haToken">Jeton d'accès de longue durée (Token HA) :</label>
-            <input type="password" id="haToken" placeholder="Votre token secret...">
-        </div>
-        <button class="btn" onclick="saveConfig()">Enregistrer & Charger</button>
-    </div>
-
     <div id="actionButtons" style="display: none; display: flex; gap: 10px; margin-bottom: 20px;">
-        <button id="btnRefresh" class="btn" onclick="fetchBudgetGrid()">🔄 Actualiser</button>
-        <button class="btn btn-danger" style="width: 150px;" onclick="logout()">🔑 Reset</button>
+        <button id="btnRefresh" class="btn" onclick="fetchBudgetGrid()">🔄 Actualiser les données</button>
     </div>
 
     <div id="loader" class="loader">Connexion à Home Assistant...</div>
 
+    <div id="configPanel" class="config-panel" style="display: none;">
+        <h3>🔑 Configuration des accès Home Assistant</h3>
+        <div class="config-field">
+            <label for="nabuUrl">URL Nabu Casa :</label>
+            <input type="url" id="nabuUrl" placeholder="https://xxxxxxxxxxxxxxx.ui.nabu.casa">
+        </div>
+        <div class="config-field">
+            <label for="haToken">Jeton d'accès (Token) :</label>
+            <input type="password" id="haToken" placeholder="Collez votre token ici...">
+        </div>
+        <button class="btn" onclick="saveConfig()">Enregistrer les accès</button>
+        <button class="btn btn-danger" onclick="toggleConfig(false)">Annuler</button>
+    </div>
+
     <div id="dashboard" style="display: none;">
         </div>
+
+    <div class="footer-link" onclick="toggleConfig(true)">⚙️ Configuration Réseau</div>
 </div>
 
 <script>
     document.addEventListener("DOMContentLoaded", () => {
-        // 1. Interception automatique des paramètres de l'URL si présents (?url=...&token=...)
-        const urlParams = new URLSearchParams(window.location.search);
-        let paramUrl = urlParams.get('url');
-        let paramToken = urlParams.get('token');
-
-        if (paramUrl && paramToken) {
-            paramUrl = paramUrl.trim();
-            if (paramUrl.endsWith("/")) paramUrl = paramUrl.slice(0, -1);
-            if (paramUrl.includes("/api")) paramUrl = paramUrl.split("/api")[0];
-
-            localStorage.setItem("budget_ha_url", paramUrl);
-            localStorage.setItem("budget_ha_token", paramToken.trim());
-
-            // Nettoyage immédiat de la barre d'adresse du navigateur pour des raisons de sécurité
-            const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-            window.history.replaceState({}, document.title, cleanUrl);
-        }
-
-        // 2. Vérification des données stockées en mémoire locale
         const savedUrl = localStorage.getItem("budget_ha_url");
         const savedToken = localStorage.getItem("budget_ha_token");
 
+        // Si l'iPhone possède déjà les clés en mémoire, on lance la récupération
         if (savedUrl && savedToken) {
-            document.getElementById("configPanel").style.display = "none";
             document.getElementById("actionButtons").style.display = "flex";
             fetchBudgetGrid();
         } else {
-            document.getElementById("configPanel").style.display = "block";
+            // Sinon, on affiche le panneau pour la première saisie
+            toggleConfig(true);
         }
     });
+
+    function toggleConfig(show) {
+        document.getElementById("configPanel").style.display = show ? "block" : "none";
+    }
 
     function saveConfig() {
         let url = document.getElementById("nabuUrl").value.trim();
         const token = document.getElementById("haToken").value.trim();
 
         if (!url || !token) {
-            alert("Veuillez remplir tous les champs.");
+            alert("Veuillez remplir les deux cases.");
             return;
         }
 
+        // Nettoyage de l'URL
         if (url.endsWith("/")) url = url.slice(0, -1);
         if (url.includes("/api")) url = url.split("/api")[0];
 
+        // Sauvegarde définitive dans la mémoire locale de Safari de l'iPhone
         localStorage.setItem("budget_ha_url", url);
         localStorage.setItem("budget_ha_token", token);
         
-        document.getElementById("configPanel").style.display = "none";
+        toggleConfig(false);
         document.getElementById("actionButtons").style.display = "flex";
         fetchBudgetGrid();
-    }
-
-    function logout() {
-        localStorage.clear();
-        document.getElementById("configPanel").style.display = "block";
-        document.getElementById("actionButtons").style.display = "none";
-        document.getElementById("dashboard").style.display = "none";
     }
 
     async function fetchBudgetGrid() {
@@ -217,6 +163,7 @@
         loader.style.display = "block";
 
         const finalUrl = `${baseUrl}/api/template`;
+        // Template de diagnostic pour lire le contenu exact de la liste de tâches
         const diagTemplate = `ST_STATE: {{ states('todo.application_budget') }} | ST_ATTRS: {{ states.todo.application_budget.attributes | to_json }}`;
 
         try {
@@ -235,11 +182,11 @@
 
             const rawText = await response.text();
             
-            // Pop-up temporaire affichant la structure exacte renvoyée par HA
+            // Cette alerte va nous afficher précisément comment est structuré votre JSON
             alert("Diagnostic Données HA :\n\n" + rawText);
 
         } catch (error) {
-            alert("Erreur : " + error.message);
+            alert("Erreur de récupération : " + error.message);
         } finally {
             loader.style.display = "none";
         }
