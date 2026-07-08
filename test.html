@@ -124,12 +124,12 @@
 <div class="container">
     <h1>📊 Application Budget</h1>
 
-    <!-- Configuration -->
-    <div id="configPanel" class="config-panel">
+    <div id="configPanel" class="config-panel" style="display: none;">
         <h3>🔑 Configuration de l'accès</h3>
+        <p style="font-size: 12px; color: var(--text-secondary);">Entrez vos accès une fois, ou utilisez un lien incluant vos paramètres pour une configuration automatique.</p>
         <div class="config-field">
             <label for="nabuUrl">URL Nabu Casa de base :</label>
-            <input type="url" id="nabuUrl" placeholder="https://p97jxn656lgcgulaq88hzhurz5pluytd.ui.nabu.casa">
+            <input type="url" id="nabuUrl" placeholder="https://xxxxxxxxxxxxxxx.ui.nabu.casa">
         </div>
         <div class="config-field">
             <label for="haToken">Jeton d'accès de longue durée (Token HA) :</label>
@@ -145,57 +145,40 @@
 
     <div id="loader" class="loader">Connexion à Home Assistant...</div>
 
-    <!-- Dashboard -->
     <div id="dashboard" style="display: none;">
-        <div class="kpi-grid">
-            <div class="card">
-                <div class="card-title">Solde</div>
-                <div id="valSolde" class="card-value text-green">0 €</div>
-            </div>
-            <div class="card">
-                <div class="card-title">Tirelire</div>
-                <div id="valTirelire" class="card-value text-orange">0 €</div>
-            </div>
         </div>
-
-        <div class="goal-card">
-            <div class="goal-header">
-                <span id="lblObjectif" style="font-weight: bold;">Mon Objectif</span>
-                <span id="valObjectifProgression">0 / 0 €</span>
-            </div>
-            <div class="progress-bar-bg">
-                <div id="barObjectif" class="progress-bar-fill"></div>
-            </div>
-        </div>
-
-        <div class="history-card">
-            <h2>Historique des mouvements</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Type</th>
-                        <th>Description</th>
-                        <th style="text-align: right;">Montant</th>
-                    </tr>
-                </thead>
-                <tbody id="tableHistory"></tbody>
-            </table>
-        </div>
-    </div>
 </div>
 
 <script>
     document.addEventListener("DOMContentLoaded", () => {
+        // 1. Interception automatique des paramètres de l'URL si présents (?url=...&token=...)
+        const urlParams = new URLSearchParams(window.location.search);
+        let paramUrl = urlParams.get('url');
+        let paramToken = urlParams.get('token');
+
+        if (paramUrl && paramToken) {
+            paramUrl = paramUrl.trim();
+            if (paramUrl.endsWith("/")) paramUrl = paramUrl.slice(0, -1);
+            if (paramUrl.includes("/api")) paramUrl = paramUrl.split("/api")[0];
+
+            localStorage.setItem("budget_ha_url", paramUrl);
+            localStorage.setItem("budget_ha_token", paramToken.trim());
+
+            // Nettoyage immédiat de la barre d'adresse du navigateur pour des raisons de sécurité
+            const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+            window.history.replaceState({}, document.title, cleanUrl);
+        }
+
+        // 2. Vérification des données stockées en mémoire locale
         const savedUrl = localStorage.getItem("budget_ha_url");
         const savedToken = localStorage.getItem("budget_ha_token");
 
         if (savedUrl && savedToken) {
-            document.getElementById("nabuUrl").value = savedUrl;
-            document.getElementById("haToken").value = savedToken;
             document.getElementById("configPanel").style.display = "none";
             document.getElementById("actionButtons").style.display = "flex";
             fetchBudgetGrid();
+        } else {
+            document.getElementById("configPanel").style.display = "block";
         }
     });
 
@@ -209,9 +192,7 @@
         }
 
         if (url.endsWith("/")) url = url.slice(0, -1);
-        if (url.includes("/api")) {
-            url = url.split("/api")[0];
-        }
+        if (url.includes("/api")) url = url.split("/api")[0];
 
         localStorage.setItem("budget_ha_url", url);
         localStorage.setItem("budget_ha_token", token);
@@ -232,16 +213,11 @@
         const baseUrl = localStorage.getItem("budget_ha_url");
         const token = localStorage.getItem("budget_ha_token");
         const loader = document.getElementById("loader");
-        const dashboard = document.getElementById("dashboard");
 
         loader.style.display = "block";
-        dashboard.style.display = "none";
 
-        // Utilisation du endpoint de rendu des templates de HA
         const finalUrl = `${baseUrl}/api/template`;
-
-        // Ce template Jinja2 va fouiller l'entité directement côté serveur et renvoyer le texte brut
-        const jinjaTemplate = `{% set desc = state_attr('todo.application_budget', 'description') %}{% if desc and 'solde' in desc %}{{ desc }}{% else %}{% set items = state_attr('todo.application_budget', 'todo_items') %}{% if items %}{% for item in items %}{% if 'solde' in item.description %}{{ item.description }}{% endif %}{% endfor %}{% endif %}{% endif %}`;
+        const diagTemplate = `ST_STATE: {{ states('todo.application_budget') }} | ST_ATTRS: {{ states.todo.application_budget.attributes | to_json }}`;
 
         try {
             const response = await fetch(finalUrl, {
@@ -251,70 +227,22 @@
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    template: jinjaTemplate
+                    template: diagTemplate
                 })
             });
 
             if (!response.ok) throw new Error(`Code HTTP ${response.status}`);
 
-            // Le endpoint de template retourne directement la chaîne de caractères calculée
             const rawText = await response.text();
-            const cleanText = rawText.trim();
-
-            if (!cleanText || cleanText === "None") {
-                throw new Error("Le template n'a trouvé aucun JSON valide contenant le mot 'solde' dans l'entité todo.application_budget.");
-            }
-
-            const budgetData = JSON.parse(cleanText);
-            renderDashboard(budgetData);
+            
+            // Pop-up temporaire affichant la structure exacte renvoyée par HA
+            alert("Diagnostic Données HA :\n\n" + rawText);
 
         } catch (error) {
             alert("Erreur : " + error.message);
-            logout();
         } finally {
             loader.style.display = "none";
         }
-    }
-
-    function renderDashboard(data) {
-        document.getElementById("dashboard").style.display = "block";
-        document.getElementById("valSolde").innerText = `${data.solde} €`;
-        document.getElementById("valTirelire").innerText = `${data.tirelire} €`;
-        document.getElementById("lblObjectif").innerText = data.nom_objectif || "Objectif";
-        document.getElementById("valObjectifProgression").innerText = `${data.objectif_courant} / ${data.cible_objective || data.cible_objectif} €`;
-        
-        const cible = data.cible_objective || data.cible_objectif || 1;
-        const pourcentage = Math.min(100, Math.round((data.objectif_courant / cible) * 100));
-        document.getElementById("barObjectif").style.width = `${pourcentage}%`;
-
-        const tbody = document.getElementById("tableHistory");
-        tbody.innerHTML = "";
-
-        if (data.historique && Array.isArray(data.historique)) {
-            const sortedHistory = [...data.historique].reverse();
-            sortedHistory.forEach(item => {
-                const tr = document.createElement("tr");
-                const badgeClass = item.type === "gain" ? "badge-gain" : "badge-depense";
-                const labelType = item.type === "gain" ? "Gain" : "Dépense";
-                const sign = item.type === "gain" ? "+" : "-";
-                const amountClass = item.type === "gain" ? "text-green" : "";
-
-                tr.innerHTML = `
-                    <td>${formatDate(item.date)}</td>
-                    <td><span class="badge ${badgeClass}">${labelType}</span></td>
-                    <td>${item.desc}</td>
-                    <td style="text-align: right; font-weight: bold;" class="${amountClass}">${sign}${item.montant} €</td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-    }
-
-    function formatDate(dateStr) {
-        if(!dateStr) return "-";
-        const parts = dateStr.split('-');
-        if(parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
-        return dateStr;
     }
 </script>
 </body>
