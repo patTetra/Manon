@@ -41,18 +41,14 @@
                     try { resultat = JSON.parse(texteReponse); } catch(e) {}
                 }
                 
-                // Extraction ultra-tolérante des items (gère tous les formats HA possibles)
                 let items = [];
                 if (resultat) {
-                    let brut = resultat.retour_lire || resultat;
-                    if (typeof brut === 'string') { try { brut = JSON.parse(brut); } catch(e) {} }
-                    
-                    if (brut['todo.application_budget'] && Array.isArray(brut['todo.application_budget'].items)) {
-                        items = brut['todo.application_budget'].items;
-                    } else if (brut.items && Array.isArray(brut.items)) {
-                        items = brut.items;
-                    } else if (Array.isArray(brut)) {
+                    let brut = resultat['todo.application_budget'] ? resultat['todo.application_budget'].items : (resultat.items || resultat);
+                    if (Array.isArray(brut)) {
                         items = brut;
+                    } else if (resultat.retour_lire) {
+                        let sousBrut = resultat.retour_lire['todo.application_budget'] ? resultat.retour_lire['todo.application_budget'].items : resultat.retour_lire.items;
+                        if (Array.isArray(sousBrut)) items = sousBrut;
                     }
                 }
 
@@ -62,7 +58,6 @@
                     const dataHA = JSON.parse(tacheData.description);
                     chargerLocalSecours();
                     
-                    // Arbitrage par Horodatage corrigé
                     if (!data.maj || (dataHA.maj && dataHA.maj >= data.maj)) {
                         data = dataHA;
                         localStorage.setItem('budgetDataConnecte', JSON.stringify(data));
@@ -179,7 +174,7 @@
             sauvegarder(); fermerGain();
         }
 
-        function ouvrirDepense() { document.getElementById('modal-depense').style.display = 'flex'; }
+        function abrirDepense() { document.getElementById('modal-depense').style.display = 'flex'; }
         function fermerDepense() { document.getElementById('modal-depense').style.display = 'none'; }
         function enregistrerDepense() {
             const m = parseFloat(document.getElementById('depense-montant').value);
@@ -211,7 +206,7 @@
         }
 
         function ouvrirRetrait(cible) {
-            cibleRetraitEnCours = cible;
+            cibleRetraitEnCours = cibler = cible;
             document.getElementById('retrait-titre').innerText = `↩ Récupérer de ` + (cible === 'tirelire' ? "la Tirelire" : "l'Objectif");
             document.getElementById('retrait-max').innerText = `Maximum disponible : ${(data[cible] || 0).toFixed(2)} €`;
             document.getElementById('retrait-montant').value = ''; document.getElementById('modal-retrait').style.display = 'flex';
@@ -245,7 +240,7 @@
         function fermerSecuriteReinit() { document.getElementById('modal-securite').style.display = 'none'; }
         function validerReinitialiserTout() {
             if (document.getElementById('code-pincode').value === "1607") {
-                data = { solde: 0, tirelire: 0, objectf_courant: 0, nom_objectif: "Mon Objectif", cible_objectif: 50, dernier_mois_credit: "", historique: [], maj: Date.now() };
+                data = { solde: 0, tirelire: 0, objectif_courant: 0, nom_objectif: "Mon Objectif", cible_objectif: 50, dernier_mois_credit: "", historique: [], maj: Date.now() };
                 sauvegarder(); fermerSecuriteReinit(); fermerParametres();
             } else { alert("Code PIN incorrect."); }
         }
@@ -317,15 +312,13 @@
             <button class="btn-sync-force" onclick="chargerDepuisHomeAssistant()">🔄 Forcer Synchro</button>
         </div>
 
-        <!-- SOLDE -->
         <div class="card solde-card">
             <div style="font-weight: 600; opacity: 0.9;">Argent de poche disponible</div>
             <div class="montant" id="solde">0.00 €</div>
             <div class="badge" id="badge-statut">🌱 Écureuil Débutant</div>
-            <div class="solde-actions"><button onclick="ouvrirGain()">➕ Recevoir</button><button onclick="ouvrirDepense()">🛒 Un Achat</button></div>
+            <div class="solde-actions"><button onclick="ouvrirGain()">➕ Recevoir</button><button onclick="abrirDepense()">🛒 Un Achat</button></div>
         </div>
         
-        <!-- TIRELIRE -->
         <div class="card tirelire-card">
             <h3>🐷 Tirelire (Épargne)</h3>
             <div class="montant" id="tirelire">0.00 €</div>
@@ -341,7 +334,6 @@
             <button class="btn-retrait" style="background: var(--orange)" onclick="ouvrirRetrait('tirelire')">Récupérer de l'argent ↩</button>
         </div>
 
-        <!-- OBJECTIF -->
         <div class="card objectif-card">
             <h3 id="titre-objectif">🎯 Mon Objectif</h3>
             <div class="montant" id="obj-val">0.00 €</div>
@@ -359,11 +351,9 @@
             <button class="btn-retrait" style="background: var(--blue)" onclick="ouvrirRetrait('objectif_courant')">Récupérer pour acheter ↩</button>
         </div>
 
-        <!-- HISTORIQUE -->
         <div class="card"><h3>📊 Mon Historique</h3><div class="liste-historique" id="liste-historique"></div></div>
     </div>
 
-    <!-- MODALS -->
     <div class="modal" id="modal-gain">
         <div class="modal-content">
             <h2>➕ Recevoir</h2>
@@ -393,7 +383,6 @@
         </div>
     </div>
 
-    <!-- REGLAGES -->
     <div class="modal" id="modal-parametres">
         <div class="modal-content">
             <h2>⚙️ Réglages & Synchro</h2>
