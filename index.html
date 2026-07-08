@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mon Budget Connected</title>
     <script>
-        let data = { solde: 0, tirelire: 0, objectif_courant: 0, nom_objectif: "Mon Objectif", cible_objectif: 50, dernier_mois_credit: "", historique: [] };
+        // AJOUT de la clé maj pour horodater les changements
+        let data = { solde: 0, tirelire: 0, objectif_courant: 0, nom_objectif: "Mon Objectif", cible_objectif: 50, dernier_mois_credit: "", historique: [], maj: 0 };
         let haUrl = localStorage.getItem('ha_url') || "";
         let cibleRetraitEnCours = "";
 
@@ -40,18 +41,13 @@
                 if (texteReponse && texteReponse.trim().startsWith('{')) {
                     try {
                         resultat = JSON.parse(texteReponse);
-                    } catch(e) {
-                        console.log("Erreur de parsing JSON global.");
-                    }
+                    } catch(e) {}
                 }
                 
-                // Déballage robuste de la variable texte envoyée par HA
                 if (resultat && typeof resultat.retour_lire === 'string') {
                     try {
                         resultat.retour_lire = JSON.parse(resultat.retour_lire);
-                    } catch(e) {
-                        console.log("Erreur de décodage du sous-JSON.");
-                    }
+                    } catch(e) {}
                 }
 
                 let items = [];
@@ -64,9 +60,22 @@
                 const tacheData = items.find(i => i.summary === "data_budget");
 
                 if (tacheData && tacheData.description) {
-                    data = JSON.parse(tacheData.description);
-                    localStorage.setItem('budgetDataConnecte', JSON.stringify(data));
-                    document.getElementById('statut-synchro').innerText = "☁️ Synchronisé avec HA";
+                    const dataHA = JSON.parse(tacheData.description);
+                    
+                    // Chargement des données locales pour comparer
+                    chargerLocalSecours();
+                    
+                    // ARBITRAGE : On ne prend les données de HA que si elles sont plus récentes ou égales
+                    // Si les données locales sont plus récentes (ex: modification hors ligne), on garde le local et on va pousser vers HA
+                    if (!data.maj || (dataHA.maj && dataHA.maj >= data.maj)) {
+                        data = dataHA;
+                        localStorage.setItem('budgetDataConnecte', JSON.stringify(data));
+                        document.getElementById('statut-synchro').innerText = "☁️ Synchronisé avec HA";
+                    } else {
+                        console.log("Les données locales sont plus récentes, planification d'un envoi...");
+                        document.getElementById('statut-synchro').innerText = "⏳ Envoi des données locales...";
+                        await sauvegarder();
+                    }
                 } else {
                     document.getElementById('statut-synchro').innerText = "☁️ Connecté (Prêt à synchroniser)";
                     chargerLocalSecours();
@@ -80,6 +89,9 @@
         }
 
         async function sauvegarder() {
+            // Mettre à jour le timestamp à chaque modification locale
+            data.maj = Date.now();
+            
             localStorage.setItem('budgetDataConnecte', JSON.stringify(data));
             afficher();
             if (!haUrl) return;
@@ -240,19 +252,17 @@
         function fermerSecuriteReinit() { document.getElementById('modal-securite').style.display = 'none'; }
         function validerReinitialiserTout() {
             if (document.getElementById('code-pincode').value === "1607") {
-                data = { solde: 0, tirelire: 0, objectif_courant: 0, nom_objectif: "Mon Objectif", cible_objectif: 50, dernier_mois_credit: "", historique: [] };
+                data = { solde: 0, tirelire: 0, objectif_courant: 0, nom_objectif: "Mon Objectif", cible_objectif: 50, dernier_mois_credit: "", historique: [], maj: Date.now() };
                 sauvegarder(); fermerSecuriteReinit(); fermerParametres();
             } else { alert("Code PIN incorrect."); }
         }
 
         window.onload = function() {
+            // Étape 1 : On charge d'abord le local pour afficher tout de suite quelque chose
+            chargerLocalSecours();
+            afficher();
+            // Étape 2 : On va chercher la vérité sur Home Assistant sans écraser d'office
             chargerDepuisHomeAssistant();
-            // Deuxième lecture de secours automatique après chargement si bloqué sur "Prêt"
-            setTimeout(() => {
-                if (document.getElementById('statut-synchro').innerText.includes("Prêt")) {
-                    chargerDepuisHomeAssistant();
-                }
-            }, 1500);
         };
     </script>
     <style>
