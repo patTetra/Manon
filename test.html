@@ -209,8 +209,8 @@
         }
 
         if (url.endsWith("/")) url = url.slice(0, -1);
-        if (url.includes("/api/states")) {
-            url = url.split("/api/states")[0];
+        if (url.includes("/api/")) {
+            url = url.split("/api/")[0];
         }
 
         localStorage.setItem("budget_ha_url", url);
@@ -237,51 +237,39 @@
         loader.style.display = "block";
         dashboard.style.display = "none";
 
-        // Ciblage direct de l'entité todo.application_budget
-        const finalUrl = `${baseUrl}/api/states/todo.application_budget`;
+        // Utilisation du endpoint de service POST pour récupérer les détails des tâches
+        const finalUrl = `${baseUrl}/api/services/todo/get_items`;
 
         try {
             const response = await fetch(finalUrl, {
-                method: 'GET',
+                method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
-                }
+                },
+                body: JSON.stringify({
+                    entity_id: "todo.application_budget"
+                })
             });
 
             if (!response.ok) throw new Error(`Code HTTP ${response.status}`);
 
-            const entityData = await response.json();
+            const result = await response.json();
             let rawJsonText = "";
 
-            // On cherche le JSON dans les attributs de l'entité
-            if (entityData.attributes) {
-                // Parfois HA stocke les tâches dans un tableau d'objets 'todo_items'
-                if (Array.isArray(entityData.attributes.todo_items)) {
-                    const task = entityData.attributes.todo_items.find(item => item.description && item.description.includes("solde"));
-                    if (task) rawJsonText = task.description;
-                } 
-                // Alternative : si la description est directement sur l'entité principale
-                if (!rawJsonText && entityData.attributes.description) {
-                    rawJsonText = entityData.attributes.description;
+            // Analyse de la réponse du service get_items
+            if (result && result["todo.application_budget"] && Array.isArray(result["todo.application_budget"].items)) {
+                const items = result["todo.application_budget"].items;
+                // Recherche de la tâche nommée 'data_budget'
+                const budgetTask = items.find(item => item.summary === "data_budget" || (item.description && item.description.includes("solde")));
+                
+                if (budgetTask && budgetTask.description) {
+                    rawJsonText = budgetTask.description;
                 }
             }
 
             if (!rawJsonText) {
-                // Si la recherche par entité spécifique n'a rien donné, on tente une dernière vérification globale
-                const globalResponse = await fetch(`${baseUrl}/api/states`, {
-                    method: 'GET',
-                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
-                });
-                if (globalResponse.ok) {
-                    const allStates = await globalResponse.json();
-                    const found = allStates.find(e => e.attributes && e.attributes.description && e.attributes.description.includes("solde"));
-                    if (found) rawJsonText = found.attributes.description;
-                }
-            }
-
-            if (!rawJsonText) {
-                throw new Error("Impossible de localiser le texte JSON contenant 'solde' dans votre entité.");
+                throw new Error("Impossible de trouver la tâche 'data_budget' ou sa description JSON est vide.");
             }
 
             const budgetData = JSON.parse(rawJsonText);
