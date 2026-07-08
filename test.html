@@ -36,7 +36,7 @@
             color: var(--text-color);
         }
 
-        /* Configuration Panel */
+        /* Panneau de Configuration */
         .config-panel {
             background-color: var(--card-bg);
             border-radius: 12px;
@@ -100,7 +100,7 @@
         .text-green { color: var(--accent-green); }
         .text-orange { color: var(--accent-orange); }
 
-        /* Goal Section */
+        /* Barre d'objectif */
         .goal-card {
             background-color: var(--card-bg);
             border-radius: 12px;
@@ -128,7 +128,7 @@
             transition: width 0.5s ease;
         }
 
-        /* History Table */
+        /* Tableau Historique */
         .history-card {
             background-color: var(--card-bg);
             border-radius: 12px;
@@ -175,11 +175,10 @@
 <div class="container">
     <h1>📊 Application Budget</h1>
 
-    <!-- Configuration Securisée LocalStorage -->
     <div id="configPanel" class="config-panel">
         <h3>🔑 Configuration de l'accès (Sauvegardé localement)</h3>
         <div class="config-field">
-            <label for="nabuUrl">URL Nabu Casa de votre liste de tâche :</label>
+            <label for="nabuUrl">URL Nabu Casa de votre liste de tâches :</label>
             <input type="url" id="nabuUrl" placeholder="https://xxxxxx.ui.nabu.casa/api/states/todo.application_budget">
         </div>
         <div class="config-field">
@@ -193,10 +192,8 @@
 
     <div id="loader" class="loader">Connexion à Home Assistant...</div>
 
-    <!-- Dashboard Content -->
     <div id="dashboard" style="display: none;">
         
-        <!-- Solde & Tirelire -->
         <div class="kpi-grid">
             <div class="card">
                 <div class="card-title">Solde</div>
@@ -208,7 +205,6 @@
             </div>
         </div>
 
-        <!-- Objectif -->
         <div class="goal-card">
             <div class="goal-header">
                 <span id="lblObjectif" style="font-weight: bold;">Mon Objectif</span>
@@ -219,7 +215,6 @@
             </div>
         </div>
 
-        <!-- Historique -->
         <div class="history-card">
             <h2>Historique des mouvements</h2>
             <table>
@@ -232,15 +227,14 @@
                     </tr>
                 </thead>
                 <tbody id="tableHistory">
-                    <!-- Rempli par le JS -->
-                </tbody>
+                    </tbody>
             </table>
         </div>
     </div>
 </div>
 
 <script>
-    // Au chargement, vérifier si la config existe déjà
+    // Vérification automatique au chargement de la page
     document.addEventListener("DOMContentLoaded", () => {
         const savedUrl = localStorage.getItem("budget_ha_url");
         const savedToken = localStorage.getItem("budget_ha_token");
@@ -281,9 +275,6 @@
         dashboard.style.display = "none";
 
         try {
-            // Note : Pour récupérer l'intérieur d'une liste de tâche complète, 
-            // l'API /api/states renvoie l'état global. Pour les tâches individuelles, 
-            // on interroge l'entité todo correspondante.
             const response = await fetch(url, {
                 method: 'GET',
                 headers: {
@@ -295,45 +286,34 @@
             if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
 
             const entityData = await response.json();
-            
-            // Home Assistant stocke les tâches soit dans les attributs d'une entité todo,
-            // soit vous ciblez directement l'état d'un calendrier/tâche si vous utilisez l'intégration todo.
-            // On cherche le texte JSON "data_budget" dans la description de la tâche reçu.
-            
             let rawJsonText = "";
 
-            // Cas 1 : Vous ciblez directement l'entité qui contient le JSON dans ses attributs ou sa description
+            // Analyse de l'entité todo pour trouver la description JSON
             if(entityData.attributes && entityData.attributes.description) {
                 rawJsonText = entityData.attributes.description;
             } else if (entityData.description) {
                 rawJsonText = entityData.description;
-            } else {
-                // Si vous avez récupéré la liste complète des états, on cherche l'entité
-                // (Adaptation si l'URL entrée était juste /api/states)
-                if (Array.isArray(entityData)) {
-                    // On cherche l'entité qui s'appelle data_budget ou qui contient le JSON recherché
-                    const taskEntity = entityData.find(e => e.attributes && e.attributes.description && e.attributes.description.includes("solde"));
-                    if(taskEntity) rawJsonText = taskEntity.attributes.description;
-                }
+            } else if (Array.isArray(entityData)) {
+                const taskEntity = entityData.find(e => e.attributes && e.attributes.description && e.attributes.description.includes("solde"));
+                if(taskEntity) rawJsonText = taskEntity.attributes.description;
             }
 
             if (!rawJsonText) {
-                // Nettoyage au cas où le JSON est directement dans le state
                 if(typeof entityData === 'object' && entityData.solde !== undefined) {
                     renderDashboard(entityData);
                     return;
                 }
-                throw new Error("Impossible de localiser le texte JSON dans la description de l'entité configurée.");
+                throw new Error("Impossible de localiser le texte JSON dans l'entité configurée.");
             }
 
-            // Extraction et parsing du JSON de votre capture d'écran
             const budgetData = JSON.parse(rawJsonText);
             renderDashboard(budgetData);
 
         } catch (error) {
             alert("Erreur lors de la récupération : " + error.message);
-            // En cas d'erreur de token ou d'URL, on réaffiche le panneau
-            document.getElementById("configPanel").style.style.display = "block";
+            // Si la connexion échoue, on réaffiche le panneau pour permettre de corriger l'URL/Token
+            document.getElementById("configPanel").style.display = "block";
+            document.getElementById("btnRefresh").style.display = "none";
         } finally {
             loader.style.display = "none";
         }
@@ -342,11 +322,11 @@
     function renderDashboard(data) {
         document.getElementById("dashboard").style.display = "block";
 
-        // Remplissage des blocs principaux
+        // Insertion des KPI Solde & Tirelire
         document.getElementById("valSolde").innerText = `${data.solde} €`;
         document.getElementById("valTirelire").innerText = `${data.tirelire} €`;
         
-        // Objectif
+        // Progression de l'objectif courant
         document.getElementById("lblObjectif").innerText = data.nom_objectif || "Objectif";
         document.getElementById("valObjectifProgression").innerText = `${data.objectif_courant} / ${data.cible_objective || data.cible_objectif} €`;
         
@@ -354,12 +334,12 @@
         const pourcentage = Math.min(100, Math.round((data.objectif_courant / cible) * 100));
         document.getElementById("barObjectif").style.width = `${pourcentage}%`;
 
-        // Tableau d'historique
+        // Remplissage du tableau d'historique
         const tbody = document.getElementById("tableHistory");
-        tbody.innerHTML = ""; // Vider l'ancien contenu
+        tbody.innerHTML = "";
 
         if (data.historique && Array.isArray(data.historique)) {
-            // Tri par date décroissante (plus récent d'abord)
+            // Tri par date décroissante pour afficher le plus récent en premier
             const sortedHistory = [...data.historique].reverse();
 
             sortedHistory.forEach(item => {
@@ -385,7 +365,7 @@
         if(!dateStr) return "-";
         const parts = dateStr.split('-');
         if(parts.length === 3) {
-            return `${parts[2]}/${parts[1]}/${parts[0]}`; // Convertit AAAA-MM-JJ en JJ/MM/AAAA
+            return `${parts[2]}/${parts[1]}/${parts[0]}`; // AAAA-MM-JJ -> JJ/MM/AAAA
         }
         return dateStr;
     }
