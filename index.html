@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mon Budget Connected</title>
     <script>
-        let data = { solde: 0, tirelire: 0, objectif_courant: 0, nom_objectif: "Mon Objectif", cible_objectif: 50, dernier_mois_credit: "", historique: [], maj: 0 };
+        let data = { solde: 0, tirelire: 0, object_courant: 0, nom_objectif: "Mon Objectif", cible_objectif: 50, dernier_mois_credit: "", historique: [], maj: 0 };
         let haUrl = localStorage.getItem('ha_url') || "";
         let cibleRetraitEnCours = "";
 
@@ -35,6 +35,9 @@
                 
                 let texteReponse = await reponse.text();
                 
+                // --- ALERTE DE DIAGNOSTIC TEMPORAIRE ---
+                alert("BRUT REÇU DE HA :\n" + texteReponse);
+                
                 let resultat = null;
                 if (texteReponse && texteReponse.trim().startsWith('{')) {
                     try { resultat = JSON.parse(texteReponse); } catch(e) {}
@@ -60,7 +63,6 @@
                     }
                 }
 
-                // Recherche ultra-souple (gère summary, uid, majuscules/minuscules)
                 const tacheData = items.find(i => {
                     const icomplet = JSON.stringify(i).toLowerCase();
                     return icomplet.includes('"summary":"data_budget"') || 
@@ -203,7 +205,7 @@
                 data.solde -= m; data[cible] = (data[cible] || 0) + m;
                 sauvegarder();
                 if (cible === 'objectif_courant' && data.objectif_courant >= data.cible_objectif && ancien < data.cible_objectif) {
-                    setTimeout(() => { alert(`🥳 Objectif "${data.nom_objectif}" atteint ! 🎉`); }, 400);
+                    setTimeout(() => { alert(`🥳 Objectif "${data.nom_objectif}" reached ! 🎉`); }, 400);
                 }
             } else { alert("Solde insuffisant !"); }
         }
