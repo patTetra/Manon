@@ -40,35 +40,31 @@
                     try { resultat = JSON.parse(texteReponse); } catch(e) {}
                 }
                 
-                let items = [];
-                if (resultat) {
-                    // Analyse profonde du JSON brut renvoyé directement par Home Assistant
-                    if (resultat.items && Array.isArray(resultat.items)) {
-                        items = resultat.items;
-                    } else if (resultat['todo.application_budget'] && Array.isArray(resultat['todo.application_budget'].items)) {
-                        items = resultat['todo.application_budget'].items;
-                    } else {
-                        // Cherche dans n'importe quelle sous-clé (si l'entité change de nom)
-                        for (let key in resultat) {
-                            if (resultat[key] && Array.isArray(resultat[key].items)) {
-                                items = resultat[key].items;
-                                break;
-                            }
-                        }
+                // 1. Essai de lecture directe (si HA renvoie directement la clé "description")
+                if (resultat && resultat.description) {
+                    try {
+                        const dataHA = JSON.parse(resultat.description);
+                        data = dataHA;
+                        localStorage.setItem('budgetDataConnecte', JSON.stringify(data));
+                        document.getElementById('statut-synchro').innerText = "☁️ Synchronisé avec HA";
+                        afficher(); verifierArgentDePoche();
+                        return;
+                    } catch(e) {
+                        console.error("Erreur de parsing du JSON imbriqué", e);
                     }
                 }
 
-                // Recherche de notre tâche de stockage
-                const tacheData = items.find(i => {
-                    const icomplet = JSON.stringify(i).toLowerCase();
-                    return icomplet.includes('"summary":"data_budget"') || 
-                           icomplet.includes('"uid":"data_budget"') ||
-                           (i.summary && i.summary.toLowerCase() === 'data_budget');
-                });
+                // 2. Solution de secours (si HA renvoie le dictionnaire global d'items)
+                let items = [];
+                if (resultat) {
+                    if (resultat.items && Array.isArray(resultat.items)) items = resultat.items;
+                    else if (resultat['todo.application_budget'] && Array.isArray(resultat['todo.application_budget'].items)) items = resultat['todo.application_budget'].items;
+                }
+
+                const tacheData = items.find(i => JSON.stringify(i).toLowerCase().includes('data_budget'));
 
                 if (tacheData && tacheData.description) {
-                    const dataHA = JSON.parse(tacheData.description);
-                    data = dataHA;
+                    data = JSON.parse(tacheData.description);
                     localStorage.setItem('budgetDataConnecte', JSON.stringify(data));
                     document.getElementById('statut-synchro').innerText = "☁️ Synchronisé avec HA";
                 } else {
