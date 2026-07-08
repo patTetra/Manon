@@ -46,7 +46,7 @@
         .config-panel h3 { margin-top: 0; margin-bottom: 10px; font-size: 16px; }
         .config-field { margin-bottom: 10px; }
         .config-field label { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
-        .config-field input, .config-field textarea {
+        .config-field input {
             width: 100%;
             padding: 8px;
             border-radius: 6px;
@@ -126,32 +126,19 @@
     <h1>📊 Application Budget</h1>
 
     <div id="actionButtons" style="display: none; display: flex; gap: 10px; margin-bottom: 20px;">
-        <button id="btnRefresh" class="btn" onclick="fetchBudgetGrid()">🔄 Actualiser via API</button>
+        <button id="btnRefresh" class="btn" onclick="fetchBudgetWebhook()">🔄 Actualiser les données</button>
     </div>
 
-    <div id="loader" class="loader">Connexion à Home Assistant...</div>
+    <div id="loader" class="loader">Synchronisation Webhook en cours...</div>
 
     <!-- Panneau de configuration -->
     <div id="configPanel" class="config-panel" style="display: none;">
-        <h3>🔑 Configuration des accès Home Assistant</h3>
+        <h3>🔑 Configuration du Webhook</h3>
         <div class="config-field">
-            <label for="haUrlInput">URL Nabu Casa de base :</label>
-            <input type="url" id="haUrlInput" placeholder="https://xxxxxxxxxxxxxxx.ui.nabu.casa">
+            <label for="webhookUrlInput">URL complète du Webhook Nabu Casa :</label>
+            <input type="url" id="webhookUrlInput" placeholder="https://xxxx.ui.nabu.casa/api/webhook/mon_id_secret">
         </div>
-        <div class="config-field">
-            <label for="haTokenInput">Jeton d'accès (Token) :</label>
-            <input type="password" id="haTokenInput" placeholder="Collez votre token ici...">
-        </div>
-        <button class="btn" onclick="saveConfig()">Enregistrer les accès</button>
-        
-        <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 15px 0;">
-        
-        <h3>📲 Mode Secours (Sans API / Hors-ligne)</h3>
-        <p style="font-size: 11px; color: var(--text-secondary); margin-top: 0;">Si l'API bloque, collez directement la valeur de la description ou le JSON ici :</p>
-        <div class="config-field">
-            <textarea id="rawJsonInput" rows="4" placeholder='{"solde": 150, "tirelire": 40, ...}'></textarea>
-        </div>
-        <button class="btn style="background-color: var(--accent-green);" onclick="loadRawJson()">Afficher le Dashboard</button>
+        <button class="btn" onclick="saveConfig()">Enregistrer le Webhook</button>
         <button class="btn btn-danger" onclick="toggleConfig(false)">Annuler</button>
     </div>
 
@@ -194,19 +181,17 @@
         </div>
     </div>
 
-    <div class="footer-link" onclick="toggleConfig(true)">⚙️ Configuration Réseau / Secours</div>
+    <div class="footer-link" onclick="toggleConfig(true)">⚙️ Configuration Réseau</div>
 </div>
 
 <script>
     document.addEventListener("DOMContentLoaded", () => {
-        const savedUrl = localStorage.getItem("budget_ha_url");
-        const savedToken = localStorage.getItem("budget_ha_token");
+        const savedWebhook = localStorage.getItem("budget_webhook_url");
 
-        if (savedUrl && savedToken) {
-            document.getElementById("haUrlInput").value = savedUrl;
-            document.getElementById("haTokenInput").value = savedToken;
+        if (savedWebhook) {
+            document.getElementById("webhookUrlInput").value = savedWebhook;
             document.getElementById("actionButtons").style.display = "flex";
-            fetchBudgetGrid();
+            fetchBudgetWebhook();
         } else {
             toggleConfig(true);
         }
@@ -217,88 +202,55 @@
     }
 
     function saveConfig() {
-        let url = document.getElementById("haUrlInput").value.trim().replace(/[\u200B-\u200D\uFEFF]/g, '');
-        let token = document.getElementById("haTokenInput").value.trim().replace(/[\u200B-\u200D\uFEFF]/g, '');
+        const url = document.getElementById("webhookUrlInput").value.trim().replace(/[\u200B-\u200D\uFEFF]/g, '');
 
-        if (!url || !token) {
-            alert("Veuillez remplir les deux cases.");
+        if (!url) {
+            alert("Veuillez saisir l'URL du webhook.");
             return;
         }
 
-        if (url.includes("/api")) url = url.split("/api")[0];
-        if (url.endsWith("/")) url = url.slice(0, -1);
-
-        localStorage.setItem("budget_ha_url", url);
-        localStorage.setItem("budget_ha_token", token);
-        
+        localStorage.setItem("budget_webhook_url", url);
         toggleConfig(false);
         document.getElementById("actionButtons").style.display = "flex";
-        fetchBudgetGrid();
+        fetchBudgetWebhook();
     }
 
-    async function fetchBudgetGrid() {
-        const baseUrl = localStorage.getItem("budget_ha_url");
-        const token = localStorage.getItem("budget_ha_token");
+    async function fetchBudgetWebhook() {
+        const webhookUrl = localStorage.getItem("budget_webhook_url");
         const loader = document.getElementById("loader");
         const dashboard = document.getElementById("dashboard");
+
+        if (!webhookUrl) {
+            toggleConfig(true);
+            return;
+        }
 
         loader.style.display = "block";
         dashboard.style.display = "none";
 
-        const finalUrl = `${baseUrl}/api/states/todo.application_budget`;
-
         try {
-            const response = await fetch(finalUrl, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                    // Suppression volontaire du Content-Type pour éviter les bugs WebKit
-                }
+            // Appel Webhook POST - Très permissif et évite les blocages d'en-têtes restrictifs
+            const response = await fetch(webhookUrl, {
+                method: 'POST'
             });
 
-            if (!response.ok) throw new Error(`Code HTTP ${response.status}`);
+            if (!response.ok) throw new Error(`Erreur Webhook (Code ${response.status})`);
 
-            const data = await response.json();
-            let jsonString = "";
+            const rawData = await response.json();
             
-            if (data.attributes && data.attributes.description) {
-                jsonString = data.attributes.description;
-            } else if (data.attributes && data.attributes.todo_items) {
-                const targetItem = data.attributes.todo_items.find(i => i.description && i.description.includes("solde"));
-                if (targetItem) jsonString = targetItem.description;
+            // Si HA renvoie le JSON directement encapsulé dans la clé "value"
+            let budgetData = rawData;
+            if (rawData && typeof rawData === 'object' && rawData.value) {
+                budgetData = typeof rawData.value === 'string' ? JSON.parse(rawData.value) : rawData.value;
             }
 
-            jsonString = jsonString.trim();
-
-            if (!jsonString) {
-                alert("Entité lue, mais description vide.");
-                return;
-            }
-
-            const budgetData = JSON.parse(jsonString);
             renderDashboard(budgetData);
 
         } catch (error) {
-            console.error(error);
-            alert("Échec API : " + error.message + "\n\nUtilisez le 'Mode Secours' ci-dessous si le blocage iOS persiste.");
+            alert("Erreur de synchronisation Webhook : " + error.message);
             toggleConfig(true);
         } finally {
             loader.style.display = "none";
-        }
-    }
-
-    function loadRawJson() {
-        const rawInput = document.getElementById("rawJsonInput").value.trim();
-        if(!rawInput) {
-            alert("Veuillez coller du texte d'abord.");
-            return;
-        }
-        try {
-            const budgetData = JSON.parse(rawInput);
-            toggleConfig(false);
-            renderDashboard(budgetData);
-        } catch(e) {
-            alert("Le texte fourni n'est pas un JSON valide : " + e.message);
         }
     }
 
