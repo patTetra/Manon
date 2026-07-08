@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Application Budget - Dashboard</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --card-bg: #2d2d2d;
+            --text-color: #ffffff;
+            --text-secondary: #aaaaaa;
+            --accent-blue: #3498db;
+            --accent-green: #2ecc71;
+            --accent-orange: #e67e22;
+            --border-color: #404040;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 24px;
+            margin-bottom: 25px;
+            color: var(--text-color);
+        }
+
+        /* Configuration Panel */
+        .config-panel {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color);
+        }
+        .config-panel h3 { margin-top: 0; margin-bottom: 10px; font-size: 16px; }
+        .config-field {
+            margin-bottom: 10px;
+        }
+        .config-field label { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+        .config-field input {
+            width: 100%;
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background: #111;
+            color: white;
+            box-sizing: border-box;
+        }
+        .btn {
+            background-color: var(--accent-blue);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            width: 100%;
+        }
+        .btn:hover { opacity: 0.9; }
+
+        /* KPI Grid */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid var(--border-color);
+            text-align: center;
+        }
+
+        .card-title {
+            font-size: 13px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .card-value {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .text-green { color: var(--accent-green); }
+        .text-orange { color: var(--accent-orange); }
+
+        /* Goal Section */
+        .goal-card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 20px;
+        }
+        .goal-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+        .progress-bar-bg {
+            background-color: #111;
+            border-radius: 10px;
+            height: 12px;
+            width: 100%;
+            overflow: hidden;
+        }
+        .progress-bar-fill {
+            background-color: var(--accent-blue);
+            height: 100%;
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+
+        /* History Table */
+        .history-card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid var(--border-color);
+        }
+        .history-card h2 {
+            font-size: 16px;
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: var(--text-secondary);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            text-align: left;
+            padding: 10px 8px;
+            font-size: 14px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        th { color: var(--text-secondary); font-weight: normal; font-size: 12px; }
+        
+        .badge {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .badge-gain { background-color: rgba(46, 204, 113, 0.2); color: var(--accent-green); }
+        .badge-depense { background-color: rgba(231, 76, 60, 0.2); color: #e74c3c; }
+
+        .loader {
+            text-align: center;
+            color: var(--text-secondary);
+            padding: 20px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>📊 Application Budget</h1>
+
+    <!-- Configuration Securisée LocalStorage -->
+    <div id="configPanel" class="config-panel">
+        <h3>🔑 Configuration de l'accès (Sauvegardé localement)</h3>
+        <div class="config-field">
+            <label for="nabuUrl">URL Nabu Casa de votre liste de tâche :</label>
+            <input type="url" id="nabuUrl" placeholder="https://xxxxxx.ui.nabu.casa/api/states/todo.application_budget">
+        </div>
+        <div class="config-field">
+            <label for="haToken">Jeton d'accès de longue durée (Token HA) :</label>
+            <input type="password" id="haToken" placeholder="Votre token secret...">
+        </div>
+        <button class="btn" onclick="saveConfig()">Enregistrer & Charger</button>
+    </div>
+
+    <button id="btnRefresh" class="btn" style="margin-bottom: 20px; display: none;" onclick="fetchBudgetGrid()">🔄 Actualiser les données</button>
+
+    <div id="loader" class="loader">Connexion à Home Assistant...</div>
+
+    <!-- Dashboard Content -->
+    <div id="dashboard" style="display: none;">
+        
+        <!-- Solde & Tirelire -->
+        <div class="kpi-grid">
+            <div class="card">
+                <div class="card-title">Solde</div>
+                <div id="valSolde" class="card-value text-green">0 €</div>
+            </div>
+            <div class="card">
+                <div class="card-title">Tirelire</div>
+                <div id="valTirelire" class="card-value text-orange">0 €</div>
+            </div>
+        </div>
+
+        <!-- Objectif -->
+        <div class="goal-card">
+            <div class="goal-header">
+                <span id="lblObjectif" style="font-weight: bold;">Mon Objectif</span>
+                <span id="valObjectifProgression">0 / 0 €</span>
+            </div>
+            <div class="progress-bar-bg">
+                <div id="barObjectif" class="progress-bar-fill"></div>
+            </div>
+        </div>
+
+        <!-- Historique -->
+        <div class="history-card">
+            <h2>Historique des mouvements</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Description</th>
+                        <th style="text-align: right;">Montant</th>
+                    </tr>
+                </thead>
+                <tbody id="tableHistory">
+                    <!-- Rempli par le JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Au chargement, vérifier si la config existe déjà
+    document.addEventListener("DOMContentLoaded", () => {
+        const savedUrl = localStorage.getItem("budget_ha_url");
+        const savedToken = localStorage.getItem("budget_ha_token");
+
+        if (savedUrl && savedToken) {
+            document.getElementById("nabuUrl").value = savedUrl;
+            document.getElementById("haToken").value = savedToken;
+            document.getElementById("configPanel").style.display = "none";
+            document.getElementById("btnRefresh").style.display = "block";
+            fetchBudgetGrid();
+        }
+    });
+
+    function saveConfig() {
+        const url = document.getElementById("nabuUrl").value.trim();
+        const token = document.getElementById("haToken").value.trim();
+
+        if (!url || !token) {
+            alert("Veuillez remplir tous les champs.");
+            return;
+        }
+
+        localStorage.setItem("budget_ha_url", url);
+        localStorage.setItem("budget_ha_token", token);
+        
+        document.getElementById("configPanel").style.display = "none";
+        document.getElementById("btnRefresh").style.display = "block";
+        fetchBudgetGrid();
+    }
+
+    async function fetchBudgetGrid() {
+        const url = localStorage.getItem("budget_ha_url");
+        const token = localStorage.getItem("budget_ha_token");
+        const loader = document.getElementById("loader");
+        const dashboard = document.getElementById("dashboard");
+
+        loader.style.display = "block";
+        dashboard.style.display = "none";
+
+        try {
+            // Note : Pour récupérer l'intérieur d'une liste de tâche complète, 
+            // l'API /api/states renvoie l'état global. Pour les tâches individuelles, 
+            // on interroge l'entité todo correspondante.
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
+
+            const entityData = await response.json();
+            
+            // Home Assistant stocke les tâches soit dans les attributs d'une entité todo,
+            // soit vous ciblez directement l'état d'un calendrier/tâche si vous utilisez l'intégration todo.
+            // On cherche le texte JSON "data_budget" dans la description de la tâche reçu.
+            
+            let rawJsonText = "";
+
+            // Cas 1 : Vous ciblez directement l'entité qui contient le JSON dans ses attributs ou sa description
+            if(entityData.attributes && entityData.attributes.description) {
+                rawJsonText = entityData.attributes.description;
+            } else if (entityData.description) {
+                rawJsonText = entityData.description;
+            } else {
+                // Si vous avez récupéré la liste complète des états, on cherche l'entité
+                // (Adaptation si l'URL entrée était juste /api/states)
+                if (Array.isArray(entityData)) {
+                    // On cherche l'entité qui s'appelle data_budget ou qui contient le JSON recherché
+                    const taskEntity = entityData.find(e => e.attributes && e.attributes.description && e.attributes.description.includes("solde"));
+                    if(taskEntity) rawJsonText = taskEntity.attributes.description;
+                }
+            }
+
+            if (!rawJsonText) {
+                // Nettoyage au cas où le JSON est directement dans le state
+                if(typeof entityData === 'object' && entityData.solde !== undefined) {
+                    renderDashboard(entityData);
+                    return;
+                }
+                throw new Error("Impossible de localiser le texte JSON dans la description de l'entité configurée.");
+            }
+
+            // Extraction et parsing du JSON de votre capture d'écran
+            const budgetData = JSON.parse(rawJsonText);
+            renderDashboard(budgetData);
+
+        } catch (error) {
+            alert("Erreur lors de la récupération : " + error.message);
+            // En cas d'erreur de token ou d'URL, on réaffiche le panneau
+            document.getElementById("configPanel").style.style.display = "block";
+        } finally {
+            loader.style.display = "none";
+        }
+    }
+
+    function renderDashboard(data) {
+        document.getElementById("dashboard").style.display = "block";
+
+        // Remplissage des blocs principaux
+        document.getElementById("valSolde").innerText = `${data.solde} €`;
+        document.getElementById("valTirelire").innerText = `${data.tirelire} €`;
+        
+        // Objectif
+        document.getElementById("lblObjectif").innerText = data.nom_objectif || "Objectif";
+        document.getElementById("valObjectifProgression").innerText = `${data.objectif_courant} / ${data.cible_objective || data.cible_objectif} €`;
+        
+        const cible = data.cible_objective || data.cible_objectif || 1;
+        const pourcentage = Math.min(100, Math.round((data.objectif_courant / cible) * 100));
+        document.getElementById("barObjectif").style.width = `${pourcentage}%`;
+
+        // Tableau d'historique
+        const tbody = document.getElementById("tableHistory");
+        tbody.innerHTML = ""; // Vider l'ancien contenu
+
+        if (data.historique && Array.isArray(data.historique)) {
+            // Tri par date décroissante (plus récent d'abord)
+            const sortedHistory = [...data.historique].reverse();
+
+            sortedHistory.forEach(item => {
+                const tr = document.createElement("tr");
+                
+                const badgeClass = item.type === "gain" ? "badge-gain" : "badge-depense";
+                const labelType = item.type === "gain" ? "Gain" : "Dépense";
+                const sign = item.type === "gain" ? "+" : "-";
+                const amountClass = item.type === "gain" ? "text-green" : "";
+
+                tr.innerHTML = `
+                    <td>${formatDate(item.date)}</td>
+                    <td><span class="badge ${badgeClass}">${labelType}</span></td>
+                    <td>${item.desc}</td>
+                    <td style="text-align: right; font-weight: bold;" class="${amountClass}">${sign}${item.montant} €</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+    }
+
+    function formatDate(dateStr) {
+        if(!dateStr) return "-";
+        const parts = dateStr.split('-');
+        if(parts.length === 3) {
+            return `${parts[2]}/${parts[1]}/${parts[0]}`; // Convertit AAAA-MM-JJ en JJ/MM/AAAA
+        }
+        return dateStr;
+    }
+</script>
+</body>
+</html>
