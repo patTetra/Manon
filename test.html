@@ -202,8 +202,8 @@
     }
 
     function saveConfig() {
-        // Nettoyage strict de tous les caractères invisibles, espaces cachés et retours à la ligne
         let url = document.getElementById("webhookUrlInput").value;
+        // Nettoyage agressif des espaces et caractères invisibles
         url = url.trim().replace(/[\u200B-\u200D\uFEFF]/g, '').replace(/\s+/g, '');
 
         if (!url) {
@@ -227,23 +227,26 @@
             return;
         }
 
-        // Double sécurité : nettoyage à la volée avant l'exécution du fetch
         webhookUrl = webhookUrl.trim().replace(/[\u200B-\u200D\uFEFF]/g, '').replace(/\s+/g, '');
 
         loader.style.display = "block";
         dashboard.style.display = "none";
 
         try {
+            // Ajout d'un body vide et d'un header Content-Type pour satisfaire le moteur WebKit de Safari
             const response = await fetch(webhookUrl, {
-                method: 'POST'
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({})
             });
 
-            if (!response.ok) throw new Error(`Erreur Webhook (Code ${response.status})`);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
             const rawData = await response.json();
             let budgetData = rawData;
 
-            // Extraction si Home Assistant renvoie le JSON sous forme de chaîne de caractères dans la propriété "value"
             if (rawData && typeof rawData === 'object' && rawData.value) {
                 budgetData = typeof rawData.value === 'string' ? JSON.parse(rawData.value.trim()) : rawData.value;
             }
@@ -251,7 +254,12 @@
             renderDashboard(budgetData);
 
         } catch (error) {
-            alert("Erreur de synchronisation Webhook :\n" + error.message);
+            // Diagnostic ultra-précis en cas d'échec
+            let diagnostic = `Détails : ${error.message}\n`;
+            diagnostic += `URL appelée : "${webhookUrl}"\n`;
+            diagnostic += `Longueur URL : ${webhookUrl.length} caractères.`;
+            
+            alert("Erreur de synchronisation Webhook :\n\n" + diagnostic);
             toggleConfig(true);
         } finally {
             loader.style.display = "none";
