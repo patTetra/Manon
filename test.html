@@ -185,13 +185,20 @@
         </div>
     </div>
 
-    <div class="footer-link" onclick="toggleConfig(true)">⚙️ Configuration Réseau</div>
+    <div class="footer-link" onclick="forceOpenConfig()">⚙️ Configuration Réseau</div>
 </div>
 
 <script>
     document.addEventListener("DOMContentLoaded", () => {
-        const savedUrl = localStorage.getItem("budget_ha_url");
+        let savedUrl = localStorage.getItem("budget_ha_url");
         const savedToken = localStorage.getItem("budget_ha_token");
+
+        // Nettoyage préventif si l'ancienne valeur stockée contient /api
+        if (savedUrl && savedUrl.includes("/api")) {
+            savedUrl = savedUrl.split("/api")[0];
+            if (savedUrl.endsWith("/")) savedUrl = savedUrl.slice(0, -1);
+            localStorage.setItem("budget_ha_url", savedUrl);
+        }
 
         if (savedUrl && savedToken) {
             document.getElementById("haUrlInput").value = savedUrl;
@@ -205,6 +212,10 @@
 
     function toggleConfig(show) {
         document.getElementById("configPanel").style.display = show ? "block" : "none";
+    }
+
+    function forceOpenConfig() {
+        toggleConfig(true);
     }
 
     function saveConfig() {
@@ -236,6 +247,11 @@
         const token = localStorage.getItem("budget_ha_token");
         const loader = document.getElementById("loader");
         const dashboard = document.getElementById("dashboard");
+
+        if (!baseUrl || !token || baseUrl.includes("/api")) {
+            toggleConfig(true);
+            return;
+        }
 
         loader.style.display = "block";
         dashboard.style.display = "none";
@@ -272,6 +288,7 @@
 
         } catch (error) {
             alert("Erreur : " + error.message);
+            toggleConfig(true); // Ouvre le panneau en cas d'erreur pour corriger la saisie
         } finally {
             loader.style.display = "none";
         }
