@@ -202,7 +202,9 @@
     }
 
     function saveConfig() {
-        const url = document.getElementById("webhookUrlInput").value.trim().replace(/[\u200B-\u200D\uFEFF]/g, '');
+        // Nettoyage strict de tous les caractères invisibles, espaces cachés et retours à la ligne
+        let url = document.getElementById("webhookUrlInput").value;
+        url = url.trim().replace(/[\u200B-\u200D\uFEFF]/g, '').replace(/\s+/g, '');
 
         if (!url) {
             alert("Veuillez saisir l'URL du webhook.");
@@ -216,7 +218,7 @@
     }
 
     async function fetchBudgetWebhook() {
-        const webhookUrl = localStorage.getItem("budget_webhook_url");
+        let webhookUrl = localStorage.getItem("budget_webhook_url");
         const loader = document.getElementById("loader");
         const dashboard = document.getElementById("dashboard");
 
@@ -225,11 +227,13 @@
             return;
         }
 
+        // Double sécurité : nettoyage à la volée avant l'exécution du fetch
+        webhookUrl = webhookUrl.trim().replace(/[\u200B-\u200D\uFEFF]/g, '').replace(/\s+/g, '');
+
         loader.style.display = "block";
         dashboard.style.display = "none";
 
         try {
-            // Appel Webhook POST - Très permissif et évite les blocages d'en-têtes restrictifs
             const response = await fetch(webhookUrl, {
                 method: 'POST'
             });
@@ -237,17 +241,17 @@
             if (!response.ok) throw new Error(`Erreur Webhook (Code ${response.status})`);
 
             const rawData = await response.json();
-            
-            // Si HA renvoie le JSON directement encapsulé dans la clé "value"
             let budgetData = rawData;
+
+            // Extraction si Home Assistant renvoie le JSON sous forme de chaîne de caractères dans la propriété "value"
             if (rawData && typeof rawData === 'object' && rawData.value) {
-                budgetData = typeof rawData.value === 'string' ? JSON.parse(rawData.value) : rawData.value;
+                budgetData = typeof rawData.value === 'string' ? JSON.parse(rawData.value.trim()) : rawData.value;
             }
 
             renderDashboard(budgetData);
 
         } catch (error) {
-            alert("Erreur de synchronisation Webhook : " + error.message);
+            alert("Erreur de synchronisation Webhook :\n" + error.message);
             toggleConfig(true);
         } finally {
             loader.style.display = "none";
