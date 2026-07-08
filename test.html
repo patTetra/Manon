@@ -247,7 +247,6 @@
         loader.style.display = "block";
 
         try {
-            // Requête HTTP GET standard sur l'état de l'entité
             const response = await fetch(`${url}/api/states/todo.application_budget`, {
                 method: 'GET',
                 headers: {
@@ -259,30 +258,41 @@
             if (!response.ok) throw new Error(`Erreur HTTP : ${response.status}`);
 
             const stateData = await response.json();
-            
-            // Dans l'état complet, Home Assistant expose les tâches soit dans les attributs, 
-            // soit on extrait le contenu directement de la description globale si le script y écrit.
-            // On vérifie les structures de données possibles :
             let rawJson = null;
             
-            if (stateData.attributes && stateData.attributes.description) {
-                rawJson = stateData.attributes.description;
-            } else if (stateData.attributes && stateData.attributes.items) {
-                const firstItem = stateData.attributes.items[0];
-                rawJson = firstItem?.description || firstItem?.summary;
-            } else {
-                rawJson = stateData.state; // Secours au cas où le JSON brut est mis dans le state global
+            // Recherche du JSON dans l'entité
+            if (stateData.attributes) {
+                if (stateData.attributes.description) {
+                    rawJson = stateData.attributes.description;
+                } else if (stateData.attributes.items && stateData.attributes.items.length > 0) {
+                    const firstItem = stateData.attributes.items[0];
+                    rawJson = firstItem.description || firstItem.summary;
+                }
+            }
+            
+            if (!rawJson && stateData.state && stateData.state.startsWith('{')) {
+                rawJson = stateData.state;
             }
 
             if (rawJson) {
+                // Nettoyage au cas où des balises traînent
+                rawJson = rawJson.replace(/```json|```/g, "").trim();
                 const budgetData = JSON.parse(rawJson);
                 renderDashboard(budgetData);
             } else {
-                throw new Error("Impossible de trouver le contenu JSON dans l'entité todo.application_budget.");
+                // Si l'entité est lue mais vide, on affiche 0 proprement plutôt que de crash
+                renderDashboard({
+                    solde: 0,
+                    tirelire: 0,
+                    nom_objectif: "Objectif Épargne",
+                    cible_objectif: 0,
+                    objectif_courant: 0,
+                    historique: []
+                });
             }
 
         } catch (error) {
-            alert("Erreur lors de la récupération des données :\n" + error.message);
+            alert("Erreur lors du traitement des données :\n" + error.message);
         } finally {
             loader.style.display = "none";
         }
@@ -293,11 +303,11 @@
         document.getElementById("valTirelire").innerText = `${data.tirelire ?? '0'} €`;
         document.getElementById("lblObjectif").innerText = data.nom_objectif || "Objectif";
         
-        const cible = data.cible_objective || data.cible_objectif || 1;
+        const cible = data.cible_objective || data.cible_objectif || 0;
         const actuel = data.objectif_courant ?? 0;
         document.getElementById("valObjectifProgression").innerText = `${actuel} / ${cible} €`;
         
-        const pourcentage = Math.min(100, Math.round((actuel / cible) * 100));
+        const pourcentage = cible > 0 ? Math.min(100, Math.round((actuel / cible) * 100)) : 0;
         document.getElementById("barObjectif").style.width = `${pourcentage}%`;
 
         const tbody = document.getElementById("tableHistory");
