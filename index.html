@@ -41,7 +41,7 @@
                     try { resultat = JSON.parse(texteReponse); } catch(e) {}
                 }
                 
-                // Analyse ultra-robuste des différents formats de retour possibles de HA
+                // Analyse ultra-robuste du format de retour de Home Assistant
                 let items = [];
                 if (resultat) {
                     if (resultat['todo.application_budget'] && Array.isArray(resultat['todo.application_budget'].items)) {
@@ -53,7 +53,6 @@
                     } else if (Array.isArray(resultat)) {
                         items = resultat;
                     } else {
-                        // Cherche une liste d'items imbriquée de manière dynamique
                         for (let key in resultat) {
                             if (resultat[key] && Array.isArray(resultat[key].items)) {
                                 items = resultat[key].items;
@@ -66,18 +65,11 @@
                 const tacheData = items.find(i => i.summary === "data_budget");
 
                 if (tacheData && tacheData.description) {
+                    // Récupération et application immédiate des données de HA (Priorité absolue)
                     const dataHA = JSON.parse(tacheData.description);
-                    chargerLocalSecours();
-                    
-                    // Arbitrage des versions par horodatage
-                    if (!data.maj || (dataHA.maj && dataHA.maj >= data.maj)) {
-                        data = dataHA;
-                        localStorage.setItem('budgetDataConnecte', JSON.stringify(data));
-                        document.getElementById('statut-synchro').innerText = "☁️ Synchronisé avec HA";
-                    } else {
-                        document.getElementById('statut-synchro').innerText = "⏳ Envoi des données locales...";
-                        await sauvegarder();
-                    }
+                    data = dataHA;
+                    localStorage.setItem('budgetDataConnecte', JSON.stringify(data));
+                    document.getElementById('statut-synchro').innerText = "☁️ Synchronisé avec HA";
                 } else {
                     document.getElementById('statut-synchro').innerText = "☁️ Connecté (Aucune donnée trouvée)";
                     chargerLocalSecours();
