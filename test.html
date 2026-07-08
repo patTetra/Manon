@@ -241,11 +241,13 @@
         loader.style.display = "block";
         dashboard.style.display = "none";
 
-        // Utilisation de l'endpoint template, beaucoup plus tolérant et direct
         const apiUrl = `${baseUrl}/api/template`;
 
-        // Ce template demande à HA d'extraire la description ou le résumé de la première tâche de la liste
-        const templateQuery = `{{ state_attr('todo.application_budget', 'description') or state_attr('todo.application_budget', 'summary') or states('todo.application_budget') }}`;
+        // Ce template Jinja appelle l'action interne pour lister les tâches et extrait la description/résumé de la première tâche trouvée
+        const templateQuery = `{% set res = todo.get_items(entity_id='todo.application_budget') %}
+{% if res['todo.application_budget'] and res['todo.application_budget']['items'] | length > 0 %}
+{{ res['todo.application_budget']['items'][0]['description'] or res['todo.application_budget']['items'][0]['summary'] }}
+{% endif %}`;
 
         try {
             const response = await fetch(apiUrl, {
@@ -261,18 +263,17 @@
 
             if (!response.ok) throw new Error(`Erreur HTTP : ${response.status}`);
 
-            // L'endpoint template renvoie directement le texte généré
             const rawJsonText = await response.text();
 
             if (!rawJsonText || rawJsonText.trim() === "" || rawJsonText.trim() === "None") {
-                throw new Error("Impossible de récupérer le JSON de l'entité todo.application_budget.");
+                throw new Error("Le contenu de la tâche budget est introuvable ou vide.");
             }
 
             const budgetData = JSON.parse(rawJsonText.trim());
             renderDashboard(budgetData);
 
         } catch (error) {
-            alert("Erreur lors de la récupération des données :\n" + error.message);
+            alert("Erreur lors du traitement des données :\n" + error.message);
         } finally {
             loader.style.display = "none";
         }
