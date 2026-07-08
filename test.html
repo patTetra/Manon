@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Application Budget - Dashboard</title>
+    <title>Application Budget - API</title>
     <style>
         :root {
             --bg-color: #1a1a1a;
@@ -44,28 +44,30 @@
             border: 1px solid var(--border-color);
         }
         .config-panel h3 { margin-top: 0; margin-bottom: 10px; font-size: 16px; }
-        .config-field { margin-bottom: 10px; }
+        .config-field { margin-bottom: 12px; }
         .config-field label { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
-        .config-field input {
+        .config-field input, .config-field textarea {
             width: 100%;
-            padding: 8px;
+            padding: 10px;
             border-radius: 6px;
             border: 1px solid var(--border-color);
             background: #111;
             color: white;
             box-sizing: border-box;
+            font-family: inherit;
         }
         
         .btn {
             background-color: var(--accent-blue);
             color: white;
             border: none;
-            padding: 10px 15px;
+            padding: 12px 15px;
             border-radius: 6px;
             cursor: pointer;
             font-weight: bold;
             width: 100%;
             margin-bottom: 10px;
+            font-size: 14px;
         }
         .btn-danger { background-color: #e74c3c; }
         .btn:hover { opacity: 0.9; }
@@ -126,23 +128,25 @@
     <h1>📊 Application Budget</h1>
 
     <div id="actionButtons" style="display: none; display: flex; gap: 10px; margin-bottom: 20px;">
-        <button id="btnRefresh" class="btn" onclick="fetchBudgetWebhook()">🔄 Actualiser les données</button>
+        <button id="btnRefresh" class="btn" onclick="fetchBudgetData()">🔄 Actualiser via API</button>
     </div>
 
-    <div id="loader" class="loader">Synchronisation Webhook en cours...</div>
+    <div id="loader" class="loader">Connexion à Home Assistant...</div>
 
-    <!-- Panneau de configuration -->
     <div id="configPanel" class="config-panel" style="display: none;">
-        <h3>🔑 Configuration du Webhook</h3>
+        <h3>🔑 Configuration des accès Home Assistant</h3>
         <div class="config-field">
-            <label for="webhookUrlInput">URL complète du Webhook Nabu Casa :</label>
-            <input type="url" id="webhookUrlInput" placeholder="https://xxxx.ui.nabu.casa/api/webhook/mon_id_secret">
+            <label for="haUrlInput">URL Nabu Casa de base (sans /api/...) :</label>
+            <input type="url" id="haUrlInput" placeholder="https://xxxxxxxxxxxxxxxxxxxx.ui.nabu.casa">
         </div>
-        <button class="btn" onclick="saveConfig()">Enregistrer le Webhook</button>
+        <div class="config-field">
+            <label for="haTokenInput">Jeton d'accès de longue durée (Long-Lived Access Token) :</label>
+            <textarea id="haTokenInput" rows="4" placeholder="Collez votre très long jeton ici..."></textarea>
+        </div>
+        <button class="btn" onclick="saveConfig()">Enregistrer les accès</button>
         <button class="btn btn-danger" onclick="toggleConfig(false)">Annuler</button>
     </div>
 
-    <!-- Dashboard -->
     <div id="dashboard" style="display: none;">
         <div class="kpi-grid">
             <div class="card">
@@ -184,17 +188,16 @@
     <div class="footer-link" onclick="toggleConfig(true)">⚙️ Configuration Réseau</div>
 </div>
 
-<!-- Balise image cachée pour forcer l'envoi du Webhook sans passer par fetch() -->
-<img id="webhookTrigger" style="display:none;" />
-
 <script>
     document.addEventListener("DOMContentLoaded", () => {
-        const savedWebhook = localStorage.getItem("budget_webhook_url");
+        const savedUrl = localStorage.getItem("ha_api_url");
+        const savedToken = localStorage.getItem("ha_api_token");
 
-        if (savedWebhook) {
-            document.getElementById("webhookUrlInput").value = savedWebhook;
+        if (savedUrl && savedToken) {
+            document.getElementById("haUrlInput").value = savedUrl;
+            document.getElementById("haTokenInput").value = savedToken;
             document.getElementById("actionButtons").style.display = "flex";
-            fetchBudgetWebhook();
+            fetchBudgetData();
         } else {
             toggleConfig(true);
         }
@@ -205,62 +208,79 @@
     }
 
     function saveConfig() {
-        let url = document.getElementById("webhookUrlInput").value;
-        url = url.trim().replace(/[\u200B-\u200D\uFEFF]/g, '').replace(/\s+/g, '');
+        let url = document.getElementById("haUrlInput").value.trim();
+        let token = document.getElementById("haTokenInput").value.trim();
 
-        if (!url) {
-            alert("Veuillez saisir l'URL du webhook.");
+        // Nettoyer l'URL des slashes à la fin si nécessaire
+        if (url.endsWith('/')) {
+            url = url.slice(0, -1);
+        }
+
+        if (!url || !token) {
+            alert("Veuillez remplir l'URL et le Jeton d'accès.");
             return;
         }
 
-        localStorage.setItem("budget_webhook_url", url);
+        localStorage.setItem("ha_api_url", url);
+        localStorage.setItem("ha_api_token", token);
         toggleConfig(false);
         document.getElementById("actionButtons").style.display = "flex";
-        fetchBudgetWebhook();
+        fetchBudgetData();
     }
 
-    function fetchBudgetWebhook() {
-        let webhookUrl = localStorage.getItem("budget_webhook_url");
+    async function fetchBudgetData() {
+        const baseUrl = localStorage.getItem("ha_api_url");
+        const token = localStorage.getItem("ha_api_token");
         const loader = document.getElementById("loader");
         const dashboard = document.getElementById("dashboard");
 
-        if (!webhookUrl) {
+        if (!baseUrl || !token) {
             toggleConfig(true);
             return;
-        }
-
-        webhookUrl = webhookUrl.trim().replace(/[\u200B-\u200D\uFEFF]/g, '').replace(/\s+/g, '');
-        if (!webhookUrl.startsWith('http://') && !webhookUrl.startsWith('https://')) {
-            webhookUrl = 'https://' + webhookUrl;
         }
 
         loader.style.display = "block";
         dashboard.style.display = "none";
 
-        // Version ultra-compatible iOS : On détourne une balise Image pour exécuter la requête réseau
-        const img = document.getElementById("webhookTrigger");
-        
-        // On ajoute un timestamp pour éviter tout cache de l'image
-        const separator = webhookUrl.includes('?') ? '&' : '?';
-        img.src = webhookUrl + separator + "t=" + new Date().getTime();
+        // Cibler l'entité todo de l'application budget
+        const apiUrl = `${baseUrl}/api/states/todo.application_budget`;
 
-        // On attend 2,5 secondes que le webhook s'exécute côté Home Assistant, puis on rafraîchit la page
-        setTimeout(() => {
+        try {
+            const response = await fetch(apiUrl, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`Erreur HTTP : ${response.status}`);
+            }
+
+            const entityState = await response.json();
+            
+            // Extraction et nettoyage du JSON contenu dans l'attribut description ou le state de l'entité
+            let rawJsonText = "";
+            if (entityState.attributes && entityState.attributes.description) {
+                rawJsonText = entityState.attributes.description;
+            } else if (entityState.state) {
+                rawJsonText = entityState.state;
+            }
+
+            if (!rawJsonText || rawJsonText === "unknown") {
+                throw new Error("L'entité todo.application_budget ne contient aucune donnée.");
+            }
+
+            const budgetData = JSON.parse(rawJsonText.trim());
+            renderDashboard(budgetData);
+
+        } catch (error) {
+            alert("Erreur de communication API :\n\n" + error.message);
+            toggleConfig(true);
+        } finally {
             loader.style.display = "none";
-            // On simule de fausses données d'exemple pour débloquer l'affichage si HA ne renvoie rien en GET/Image
-            const mockData = {
-                solde: 1250,
-                tirelire: 340,
-                nom_objectif: "Vacances",
-                objectif_courant: 600,
-                cible_objectif: 1000,
-                historique: [
-                    {date: "2026-07-01", type: "gain", desc: "Salaire", montant: 1500},
-                    {date: "2026-07-02", type: "depense", desc: "Courses", montant: 250}
-                ]
-            };
-            renderDashboard(mockData);
-        }, 2500);
+        }
     }
 
     function renderDashboard(data) {
@@ -268,9 +288,10 @@
         document.getElementById("valSolde").innerText = `${data.solde} €`;
         document.getElementById("valTirelire").innerText = `${data.tirelire} €`;
         document.getElementById("lblObjectif").innerText = data.nom_objectif || "Objectif";
-        document.getElementById("valObjectifProgression").innerText = `${data.objectif_courant} / ${data.cible_objective || data.cible_objectif} €`;
         
         const cible = data.cible_objective || data.cible_objectif || 1;
+        document.getElementById("valObjectifProgression").innerText = `${data.objectif_courant} / ${cible} €`;
+        
         const pourcentage = Math.min(100, Math.round((data.objectif_courant / cible) * 100));
         document.getElementById("barObjectif").style.width = `${pourcentage}%`;
 
