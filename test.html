@@ -247,8 +247,8 @@
         loader.style.display = "block";
 
         try {
-            // Requête vers l'API des listes de tâches de Home Assistant (POST pour lister les items complets)
-            const response = await fetch(`${url}/api/services/todo/get_items`, {
+            // Utilisation d'un appel via la méthode action_response pour récupérer proprement le retour de todo.get_items
+            const response = await fetch(`${url}/api/config/script/action_response/todo.get_items`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -263,23 +263,23 @@
 
             const result = await response.json();
             
-            // Extraction du contenu de la liste de tâches
-            const items = result[0]?.details?.items || result['todo.application_budget']?.items || [];
+            // Accès aux items retournés par la réponse d'action officielle
+            const items = result['todo.application_budget']?.items || [];
             
             if (items.length > 0) {
-                // On cherche la chaîne JSON brute (soit dans la description, soit dans le titre/summary)
                 const firstItem = items[0];
+                // Récupération de la chaîne JSON (depuis la description ou le résumé de la tâche)
                 const rawJson = firstItem.description || firstItem.summary;
                 
                 const budgetData = JSON.parse(rawJson);
                 renderDashboard(budgetData);
             } else {
-                throw new Error("La liste de tâches 'todo.application_budget' est vide.");
+                throw new Error("La liste de tâches 'todo.application_budget' ne contient aucun élément.");
             }
 
         } catch (error) {
             alert("Erreur lors de la récupération des données :\n" + error.message);
-        } finally {
+        } {
             loader.style.display = "none";
         }
     }
