@@ -247,39 +247,43 @@
         loader.style.display = "block";
 
         try {
-            // Utilisation d'un appel via la méthode action_response pour récupérer proprement le retour de todo.get_items
-            const response = await fetch(`${url}/api/config/script/action_response/todo.get_items`, {
-                method: 'POST',
+            // Requête HTTP GET standard sur l'état de l'entité
+            const response = await fetch(`${url}/api/states/todo.application_budget`, {
+                method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    entity_id: 'todo.application_budget'
-                })
+                }
             });
 
             if (!response.ok) throw new Error(`Erreur HTTP : ${response.status}`);
 
-            const result = await response.json();
+            const stateData = await response.json();
             
-            // Accès aux items retournés par la réponse d'action officielle
-            const items = result['todo.application_budget']?.items || [];
+            // Dans l'état complet, Home Assistant expose les tâches soit dans les attributs, 
+            // soit on extrait le contenu directement de la description globale si le script y écrit.
+            // On vérifie les structures de données possibles :
+            let rawJson = null;
             
-            if (items.length > 0) {
-                const firstItem = items[0];
-                // Récupération de la chaîne JSON (depuis la description ou le résumé de la tâche)
-                const rawJson = firstItem.description || firstItem.summary;
-                
+            if (stateData.attributes && stateData.attributes.description) {
+                rawJson = stateData.attributes.description;
+            } else if (stateData.attributes && stateData.attributes.items) {
+                const firstItem = stateData.attributes.items[0];
+                rawJson = firstItem?.description || firstItem?.summary;
+            } else {
+                rawJson = stateData.state; // Secours au cas où le JSON brut est mis dans le state global
+            }
+
+            if (rawJson) {
                 const budgetData = JSON.parse(rawJson);
                 renderDashboard(budgetData);
             } else {
-                throw new Error("La liste de tâches 'todo.application_budget' ne contient aucun élément.");
+                throw new Error("Impossible de trouver le contenu JSON dans l'entité todo.application_budget.");
             }
 
         } catch (error) {
             alert("Erreur lors de la récupération des données :\n" + error.message);
-        } {
+        } finally {
             loader.style.display = "none";
         }
     }
