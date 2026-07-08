@@ -241,32 +241,39 @@
         loader.style.display = "block";
         dashboard.style.display = "none";
 
-        const apiUrl = `${baseUrl}/api/template`;
-
-        // Ce template Jinja appelle l'action interne pour lister les tâches et extrait la description/résumé de la première tâche trouvée
-        const templateQuery = `{% set res = todo.get_items(entity_id='todo.application_budget') %}
-{% if res['todo.application_budget'] and res['todo.application_budget']['items'] | length > 0 %}
-{{ res['todo.application_budget']['items'][0]['description'] or res['todo.application_budget']['items'][0]['summary'] }}
-{% endif %}`;
+        // Utilisation d'une méthode GET propre sur l'état spécifique de l'entité
+        const apiUrl = `${baseUrl}/api/states/todo.application_budget`;
 
         try {
             const response = await fetch(apiUrl, {
-                method: 'POST',
+                method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    template: templateQuery
-                })
+                }
             });
 
             if (!response.ok) throw new Error(`Erreur HTTP : ${response.status}`);
 
-            const rawJsonText = await response.text();
+            const entityData = await response.json();
+            
+            // Exploration des attributs standards renvoyés par l'état brut
+            let rawJsonText = "";
+            if (entityData.attributes) {
+                // Tente de trouver la chaîne de caractères JSON là où elle est stockée
+                rawJsonText = entityData.attributes.description || 
+                              entityData.attributes.summary || 
+                              entityData.attributes.text || 
+                              "";
+            }
 
-            if (!rawJsonText || rawJsonText.trim() === "" || rawJsonText.trim() === "None") {
-                throw new Error("Le contenu de la tâche budget est introuvable ou vide.");
+            // Si les attributs directs de l'état ne contiennent pas le texte, on tente un fallback sur le message d'état
+            if (!rawJsonText && entityData.state && entityData.state !== "unknown") {
+                rawJsonText = entityData.state;
+            }
+
+            if (!rawJsonText || rawJsonText.trim() === "" || rawJsonText.trim() === "0" || rawJsonText.trim() === "1") {
+                throw new Error("Le contenu textuel JSON n'a pas pu être extrait des attributs d'état de la liste de tâches.");
             }
 
             const budgetData = JSON.parse(rawJsonText.trim());
