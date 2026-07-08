@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mon Budget Connected</title>
     <script>
-        let data = { solde: 0, tirelire: 0, object_courant: 0, nom_objectif: "Mon Objectif", cible_objectif: 50, dernier_mois_credit: "", historique: [], maj: 0 };
+        let data = { solde: 0, tirelire: 0, objectif_courant: 0, nom_objectif: "Mon Objectif", cible_objectif: 50, dernier_mois_credit: "", historique: [], maj: 0 };
         let haUrl = localStorage.getItem('ha_url') || "";
         let cibleRetraitEnCours = "";
 
@@ -27,16 +27,14 @@
             
             try {
                 const urlNettoyee = haUrl.replace(/\/$/, "");
-                const reponse = await fetchWithTimeout(`${urlNettoyee}/api/webhook/budget_app_synchro_secret_1607`, {
+                // Requête sur le webhook de LECTURE dédié
+                const reponse = await fetchWithTimeout(`${urlNettoyee}/api/webhook/budget_app_lire_secret_1607`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action: 'lire' })
                 }, 6000);
                 
                 let texteReponse = await reponse.text();
-                
-                // --- ALERTE DE DIAGNOSTIC TEMPORAIRE ---
-                alert("BRUT REÇU DE HA :\n" + texteReponse);
                 
                 let resultat = null;
                 if (texteReponse && texteReponse.trim().startsWith('{')) {
@@ -49,10 +47,6 @@
                         items = resultat.items;
                     } else if (resultat['todo.application_budget'] && Array.isArray(resultat['todo.application_budget'].items)) {
                         items = resultat['todo.application_budget'].items;
-                    } else if (resultat.retour_ha && resultat.retour_ha['todo.application_budget'] && Array.isArray(resultat.retour_ha['todo.application_budget'].items)) {
-                        items = resultat.retour_ha['todo.application_budget'].items;
-                    } else if (Array.isArray(resultat)) {
-                        items = resultat;
                     } else {
                         for (let key in resultat) {
                             if (resultat[key] && Array.isArray(resultat[key].items)) {
@@ -96,7 +90,8 @@
             document.getElementById('statut-synchro').innerText = "⏳ Envoi vers HA...";
             try {
                 const urlNettoyee = haUrl.replace(/\/$/, "");
-                await fetchWithTimeout(`${urlNettoyee}/api/webhook/budget_app_synchro_secret_1607`, {
+                // Requête sur le webhook d'ÉCRITURE dédié
+                await fetchWithTimeout(`${urlNettoyee}/api/webhook/budget_app_ecrire_secret_1607`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action: 'ecrire', data: JSON.stringify(data) })
@@ -205,7 +200,7 @@
                 data.solde -= m; data[cible] = (data[cible] || 0) + m;
                 sauvegarder();
                 if (cible === 'objectif_courant' && data.objectif_courant >= data.cible_objectif && ancien < data.cible_objectif) {
-                    setTimeout(() => { alert(`🥳 Objectif "${data.nom_objectif}" reached ! 🎉`); }, 400);
+                    setTimeout(() => { alert(`🥳 Objectif "${data.nom_objectif}" atteint ! 🎉`); }, 400);
                 }
             } else { alert("Solde insuffisant !"); }
         }
