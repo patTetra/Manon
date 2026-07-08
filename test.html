@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Application Budget - Diagnostic API</title>
+    <title>Application Budget</title>
     <style>
         :root {
             --bg-color: #1a1a1a;
@@ -241,36 +241,46 @@
         loader.style.display = "block";
         dashboard.style.display = "none";
 
-        const apiUrl = `${baseUrl}/api/states/todo.application_budget`;
+        // Endpoint pour appeler le service de récupération des tâches
+        const apiUrl = `${baseUrl}/api/services/todo/get_items`;
 
         try {
             const response = await fetch(apiUrl, {
-                method: 'GET',
+                method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
-                }
+                },
+                body: JSON.stringify({
+                    entity_id: 'todo.application_budget'
+                })
             });
 
             if (!response.ok) throw new Error(`Erreur HTTP : ${response.status}`);
 
-            const entityState = await response.json();
+            const result = await response.json();
             
-            // diagnostic temporaire pour voir la structure exacte reçue de Home Assistant
-            alert("Structure reçue :\n" + JSON.stringify(entityState, null, 2));
+            // Accéder à la liste des éléments renvoyés
+            const itemsContainer = result['todo.application_budget'] || result[0]?.['todo.application_budget'] || result;
+            const items = itemsContainer.items || [];
 
-            let rawJsonText = "";
-            if (entityState.attributes && entityState.attributes.description) {
-                rawJsonText = entityState.attributes.description;
-            } else if (entityState.state) {
-                rawJsonText = entityState.state;
+            if (items.length === 0) {
+                throw new Error("La liste todo.application_budget ne contient aucune tâche.");
+            }
+
+            // On récupère le texte brut (le résumé ou la description de la tâche)
+            // HA stocke souvent la chaîne principale dans 'summary' ou 'description'
+            let rawJsonText = items[0].description || items[0].summary || "";
+
+            if (!rawJsonText) {
+                throw new Error("La première tâche est vide ou introuvable.");
             }
 
             const budgetData = JSON.parse(rawJsonText.trim());
             renderDashboard(budgetData);
 
         } catch (error) {
-            alert("Erreur d'analyse des données :\n" + error.message);
+            alert("Erreur lors de la récupération des données :\n" + error.message);
         } finally {
             loader.style.display = "none";
         }
@@ -279,7 +289,6 @@
     function renderDashboard(data) {
         document.getElementById("dashboard").style.display = "block";
         
-        // Gestion adaptative si les clés diffèrent légèrement
         document.getElementById("valSolde").innerText = `${data.solde ?? data.solde_restant ?? '0'} €`;
         document.getElementById("valTirelire").innerText = `${data.tirelire ?? '0'} €`;
         document.getElementById("lblObjectif").innerText = data.nom_objectif || "Objectif";
