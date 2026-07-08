@@ -203,7 +203,8 @@
 
     function saveConfig() {
         let url = document.getElementById("webhookUrlInput").value;
-        // Nettoyage agressif des espaces et caractères invisibles
+        
+        // Nettoyage agressif des espaces blancs et caractères invisibles Unicode
         url = url.trim().replace(/[\u200B-\u200D\uFEFF]/g, '').replace(/\s+/g, '');
 
         if (!url) {
@@ -227,19 +228,27 @@
             return;
         }
 
+        // Nettoyage de sécurité avant l'exécution du fetch
         webhookUrl = webhookUrl.trim().replace(/[\u200B-\u200D\uFEFF]/g, '').replace(/\s+/g, '');
+        
+        // Forcer le préfixe HTTPS si manquant pour valider le pattern de l'objet URL
+        if (!webhookUrl.startsWith('http://') && !webhookUrl.startsWith('https://')) {
+            webhookUrl = 'https://' + webhookUrl;
+        }
 
         loader.style.display = "block";
         dashboard.style.display = "none";
 
         try {
-            // Ajout d'un body vide et d'un header Content-Type pour satisfaire le moteur WebKit de Safari
-            const response = await fetch(webhookUrl, {
+            // Forcer l'analyse de structure d'URL conforme par le moteur WebKit
+            const validUrl = new URL(webhookUrl);
+
+            const response = await fetch(validUrl.toString(), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({})
+                body: JSON.stringify({}) // Corps vide indispensable pour fetch en POST sous iOS
             });
 
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -247,6 +256,7 @@
             const rawData = await response.json();
             let budgetData = rawData;
 
+            // Gestion de l'extraction de l'attribut de réponse si encapsulé dans un objet "value"
             if (rawData && typeof rawData === 'object' && rawData.value) {
                 budgetData = typeof rawData.value === 'string' ? JSON.parse(rawData.value.trim()) : rawData.value;
             }
@@ -254,10 +264,8 @@
             renderDashboard(budgetData);
 
         } catch (error) {
-            // Diagnostic ultra-précis en cas d'échec
             let diagnostic = `Détails : ${error.message}\n`;
             diagnostic += `URL appelée : "${webhookUrl}"\n`;
-            diagnostic += `Longueur URL : ${webhookUrl.length} caractères.`;
             
             alert("Erreur de synchronisation Webhook :\n\n" + diagnostic);
             toggleConfig(true);
