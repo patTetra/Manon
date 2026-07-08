@@ -46,7 +46,7 @@
         .config-panel h3 { margin-top: 0; margin-bottom: 10px; font-size: 16px; }
         .config-field { margin-bottom: 10px; }
         .config-field label { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
-        .config-field input {
+        .config-field input, .config-field textarea {
             width: 100%;
             padding: 8px;
             border-radius: 6px;
@@ -126,7 +126,7 @@
     <h1>📊 Application Budget</h1>
 
     <div id="actionButtons" style="display: none; display: flex; gap: 10px; margin-bottom: 20px;">
-        <button id="btnRefresh" class="btn" onclick="fetchBudgetGrid()">🔄 Actualiser les données</button>
+        <button id="btnRefresh" class="btn" onclick="fetchBudgetGrid()">🔄 Actualiser via API</button>
     </div>
 
     <div id="loader" class="loader">Connexion à Home Assistant...</div>
@@ -143,6 +143,15 @@
             <input type="password" id="haTokenInput" placeholder="Collez votre token ici...">
         </div>
         <button class="btn" onclick="saveConfig()">Enregistrer les accès</button>
+        
+        <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 15px 0;">
+        
+        <h3>📲 Mode Secours (Sans API / Hors-ligne)</h3>
+        <p style="font-size: 11px; color: var(--text-secondary); margin-top: 0;">Si l'API bloque, collez directement la valeur de la description ou le JSON ici :</p>
+        <div class="config-field">
+            <textarea id="rawJsonInput" rows="4" placeholder='{"solde": 150, "tirelire": 40, ...}'></textarea>
+        </div>
+        <button class="btn style="background-color: var(--accent-green);" onclick="loadRawJson()">Afficher le Dashboard</button>
         <button class="btn btn-danger" onclick="toggleConfig(false)">Annuler</button>
     </div>
 
@@ -185,7 +194,7 @@
         </div>
     </div>
 
-    <div class="footer-link" onclick="toggleConfig(true)">⚙️ Configuration Réseau</div>
+    <div class="footer-link" onclick="toggleConfig(true)">⚙️ Configuration Réseau / Secours</div>
 </div>
 
 <script>
@@ -208,8 +217,8 @@
     }
 
     function saveConfig() {
-        let url = document.getElementById("haUrlInput").value.trim();
-        const token = document.getElementById("haTokenInput").value.trim();
+        let url = document.getElementById("haUrlInput").value.trim().replace(/[\u200B-\u200D\uFEFF]/g, '');
+        let token = document.getElementById("haTokenInput").value.trim().replace(/[\u200B-\u200D\uFEFF]/g, '');
 
         if (!url || !token) {
             alert("Veuillez remplir les deux cases.");
@@ -236,37 +245,33 @@
         loader.style.display = "block";
         dashboard.style.display = "none";
 
-        // Utilisation d'une requête GET simple directe sur l'entité, moins restrictive pour CORS
         const finalUrl = `${baseUrl}/api/states/todo.application_budget`;
 
         try {
             const response = await fetch(finalUrl, {
                 method: 'GET',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
+                    'Authorization': `Bearer ${token}`
+                    // Suppression volontaire du Content-Type pour éviter les bugs WebKit
                 }
             });
 
             if (!response.ok) throw new Error(`Code HTTP ${response.status}`);
 
             const data = await response.json();
-            
-            // Recherche du JSON dans l'attribut description ou dans les sous-items
             let jsonString = "";
+            
             if (data.attributes && data.attributes.description) {
                 jsonString = data.attributes.description;
             } else if (data.attributes && data.attributes.todo_items) {
-                // Si HA stocke le contenu différemment selon la version du composant To-do
                 const targetItem = data.attributes.todo_items.find(i => i.description && i.description.includes("solde"));
                 if (targetItem) jsonString = targetItem.description;
             }
 
-            // Nettoyage de la chaîne brute récupérée
             jsonString = jsonString.trim();
 
             if (!jsonString) {
-                alert("L'entité a été lue avec succès, mais aucun bloc JSON de budget n'a été trouvé dans sa description.");
+                alert("Entité lue, mais description vide.");
                 return;
             }
 
@@ -274,10 +279,26 @@
             renderDashboard(budgetData);
 
         } catch (error) {
-            alert("Erreur de communication : " + error.message);
+            console.error(error);
+            alert("Échec API : " + error.message + "\n\nUtilisez le 'Mode Secours' ci-dessous si le blocage iOS persiste.");
             toggleConfig(true);
         } finally {
             loader.style.display = "none";
+        }
+    }
+
+    function loadRawJson() {
+        const rawInput = document.getElementById("rawJsonInput").value.trim();
+        if(!rawInput) {
+            alert("Veuillez coller du texte d'abord.");
+            return;
+        }
+        try {
+            const budgetData = JSON.parse(rawInput);
+            toggleConfig(false);
+            renderDashboard(budgetData);
+        } catch(e) {
+            alert("Le texte fourni n'est pas un JSON valide : " + e.message);
         }
     }
 
