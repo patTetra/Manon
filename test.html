@@ -128,7 +128,7 @@
     <div id="configPanel" class="config-panel">
         <h3>🔑 Configuration de l'accès</h3>
         <div class="config-field">
-            <label for="nabuUrl">URL Nabu Casa de base (sans la fin) :</label>
+            <label for="nabuUrl">URL Nabu Casa de base :</label>
             <input type="url" id="nabuUrl" placeholder="https://p97jxn656lgcgulaq88hzhurz5pluytd.ui.nabu.casa">
         </div>
         <div class="config-field">
@@ -208,7 +208,6 @@
             return;
         }
 
-        // Nettoyage de l'URL au cas où vous mettriez la fin
         if (url.endsWith("/")) url = url.slice(0, -1);
         if (url.includes("/api/states")) {
             url = url.split("/api/states")[0];
@@ -238,8 +237,8 @@
         loader.style.display = "block";
         dashboard.style.display = "none";
 
-        // On appelle le point global /api/states pour contourner les restrictions CORS fines de Nabu Casa
-        const finalUrl = `${baseUrl}/api/states`;
+        // Ciblage direct de l'entité todo.application_budget
+        const finalUrl = `${baseUrl}/api/states/todo.application_budget`;
 
         try {
             const response = await fetch(finalUrl, {
@@ -252,33 +251,45 @@
 
             if (!response.ok) throw new Error(`Code HTTP ${response.status}`);
 
-            const allStates = await response.json();
+            const entityData = await response.json();
             let rawJsonText = "";
 
-            if (Array.isArray(allStates)) {
-                // Recherche globale de l'entité todo qui contient votre JSON dans sa description
-                const budgetEntity = allStates.find(e => 
-                    e.entity_id.startsWith("todo.") && 
-                    e.attributes && 
-                    e.attributes.description && 
-                    e.attributes.description.includes("solde")
-                );
-
-                if (budgetEntity) {
-                    rawJsonText = budgetEntity.attributes.description;
+            // On cherche le JSON dans les attributs de l'entité
+            if (entityData.attributes) {
+                // Parfois HA stocke les tâches dans un tableau d'objets 'todo_items'
+                if (Array.isArray(entityData.attributes.todo_items)) {
+                    const task = entityData.attributes.todo_items.find(item => item.description && item.description.includes("solde"));
+                    if (task) rawJsonText = task.description;
+                } 
+                // Alternative : si la description est directement sur l'entité principale
+                if (!rawJsonText && entityData.attributes.description) {
+                    rawJsonText = entityData.attributes.description;
                 }
             }
 
             if (!rawJsonText) {
-                throw new Error("L'entité contenant le JSON de budget n'a pas été trouvée.");
+                // Si la recherche par entité spécifique n'a rien donné, on tente une dernière vérification globale
+                const globalResponse = await fetch(`${baseUrl}/api/states`, {
+                    method: 'GET',
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+                });
+                if (globalResponse.ok) {
+                    const allStates = await globalResponse.json();
+                    const found = allStates.find(e => e.attributes && e.attributes.description && e.attributes.description.includes("solde"));
+                    if (found) rawJsonText = found.attributes.description;
+                }
+            }
+
+            if (!rawJsonText) {
+                throw new Error("Impossible de localiser le texte JSON contenant 'solde' dans votre entité.");
             }
 
             const budgetData = JSON.parse(rawJsonText);
             renderDashboard(budgetData);
 
         } catch (error) {
-            alert("Erreur de connexion : " + error.message + "\n\nAssurez-vous d'avoir ajouté https://pattetra.github.io dans la partie 'cors_allowed_origins' de votre configuration.yaml et d'avoir redémarré HA.");
-            logout(); // Réaffiche le panneau de configuration automatiquement
+            alert("Erreur : " + error.message);
+            logout();
         } finally {
             loader.style.display = "none";
         }
