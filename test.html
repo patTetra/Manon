@@ -185,20 +185,13 @@
         </div>
     </div>
 
-    <div class="footer-link" onclick="forceOpenConfig()">⚙️ Configuration Réseau</div>
+    <div class="footer-link" onclick="toggleConfig(true)">⚙️ Configuration Réseau</div>
 </div>
 
 <script>
     document.addEventListener("DOMContentLoaded", () => {
-        let savedUrl = localStorage.getItem("budget_ha_url");
+        const savedUrl = localStorage.getItem("budget_ha_url");
         const savedToken = localStorage.getItem("budget_ha_token");
-
-        // Nettoyage préventif si l'ancienne valeur stockée contient /api
-        if (savedUrl && savedUrl.includes("/api")) {
-            savedUrl = savedUrl.split("/api")[0];
-            if (savedUrl.endsWith("/")) savedUrl = savedUrl.slice(0, -1);
-            localStorage.setItem("budget_ha_url", savedUrl);
-        }
 
         if (savedUrl && savedToken) {
             document.getElementById("haUrlInput").value = savedUrl;
@@ -214,10 +207,6 @@
         document.getElementById("configPanel").style.display = show ? "block" : "none";
     }
 
-    function forceOpenConfig() {
-        toggleConfig(true);
-    }
-
     function saveConfig() {
         let url = document.getElementById("haUrlInput").value.trim();
         const token = document.getElementById("haTokenInput").value.trim();
@@ -227,12 +216,8 @@
             return;
         }
 
-        if (url.includes("/api")) {
-            url = url.split("/api")[0];
-        }
-        if (url.endsWith("/")) {
-            url = url.slice(0, -1);
-        }
+        if (url.includes("/api")) url = url.split("/api")[0];
+        if (url.endsWith("/")) url = url.slice(0, -1);
 
         localStorage.setItem("budget_ha_url", url);
         localStorage.setItem("budget_ha_token", token);
@@ -248,47 +233,49 @@
         const loader = document.getElementById("loader");
         const dashboard = document.getElementById("dashboard");
 
-        if (!baseUrl || !token || baseUrl.includes("/api")) {
-            toggleConfig(true);
-            return;
-        }
-
         loader.style.display = "block";
         dashboard.style.display = "none";
 
-        const finalUrl = `${baseUrl}/api/template`;
-        const jinjaTemplate = `{% set desc = state_attr('todo.application_budget', 'description') %}{% if desc and 'solde' in desc %}{{ desc }}{% else %}{% set items = state_attr('todo.application_budget', 'todo_items') %}{% if items %}{% for item in items %}{% if 'solde' in item.description %}{{ item.description }}{% endif %}{% endfor %}{% endif %}{% endif %}`;
+        // Utilisation d'une requête GET simple directe sur l'entité, moins restrictive pour CORS
+        const finalUrl = `${baseUrl}/api/states/todo.application_budget`;
 
         try {
             const response = await fetch(finalUrl, {
-                method: 'POST',
+                method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ template: jinjaTemplate })
+                }
             });
 
             if (!response.ok) throw new Error(`Code HTTP ${response.status}`);
 
-            const rawText = await response.text();
-            const cleanText = rawText.trim();
+            const data = await response.json();
+            
+            // Recherche du JSON dans l'attribut description ou dans les sous-items
+            let jsonString = "";
+            if (data.attributes && data.attributes.description) {
+                jsonString = data.attributes.description;
+            } else if (data.attributes && data.attributes.todo_items) {
+                // Si HA stocke le contenu différemment selon la version du composant To-do
+                const targetItem = data.attributes.todo_items.find(i => i.description && i.description.includes("solde"));
+                if (targetItem) jsonString = targetItem.description;
+            }
 
-            if (!cleanText || cleanText === "None") {
-                const debugResponse = await fetch(`${baseUrl}/api/states/todo.application_budget`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const debugJson = await debugResponse.json();
-                alert("Structure de l'entité reçue :\n\n" + JSON.stringify(debugJson, null, 2));
+            // Nettoyage de la chaîne brute récupérée
+            jsonString = jsonString.trim();
+
+            if (!jsonString) {
+                alert("L'entité a été lue avec succès, mais aucun bloc JSON de budget n'a été trouvé dans sa description.");
                 return;
             }
 
-            const budgetData = JSON.parse(cleanText);
+            const budgetData = JSON.parse(jsonString);
             renderDashboard(budgetData);
 
         } catch (error) {
-            alert("Erreur : " + error.message);
-            toggleConfig(true); // Ouvre le panneau en cas d'erreur pour corriger la saisie
+            alert("Erreur de communication : " + error.message);
+            toggleConfig(true);
         } finally {
             loader.style.display = "none";
         }
