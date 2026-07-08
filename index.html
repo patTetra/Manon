@@ -27,10 +27,9 @@
             
             try {
                 const urlNettoyee = haUrl.replace(/\/$/, "");
+                // Passage en méthode GET pour la lecture (plus propre et mieux géré par HA pour les retours)
                 const reponse = await fetchWithTimeout(`${urlNettoyee}/api/webhook/budget_app_lire_secret_1607`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'lire' })
+                    method: 'GET'
                 }, 6000);
                 
                 let texteReponse = await reponse.text();
@@ -40,7 +39,7 @@
                     try { resultat = JSON.parse(texteReponse); } catch(e) {}
                 }
                 
-                // 1. Essai de lecture directe (si HA renvoie directement la clé "description")
+                // 1. Extraction directe si HA renvoie l'objet avec la clé "description"
                 if (resultat && resultat.description) {
                     try {
                         const dataHA = JSON.parse(resultat.description);
@@ -50,11 +49,23 @@
                         afficher(); verifierArgentDePoche();
                         return;
                     } catch(e) {
-                        console.error("Erreur de parsing du JSON imbriqué", e);
+                        console.error("Erreur de parsing du JSON imbriqué dans description", e);
                     }
                 }
 
-                // 2. Solution de secours (si HA renvoie le dictionnaire global d'items)
+                // 2. Deuxième essai si le JSON est brut ou empaqueté différemment
+                if (resultat && typeof resultat === 'object') {
+                    // Si le résultat est directement notre structure de données budget
+                    if (resultat.solde !== undefined) {
+                        data = resultat;
+                        localStorage.setItem('budgetDataConnecte', JSON.stringify(data));
+                        document.getElementById('statut-synchro').innerText = "☁️ Synchronisé avec HA";
+                        afficher(); verifierArgentDePoche();
+                        return;
+                    }
+                }
+
+                // 3. Solution de secours historique si HA renvoie toute la liste
                 let items = [];
                 if (resultat) {
                     if (resultat.items && Array.isArray(resultat.items)) items = resultat.items;
