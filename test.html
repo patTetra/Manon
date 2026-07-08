@@ -209,8 +209,8 @@
         }
 
         if (url.endsWith("/")) url = url.slice(0, -1);
-        if (url.includes("/api/")) {
-            url = url.split("/api/")[0];
+        if (url.includes("/api")) {
+            url = url.split("/api")[0];
         }
 
         localStorage.setItem("budget_ha_url", url);
@@ -237,7 +237,6 @@
         loader.style.display = "block";
         dashboard.style.display = "none";
 
-        // Utilisation du endpoint de service POST pour récupérer les détails des tâches
         const finalUrl = `${baseUrl}/api/services/todo/get_items`;
 
         try {
@@ -247,8 +246,11 @@
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
+                // Utilisation du ciblage standardisé "target" exigé par l'API REST des services HA
                 body: JSON.stringify({
-                    entity_id: "todo.application_budget"
+                    target: {
+                        entity_id: "todo.application_budget"
+                    }
                 })
             });
 
@@ -257,19 +259,24 @@
             const result = await response.json();
             let rawJsonText = "";
 
-            // Analyse de la réponse du service get_items
-            if (result && result["todo.application_budget"] && Array.isArray(result["todo.application_budget"].items)) {
-                const items = result["todo.application_budget"].items;
-                // Recherche de la tâche nommée 'data_budget'
-                const budgetTask = items.find(item => item.summary === "data_budget" || (item.description && item.description.includes("solde")));
-                
+            // Gestion souple des formats de réponse possibles (tableau direct ou objet indexé)
+            let entityResponse = null;
+            if (Array.isArray(result)) {
+                entityResponse = result.find(res => res && res["todo.application_budget"]);
+                if (entityResponse) entityResponse = entityResponse["todo.application_budget"];
+            } else if (result && result["todo.application_budget"]) {
+                entityResponse = result["todo.application_budget"];
+            }
+
+            if (entityResponse && Array.isArray(entityResponse.items)) {
+                const budgetTask = entityResponse.items.find(item => item.summary === "data_budget" || (item.description && item.description.includes("solde")));
                 if (budgetTask && budgetTask.description) {
                     rawJsonText = budgetTask.description;
                 }
             }
 
             if (!rawJsonText) {
-                throw new Error("Impossible de trouver la tâche 'data_budget' ou sa description JSON est vide.");
+                throw new Error("Impossible de récupérer la description de la tâche 'data_budget'.");
             }
 
             const budgetData = JSON.parse(rawJsonText);
