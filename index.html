@@ -41,14 +41,25 @@
                     try { resultat = JSON.parse(texteReponse); } catch(e) {}
                 }
                 
+                // Analyse ultra-robuste des différents formats de retour possibles de HA
                 let items = [];
                 if (resultat) {
-                    let brut = resultat['todo.application_budget'] ? resultat['todo.application_budget'].items : (resultat.items || resultat);
-                    if (Array.isArray(brut)) {
-                        items = brut;
-                    } else if (resultat.retour_lire) {
-                        let sousBrut = resultat.retour_lire['todo.application_budget'] ? resultat.retour_lire['todo.application_budget'].items : resultat.retour_lire.items;
-                        if (Array.isArray(sousBrut)) items = sousBrut;
+                    if (resultat['todo.application_budget'] && Array.isArray(resultat['todo.application_budget'].items)) {
+                        items = resultat['todo.application_budget'].items;
+                    } else if (resultat.retour_ha && resultat.retour_ha['todo.application_budget'] && Array.isArray(resultat.retour_ha['todo.application_budget'].items)) {
+                        items = resultat.retour_ha['todo.application_budget'].items;
+                    } else if (resultat.items && Array.isArray(resultat.items)) {
+                        items = resultat.items;
+                    } else if (Array.isArray(resultat)) {
+                        items = resultat;
+                    } else {
+                        // Cherche une liste d'items imbriquée de manière dynamique
+                        for (let key in resultat) {
+                            if (resultat[key] && Array.isArray(resultat[key].items)) {
+                                items = resultat[key].items;
+                                break;
+                            }
+                        }
                     }
                 }
 
@@ -58,6 +69,7 @@
                     const dataHA = JSON.parse(tacheData.description);
                     chargerLocalSecours();
                     
+                    // Arbitrage des versions par horodatage
                     if (!data.maj || (dataHA.maj && dataHA.maj >= data.maj)) {
                         data = dataHA;
                         localStorage.setItem('budgetDataConnecte', JSON.stringify(data));
@@ -67,7 +79,7 @@
                         await sauvegarder();
                     }
                 } else {
-                    document.getElementById('statut-synchro').innerText = "☁️ Connecté (Aucune donnée sur HA)";
+                    document.getElementById('statut-synchro').innerText = "☁️ Connecté (Aucune donnée trouvée)";
                     chargerLocalSecours();
                 }
             } catch (e) {
@@ -206,7 +218,7 @@
         }
 
         function ouvrirRetrait(cible) {
-            cibleRetraitEnCours = cibler = cible;
+            cibleRetraitEnCours = cible;
             document.getElementById('retrait-titre').innerText = `↩ Récupérer de ` + (cible === 'tirelire' ? "la Tirelire" : "l'Objectif");
             document.getElementById('retrait-max').innerText = `Maximum disponible : ${(data[cible] || 0).toFixed(2)} €`;
             document.getElementById('retrait-montant').value = ''; document.getElementById('modal-retrait').style.display = 'flex';
@@ -275,7 +287,7 @@
         .btn-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; }
         button { border: none; padding: 12px; border-radius: 12px; font-weight: bold; color: white; cursor: pointer; font-size: 0.95em; }
         button:active { transform: scale(0.96); }
-        button.btn-retrait { background-color: var(--red); width: 100%; margin-top: 10px; padding: 10px;}
+        button.btn-retrait { background: var(--red); width: 100%; margin-top: 10px; padding: 10px;}
         .solde-actions { display: flex; gap: 10px; margin-top: 15px; }
         .solde-actions button { flex: 1; background: rgba(255,255,255,0.25); border: 1.5px solid white; font-size: 0.9em; }
         .action-input { display: flex; gap: 8px; margin-top: 8px; }
@@ -304,7 +316,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Mon Budget Connecté 💸</h1>
+            <h1>Mon Budget Connected 💸</h1>
             <button class="btn-param" onclick="ouvrirParametres()">⚙️</button>
         </div>
         <div class="synchro-box">
@@ -312,6 +324,7 @@
             <button class="btn-sync-force" onclick="chargerDepuisHomeAssistant()">🔄 Forcer Synchro</button>
         </div>
 
+        <!-- SOLDE -->
         <div class="card solde-card">
             <div style="font-weight: 600; opacity: 0.9;">Argent de poche disponible</div>
             <div class="montant" id="solde">0.00 €</div>
@@ -319,6 +332,7 @@
             <div class="solde-actions"><button onclick="ouvrirGain()">➕ Recevoir</button><button onclick="abrirDepense()">🛒 Un Achat</button></div>
         </div>
         
+        <!-- TIRELIRE -->
         <div class="card tirelire-card">
             <h3>🐷 Tirelire (Épargne)</h3>
             <div class="montant" id="tirelire">0.00 €</div>
@@ -334,6 +348,7 @@
             <button class="btn-retrait" style="background: var(--orange)" onclick="ouvrirRetrait('tirelire')">Récupérer de l'argent ↩</button>
         </div>
 
+        <!-- OBJECTIF -->
         <div class="card objectif-card">
             <h3 id="titre-objectif">🎯 Mon Objectif</h3>
             <div class="montant" id="obj-val">0.00 €</div>
@@ -351,9 +366,11 @@
             <button class="btn-retrait" style="background: var(--blue)" onclick="ouvrirRetrait('objectif_courant')">Récupérer pour acheter ↩</button>
         </div>
 
+        <!-- HISTORIQUE -->
         <div class="card"><h3>📊 Mon Historique</h3><div class="liste-historique" id="liste-historique"></div></div>
     </div>
 
+    <!-- MODALS -->
     <div class="modal" id="modal-gain">
         <div class="modal-content">
             <h2>➕ Recevoir</h2>
@@ -383,6 +400,7 @@
         </div>
     </div>
 
+    <!-- REGLAGES -->
     <div class="modal" id="modal-parametres">
         <div class="modal-content">
             <h2>⚙️ Réglages & Synchro</h2>
