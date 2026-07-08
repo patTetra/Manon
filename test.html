@@ -237,7 +237,11 @@
         loader.style.display = "block";
         dashboard.style.display = "none";
 
-        const finalUrl = `${baseUrl}/api/services/todo/get_items`;
+        // Utilisation du endpoint de rendu des templates de HA
+        const finalUrl = `${baseUrl}/api/template`;
+
+        // Ce template Jinja2 va fouiller l'entité directement côté serveur et renvoyer le texte brut
+        const jinjaTemplate = `{% set desc = state_attr('todo.application_budget', 'description') %}{% if desc and 'solde' in desc %}{{ desc }}{% else %}{% set items = state_attr('todo.application_budget', 'todo_items') %}{% if items %}{% for item in items %}{% if 'solde' in item.description %}{{ item.description }}{% endif %}{% endfor %}{% endif %}{% endif %}`;
 
         try {
             const response = await fetch(finalUrl, {
@@ -246,40 +250,22 @@
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
-                // Utilisation du ciblage standardisé "target" exigé par l'API REST des services HA
                 body: JSON.stringify({
-                    target: {
-                        entity_id: "todo.application_budget"
-                    }
+                    template: jinjaTemplate
                 })
             });
 
             if (!response.ok) throw new Error(`Code HTTP ${response.status}`);
 
-            const result = await response.json();
-            let rawJsonText = "";
+            // Le endpoint de template retourne directement la chaîne de caractères calculée
+            const rawText = await response.text();
+            const cleanText = rawText.trim();
 
-            // Gestion souple des formats de réponse possibles (tableau direct ou objet indexé)
-            let entityResponse = null;
-            if (Array.isArray(result)) {
-                entityResponse = result.find(res => res && res["todo.application_budget"]);
-                if (entityResponse) entityResponse = entityResponse["todo.application_budget"];
-            } else if (result && result["todo.application_budget"]) {
-                entityResponse = result["todo.application_budget"];
+            if (!cleanText || cleanText === "None") {
+                throw new Error("Le template n'a trouvé aucun JSON valide contenant le mot 'solde' dans l'entité todo.application_budget.");
             }
 
-            if (entityResponse && Array.isArray(entityResponse.items)) {
-                const budgetTask = entityResponse.items.find(item => item.summary === "data_budget" || (item.description && item.description.includes("solde")));
-                if (budgetTask && budgetTask.description) {
-                    rawJsonText = budgetTask.description;
-                }
-            }
-
-            if (!rawJsonText) {
-                throw new Error("Impossible de récupérer la description de la tâche 'data_budget'.");
-            }
-
-            const budgetData = JSON.parse(rawJsonText);
+            const budgetData = JSON.parse(cleanText);
             renderDashboard(budgetData);
 
         } catch (error) {
