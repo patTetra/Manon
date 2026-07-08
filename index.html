@@ -35,9 +35,6 @@
                 
                 let texteReponse = await reponse.text();
                 
-                // POP-UP DE DIAGNOSTIC
-                alert("REÇU DE HA :\n" + texteReponse);
-                
                 let resultat = null;
                 if (texteReponse && texteReponse.trim().startsWith('{')) {
                     try { resultat = JSON.parse(texteReponse); } catch(e) {}
