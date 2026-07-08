@@ -27,7 +27,6 @@
             
             try {
                 const urlNettoyee = haUrl.replace(/\/$/, "");
-                // Requête sur le webhook de LECTURE dédié
                 const reponse = await fetchWithTimeout(`${urlNettoyee}/api/webhook/budget_app_lire_secret_1607`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -35,19 +34,21 @@
                 }, 6000);
                 
                 let texteReponse = await reponse.text();
-                
                 let resultat = null;
+                
                 if (texteReponse && texteReponse.trim().startsWith('{')) {
                     try { resultat = JSON.parse(texteReponse); } catch(e) {}
                 }
                 
                 let items = [];
                 if (resultat) {
+                    // Analyse profonde du JSON brut renvoyé directement par Home Assistant
                     if (resultat.items && Array.isArray(resultat.items)) {
                         items = resultat.items;
                     } else if (resultat['todo.application_budget'] && Array.isArray(resultat['todo.application_budget'].items)) {
                         items = resultat['todo.application_budget'].items;
                     } else {
+                        // Cherche dans n'importe quelle sous-clé (si l'entité change de nom)
                         for (let key in resultat) {
                             if (resultat[key] && Array.isArray(resultat[key].items)) {
                                 items = resultat[key].items;
@@ -57,6 +58,7 @@
                     }
                 }
 
+                // Recherche de notre tâche de stockage
                 const tacheData = items.find(i => {
                     const icomplet = JSON.stringify(i).toLowerCase();
                     return icomplet.includes('"summary":"data_budget"') || 
@@ -90,7 +92,6 @@
             document.getElementById('statut-synchro').innerText = "⏳ Envoi vers HA...";
             try {
                 const urlNettoyee = haUrl.replace(/\/$/, "");
-                // Requête sur le webhook d'ÉCRITURE dédié
                 await fetchWithTimeout(`${urlNettoyee}/api/webhook/budget_app_ecrire_secret_1607`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
