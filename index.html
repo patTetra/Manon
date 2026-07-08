@@ -42,12 +42,12 @@
                 
                 let items = [];
                 if (resultat) {
-                    if (resultat['todo.application_budget'] && Array.isArray(resultat['todo.application_budget'].items)) {
+                    if (resultat.items && Array.isArray(resultat.items)) {
+                        items = resultat.items;
+                    } else if (resultat['todo.application_budget'] && Array.isArray(resultat['todo.application_budget'].items)) {
                         items = resultat['todo.application_budget'].items;
                     } else if (resultat.retour_ha && resultat.retour_ha['todo.application_budget'] && Array.isArray(resultat.retour_ha['todo.application_budget'].items)) {
                         items = resultat.retour_ha['todo.application_budget'].items;
-                    } else if (resultat.items && Array.isArray(resultat.items)) {
-                        items = resultat.items;
                     } else if (Array.isArray(resultat)) {
                         items = resultat;
                     } else {
@@ -60,7 +60,13 @@
                     }
                 }
 
-                const tacheData = items.find(i => i.summary === "data_budget");
+                // Recherche ultra-souple (gère summary, uid, majuscules/minuscules)
+                const tacheData = items.find(i => {
+                    const icomplet = JSON.stringify(i).toLowerCase();
+                    return icomplet.includes('"summary":"data_budget"') || 
+                           icomplet.includes('"uid":"data_budget"') ||
+                           (i.summary && i.summary.toLowerCase() === 'data_budget');
+                });
 
                 if (tacheData && tacheData.description) {
                     const dataHA = JSON.parse(tacheData.description);
