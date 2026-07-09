@@ -66,11 +66,6 @@
         .modal-actions button { flex: 1; }
         .btn-secondary { background: #bdc3c7; color: #2d3436; }
         .param-section { border-top: 2px dashed #eee; margin-top: 15px; padding-top: 15px; }
-        
-        /* Boutons de suggestions rapides */
-        .suggestions-rapides { display: flex; gap: 8px; margin-bottom: 8px; }
-        .btn-suggestion { background: #e2e8f0; color: #475569; padding: 6px 12px; border-radius: 20px; font-size: 0.85em; font-weight: 600; border: none; cursor: pointer; flex: 1; }
-        .btn-suggestion:active { background: #cbd5e1; }
     </style>
 </head>
 <body>
@@ -130,17 +125,17 @@
         <div class="card"><h3>📊 Mon Historique</h3><div class="liste-historique" id="liste-historique"></div></div>
     </div>
 
-    <!-- MODALS -->
+    <!-- MODAL RECEVOIR -->
     <div class="modal" id="modal-gain">
         <div class="modal-content">
             <h2>➕ Recevoir</h2>
             <div class="form-group"><label>Montant (€)</label><input type="number" inputmode="decimal" id="gain-montant"></div>
             <div class="form-group">
                 <label>Provenance</label>
-                <!-- 💡 AJOUT : Boutons de choix rapides -->
-                <div class="suggestions-rapides">
-                    <button class="btn-suggestion" onclick="choisirProvenance('Grands-parents')">👴👵 Grands-parents</button>
-                    <button class="btn-suggestion" onclick="choisirProvenance('Papa')">👨 Papa</button>
+                <!-- 💡 Boutons de choix rapides simplifiés avec style direct -->
+                <div style="display: flex; gap: 10px; margin-bottom: 10px; margin-top: 5px;">
+                    <button type="button" style="background-color: #e2e8f0; color: #475569; flex: 1; padding: 10px; border-radius: 12px; font-size: 0.9em; font-weight: 600;" onclick="document.getElementById('gain-desc').value='Grands-parents'">👴👵 Grands-parents</button>
+                    <button type="button" style="background-color: #e2e8f0; color: #475569; flex: 1; padding: 10px; border-radius: 12px; font-size: 0.9em; font-weight: 600;" onclick="document.getElementById('gain-desc').value='Papa'">👨 Papa</button>
                 </div>
                 <input type="text" id="gain-desc" placeholder="Ou saisis une autre provenance...">
             </div>
@@ -149,6 +144,7 @@
         </div>
     </div>
 
+    <!-- MODAL ACHAT -->
     <div class="modal" id="modal-depense">
         <div class="modal-content">
             <h2>🛒 Un Achat</h2>
@@ -159,6 +155,7 @@
         </div>
     </div>
 
+    <!-- MODAL RETRAIT -->
     <div class="modal" id="modal-retrait">
         <div class="modal-content">
             <h2 id="retrait-titre">↩ Récupérer</h2>
@@ -190,7 +187,6 @@
             <div class="form-group"><label>Nom de l'objectif</label><input type="text" id="param-nom-obj"></div>
             <div class="form-group"><label>Cible objectif (€)</label><input type="number" inputmode="decimal" id="param-cible-obj"></div>
             
-            <!-- SECTION PROTÉGÉE PAR LE PIN -->
             <div class="param-section">
                 <label style="font-weight: bold; display:block; margin-bottom: 8px; color: var(--blue);">☁️ Connexion Home Assistant (Protégé)</label>
                 <div class="form-group">
@@ -231,7 +227,6 @@
             }
         });
 
-        // Lecture d'une entité (GET)
         async function fetchEntityState(entityId) {
             const url = localStorage.getItem("ha_url");
             const token = localStorage.getItem("ha_token");
@@ -245,7 +240,6 @@
             return await response.json();
         }
 
-        // Écriture via Service HA (POST)
         async function callHAService(domain, service, data) {
             const url = localStorage.getItem("ha_url");
             const token = localStorage.getItem("ha_token");
@@ -259,7 +253,6 @@
             return response.ok;
         }
 
-        // Sauvegarde de l'historique dans un attribut pour lever la limite de taille
         async function sauvegarderHistoriqueLongHA(historiqueTableau) {
             const url = localStorage.getItem("ha_url");
             const token = localStorage.getItem("ha_token");
@@ -269,10 +262,7 @@
             
             const response = await fetch(`${url}/api/states/${entityId}`, {
                 method: 'POST',
-                headers: { 
-                    'Authorization': `Bearer ${token}`, 
-                    'Content-Type': 'application/json' 
-                },
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     state: "Synchronisé",
                     attributes: {
@@ -284,7 +274,6 @@
             return response.ok;
         }
 
-        // Synchronisation globale (Lecture)
         async function fetchAllEntities() {
             const url = localStorage.getItem("ha_url");
             const token = localStorage.getItem("ha_token");
@@ -309,11 +298,7 @@
                 currentNomObjectif = nomObjData ? nomObjData.state : "Mon Objectif";
 
                 if (historyData && historyData.attributes && historyData.attributes.historique_json) {
-                    try { 
-                        currentHistory = JSON.parse(historyData.attributes.historique_json); 
-                    } catch(e) { 
-                        currentHistory = []; 
-                    }
+                    try { currentHistory = JSON.parse(historyData.attributes.historique_json); } catch(e) { currentHistory = []; }
                 } else if (historyData && historyData.state && historyData.state !== 'unknown' && historyData.state !== 'Synchronisé') {
                     try { currentHistory = JSON.parse(historyData.state); } catch(e) { currentHistory = []; }
                 } else {
@@ -386,7 +371,7 @@
         function empilerHistorique(type, desc, montant, date) {
             const nouveauLog = { date: date, type: type, desc: desc, montant: parseFloat(montant) };
             currentHistory.push(nouveauLog);
-            if (currentHistory.length > 50) currentHistory.shift(); // 💡 Porté à 50 éléments ici[span_0](start_span)[span_0](end_span)
+            if (currentHistory.length > 50) currentHistory.shift(); // 💡 Limite fixée à 50[span_2](start_span)[span_2](end_span)
         }
 
         async function pushMutations(promises) {
@@ -396,19 +381,15 @@
             await fetchAllEntities();
         }
 
-        // GESTION DU LOCK PAR CODE PIN
         function demanderCodePIN() {
             document.getElementById('code-pincode').value = '';
             document.getElementById('modal-securite').style.display = 'flex';
         }
-        function fermerSecurite() {
-            document.getElementById('modal-securite').style.display = 'none';
-        }
+        function fermerSecurite() { document.getElementById('modal-securite').style.display = 'none'; }
         function validerCodePIN() {
             const code = document.getElementById('code-pincode').value;
             if (code === "1607") {
-                fermerSecurite();
-                ouvrirParametres();
+                fermerSecurite(); ouvrirParametres();
             } else {
                 alert("Code PIN incorrect ! 🔐");
                 document.getElementById('code-pincode').value = '';
@@ -419,17 +400,9 @@
         function fermerParametres() { document.getElementById('modal-parametres').style.display = 'none'; }
         
         async function reinitialiserDonneesHA() {
-            if (confirm("⚠️ Es-tu sûr de vouloir réinitialiser TOUS tes montants, objectifs et l'historique sur Home Assistant ?")) {
-                currentSolde = 0;
-                currentTirelire = 0;
-                currentObjectifActuel = 0;
-                currentObjectifCible = 50;
-                currentNomObjectif = "Mon Objectif";
-                currentHistory = [];
-
+            if (confirm("⚠️ Es-tu sûr de vouloir réinitialiser TOUS tes montants sur HA ?")) {
+                currentSolde = 0; currentTirelire = 0; currentObjectifActuel = 0; currentObjectifCible = 50; currentNomObjectif = "Mon Objectif"; currentHistory = [];
                 fermerParametres();
-                document.getElementById('statut-synchro').innerText = "⏳ Réinitialisation HA...";
-
                 await pushMutations([
                     callHAService('input_number', 'set_value', { entity_id: 'input_number.solde_courant', value: 0 }),
                     callHAService('input_number', 'set_value', { entity_id: 'input_number.solde_tirelire', value: 0 }),
@@ -437,7 +410,7 @@
                     callHAService('input_number', 'set_value', { entity_id: 'input_number.objectif_montant_cible', value: 50 }),
                     callHAService('input_text', 'set_value', { entity_id: 'input_text.nom_objectif', value: "Mon Objectif" })
                 ]);
-                alert("✅ Toutes les données ont été remises à zéro !");
+                alert("✅ Données remises à zéro !");
             }
         }
 
@@ -445,7 +418,6 @@
             const nvSolde = parseFloat(document.getElementById('param-solde').value);
             const nvNom = document.getElementById('param-nom-obj').value.trim();
             const nvCible = parseFloat(document.getElementById('param-cible-obj').value);
-            
             let url = document.getElementById('param-ha-url').value.trim();
             if(url.endsWith('/')) url = url.slice(0, -1);
             const token = document.getElementById('param-ha-token').value.trim();
@@ -468,16 +440,7 @@
             }
 
             fermerParametres();
-            if(promises.length > 0 || currentHistory.length > 0) {
-                await pushMutations(promises);
-            } else {
-                await fetchAllEntities();
-            }
-        }
-
-        // 💡 AJOUT : Remplissage automatique de la provenance
-        function choisirProvenance(texte) {
-            document.getElementById('gain-desc').value = texte;
+            await pushMutations(promises);
         }
 
         function ouvrirGain() { document.getElementById('modal-gain').style.display = 'flex'; }
@@ -510,7 +473,6 @@
                 currentSolde -= m;
                 empilerHistorique('depense', d, m, dt);
                 fermerDepense();
-                
                 await pushMutations([
                     callHAService('input_number', 'set_value', { entity_id: 'input_number.solde_courant', value: currentSolde })
                 ]);
@@ -535,7 +497,6 @@
                     empilerHistorique('depense', `🎯 Vers Objectif`, m, aujourdhuiIso);
                     promises.push(callHAService('input_number', 'set_value', { entity_id: 'input_number.objectif_montant_actuel', value: currentObjectifActuel }));
                 }
-                
                 await pushMutations(promises);
             } else { alert("Solde insuffisant !"); }
         }
@@ -571,7 +532,6 @@
                     empilerHistorique('gain', `↩ Retrait Objectif`, m, aujourdhuiIso);
                     promises.push(callHAService('input_number', 'set_value', { entity_id: 'input_number.objectif_montant_actuel', value: currentObjectifActuel }));
                 }
-                
                 fermerRetrait();
                 await pushMutations(promises);
             } else { alert("Montant indisponible !"); }
