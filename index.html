@@ -42,7 +42,7 @@
         .btn-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; }
         button { border: none; padding: 12px; border-radius: 12px; font-weight: bold; color: white; cursor: pointer; font-size: 0.95em; }
         button:active { transform: scale(0.96); }
-        button.btn-retrait { background: var(--red); width: 100%; margin-top: 10px; padding: 10px;}
+        button.btn-retrait { background: var(--orange); width: 100%; margin-top: 10px; padding: 10px;}
         .solde-actions { display: flex; gap: 10px; margin-top: 15px; }
         .solde-actions button { flex: 1; background: rgba(255,255,255,0.25); border: 1.5px solid white; font-size: 0.9em; }
         .action-input { display: flex; gap: 8px; margin-top: 8px; }
@@ -218,7 +218,7 @@
             }
         });
 
-        // Lecture d'une entité (GET)[span_1](start_span)[span_1](end_span)
+        // Lecture d'une entité (GET)
         async function fetchEntityState(entityId) {
             const url = localStorage.getItem("ha_url");
             const token = localStorage.getItem("ha_token");
@@ -232,7 +232,7 @@
             return await response.json();
         }
 
-        // Écriture via Service HA (POST)[span_2](start_span)[span_2](end_span)
+        // Écriture via Service HA (POST)
         async function callHAService(domain, service, data) {
             const url = localStorage.getItem("ha_url");
             const token = localStorage.getItem("ha_token");
@@ -246,7 +246,7 @@
             return response.ok;
         }
 
-        // Synchronisation globale (Lecture)[span_3](start_span)[span_3](end_span)
+        // Synchronisation globale (Lecture)
         async function fetchAllEntities() {
             const url = localStorage.getItem("ha_url");
             const token = localStorage.getItem("ha_token");
@@ -484,10 +484,8 @@
                 
                 if (cible === 'tirelire') {
                     currentTirelire += m;
-                    currentObjectifActuel += m;
                     empilerHistorique('depense', `🐷 Vers Tirelire`, m, aujourdhuiIso);
                     promises.push(callHAService('input_number', 'set_value', { entity_id: 'input_number.solde_tirelire', value: currentTirelire }));
-                    promises.push(callHAService('input_number', 'set_value', { entity_id: 'input_number.objectif_montant_actuel', value: currentObjectifActuel }));
                 } else if (cible === 'objectif') {
                     currentObjectifActuel += m;
                     empilerHistorique('depense', `🎯 Vers Objectif`, m, aujourdhuiIso);
@@ -522,10 +520,8 @@
                 
                 if (cibleRetraitEnCours === 'tirelire') {
                     currentTirelire -= m;
-                    currentObjectifActuel -= m;
                     empilerHistorique('gain', `↩ Retrait Tirelire`, m, aujourdhuiIso);
                     promises.push(callHAService('input_number', 'set_value', { entity_id: 'input_number.solde_tirelire', value: currentTirelire }));
-                    promises.push(callHAService('input_number', 'set_value', { entity_id: 'input_number.objectif_montant_actuel', value: currentObjectifActuel }));
                 } else {
                     currentObjectifActuel -= m;
                     empilerHistorique('gain', `↩ Retrait Objectif`, m, aujourdhuiIso);
