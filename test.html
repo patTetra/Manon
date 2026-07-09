@@ -247,52 +247,42 @@
         loader.style.display = "block";
 
         try {
-            const response = await fetch(`${url}/api/states/todo.application_budget`, {
-                method: 'GET',
+            // Utilisation du point d'accès d'action unifié /api/actions/ pour éviter l'erreur 400
+            const response = await fetch(`${url}/api/actions/todo/get_items`, {
+                method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
-                }
+                },
+                body: JSON.stringify({
+                    entity_id: 'todo.application_budget'
+                })
             });
 
             if (!response.ok) throw new Error(`Erreur HTTP : ${response.status}`);
 
-            const stateData = await response.json();
-            let rawJson = null;
+            const result = await response.json();
             
-            // Recherche du JSON dans l'entité
-            if (stateData.attributes) {
-                if (stateData.attributes.description) {
-                    rawJson = stateData.attributes.description;
-                } else if (stateData.attributes.items && stateData.attributes.items.length > 0) {
-                    const firstItem = stateData.attributes.items[0];
-                    rawJson = firstItem.description || firstItem.summary;
+            // Extraction robuste de la liste des tâches renvoyée
+            const items = result['todo.application_budget']?.items || result[0]?.details?.items || [];
+            
+            // Recherche spécifique de l'élément nommé 'data_budget'
+            const budgetItem = items.find(item => item.summary === 'data_budget') || items[0];
+            
+            if (budgetItem) {
+                const rawJson = budgetItem.description;
+                if (rawJson) {
+                    const budgetData = JSON.parse(rawJson);
+                    renderDashboard(budgetData);
+                } else {
+                    throw new Error("La description de l'élément 'data_budget' est vide.");
                 }
-            }
-            
-            if (!rawJson && stateData.state && stateData.state.startsWith('{')) {
-                rawJson = stateData.state;
-            }
-
-            if (rawJson) {
-                // Nettoyage au cas où des balises traînent
-                rawJson = rawJson.replace(/```json|```/g, "").trim();
-                const budgetData = JSON.parse(rawJson);
-                renderDashboard(budgetData);
             } else {
-                // Si l'entité est lue mais vide, on affiche 0 proprement plutôt que de crash
-                renderDashboard({
-                    solde: 0,
-                    tirelire: 0,
-                    nom_objectif: "Objectif Épargne",
-                    cible_objectif: 0,
-                    objectif_courant: 0,
-                    historique: []
-                });
+                throw new Error("Impossible de trouver l'élément 'data_budget' dans la liste.");
             }
 
         } catch (error) {
-            alert("Erreur lors du traitement des données :\n" + error.message);
+            alert("Erreur lors de la récupération des données :\n" + error.message);
         } finally {
             loader.style.display = "none";
         }
