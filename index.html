@@ -42,7 +42,7 @@
         .btn-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; }
         button { border: none; padding: 12px; border-radius: 12px; font-weight: bold; color: white; cursor: pointer; font-size: 0.95em; }
         button:active { transform: scale(0.96); }
-        button.btn-retrait { background: var(--orange); width: 100%; margin-top: 10px; padding: 10px;}
+        button.btn-retrait { background: var(--red); width: 100%; margin-top: 10px; padding: 10px;}
         .solde-actions { display: flex; gap: 10px; margin-top: 15px; }
         .solde-actions button { flex: 1; background: rgba(255,255,255,0.25); border: 1.5px solid white; font-size: 0.9em; }
         .action-input { display: flex; gap: 8px; margin-top: 8px; }
@@ -71,65 +71,65 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Mon Budget Connected 💸</h1>
-            <button class="btn-param" onclick="demanderCodePIN()">⚙️</button>
+            <h1>Mon Budget Connected ð¸</h1>
+            <button class="btn-param" onclick="demanderCodePIN()">âï¸</button>
         </div>
         <div class="synchro-box">
-            <div class="synchro-status" id="statut-synchro">🔌 Mode Local (Hors ligne)</div>
-            <button class="btn-sync-force" onclick="fetchAllEntities()">🔄 Forcer Synchro</button>
+            <div class="synchro-status" id="statut-synchro">ð Mode Local (Hors ligne)</div>
+            <button class="btn-sync-force" onclick="fetchAllEntities()">ð Forcer Synchro</button>
         </div>
 
         <!-- SOLDE -->
         <div class="card solde-card">
             <div style="font-weight: 600; opacity: 0.9;">Argent de poche disponible</div>
-            <div class="montant" id="solde">0.00 €</div>
-            <div class="badge" id="badge-statut">🌱 Écureuil Débutant</div>
-            <div class="solde-actions"><button onclick="ouvrirGain()">➕ Recevoir</button><button onclick="abrirDepense()">🛒 Un Achat</button></div>
+            <div class="montant" id="solde">0.00 â¬</div>
+            <div class="badge" id="badge-statut">ð± Ãcureuil DÃ©butant</div>
+            <div class="solde-actions"><button onclick="ouvrirGain()">â Recevoir</button><button onclick="abrirDepense()">ð Un Achat</button></div>
         </div>
         
         <!-- TIRELIRE -->
         <div class="card tirelire-card">
-            <h3>🐷 Tirelire (Épargne)</h3>
-            <div class="montant" id="tirelire">0.00 €</div>
+            <h3>ð· Tirelire (Ãpargne)</h3>
+            <div class="montant" id="tirelire">0.00 â¬</div>
             <div class="btn-grid">
-                <button style="background:var(--orange)" onclick="transfererVersEpargne('tirelire', 1)">+ 1 €</button>
-                <button style="background:var(--orange)" onclick="transfererVersEpargne('tirelire', 5)">+ 5 €</button>
-                <button style="background:var(--orange)" onclick="transfererVersEpargne('tirelire', 10)">+ 10 €</button>
+                <button style="background:var(--orange)" onclick="transfererVersEpargne('tirelire', 1)">+ 1 â¬</button>
+                <button style="background:var(--orange)" onclick="transfererVersEpargne('tirelire', 5)">+ 5 â¬</button>
+                <button style="background:var(--orange)" onclick="transfererVersEpargne('tirelire', 10)">+ 10 â¬</button>
             </div>
             <div class="action-input">
                 <input type="number" inputmode="decimal" id="input-tirelire" placeholder="Autre montant...">
                 <button style="background:var(--orange);" onclick="actionEpargnePerso('tirelire', 'input-tirelire')">OK</button>
             </div>
-            <button class="btn-retrait" style="background: var(--orange)" onclick="ouvrirRetrait('tirelire')">Récupérer de l'argent ↩</button>
+            <button class="btn-retrait" style="background: var(--orange)" onclick="ouvrirRetrait('tirelire')">RÃ©cupÃ©rer de l'argent â©</button>
         </div>
 
         <!-- OBJECTIF -->
         <div class="card objectif-card">
-            <h3 id="titre-objectif">🎯 Mon Objectif</h3>
-            <div class="montant" id="obj-val">0.00 €</div>
+            <h3 id="titre-objectif">ð¯ Mon Objectif</h3>
+            <div class="montant" id="obj-val">0.00 â¬</div>
             <div class="progress-container"><div class="progress-bar" id="barre-progression"></div></div>
-            <div class="progress-info"><span id="pourcentage-text">0%</span><span id="obj-cible-text">sur 50.00 €</span></div>
+            <div class="progress-info"><span id="pourcentage-text">0%</span><span id="obj-cible-text">sur 50.00 â¬</span></div>
             <div class="btn-grid">
-                <button style="background:var(--blue)" onclick="transfererVersEpargne('objectif', 1)">+ 1 €</button>
-                <button style="background:var(--blue)" onclick="transfererVersEpargne('objectif', 5)">+ 5 €</button>
-                <button style="background:var(--blue)" onclick="transfererVersEpargne('objectif', 10)">+ 10 €</button>
+                <button style="background:var(--blue)" onclick="transfererVersEpargne('objectif', 1)">+ 1 â¬</button>
+                <button style="background:var(--blue)" onclick="transfererVersEpargne('objectif', 5)">+ 5 â¬</button>
+                <button style="background:var(--blue)" onclick="transfererVersEpargne('objectif', 10)">+ 10 â¬</button>
             </div>
             <div class="action-input">
                 <input type="number" inputmode="decimal" id="input-objectif" placeholder="Autre montant...">
                 <button style="background:var(--blue);" onclick="actionEpargnePerso('objectif', 'input-objectif')">OK</button>
             </div>
-            <button class="btn-retrait" style="background: var(--blue)" onclick="ouvrirRetrait('objectif')">Récupérer pour acheter ↩</button>
+            <button class="btn-retrait" style="background: var(--blue)" onclick="ouvrirRetrait('objectif')">RÃ©cupÃ©rer pour acheter â©</button>
         </div>
 
         <!-- HISTORIQUE -->
-        <div class="card"><h3>📊 Mon Historique</h3><div class="liste-historique" id="liste-historique"></div></div>
+        <div class="card"><h3>ð Mon Historique</h3><div class="liste-historique" id="liste-historique"></div></div>
     </div>
 
     <!-- MODALS -->
     <div class="modal" id="modal-gain">
         <div class="modal-content">
-            <h2>➕ Recevoir</h2>
-            <div class="form-group"><label>Montant (€)</label><input type="number" inputmode="decimal" id="gain-montant"></div>
+            <h2>â Recevoir</h2>
+            <div class="form-group"><label>Montant (â¬)</label><input type="number" inputmode="decimal" id="gain-montant"></div>
             <div class="form-group"><label>Provenance</label><input type="text" id="gain-desc"></div>
             <div class="form-group"><label>Date</label><input type="date" id="gain-date"></div>
             <div class="modal-actions"><button class="btn-secondary" onclick="fermerGain()">Annuler</button><button style="background: var(--primary);" onclick="enregistrerGain()">Ajouter</button></div>
@@ -138,9 +138,9 @@
 
     <div class="modal" id="modal-depense">
         <div class="modal-content">
-            <h2>🛒 Un Achat</h2>
-            <div class="form-group"><label>Montant (€)</label><input type="number" inputmode="decimal" id="depense-montant"></div>
-            <div class="form-group"><label>Qu'as-tu acheté ?</label><input type="text" id="depense-desc"></div>
+            <h2>ð Un Achat</h2>
+            <div class="form-group"><label>Montant (â¬)</label><input type="number" inputmode="decimal" id="depense-montant"></div>
+            <div class="form-group"><label>Qu'as-tu achetÃ© ?</label><input type="text" id="depense-desc"></div>
             <div class="form-group"><label>Date</label><input type="date" id="depense-date"></div>
             <div class="modal-actions"><button class="btn-secondary" onclick="fermerDepense()">Annuler</button><button style="background: var(--red);" onclick="enregistrerDepense()">Valider</button></div>
         </div>
@@ -148,17 +148,17 @@
 
     <div class="modal" id="modal-retrait">
         <div class="modal-content">
-            <h2 id="retrait-titre">↩ Récupérer</h2>
+            <h2 id="retrait-titre">â© RÃ©cupÃ©rer</h2>
             <div id="retrait-max" style="font-size: 0.9em; color: #7f8c8d; margin-bottom: 12px;"></div>
-            <div class="form-group"><label>Montant (€)</label><input type="number" inputmode="decimal" id="retrait-montant"></div>
+            <div class="form-group"><label>Montant (â¬)</label><input type="number" inputmode="decimal" id="retrait-montant"></div>
             <div class="modal-actions"><button class="btn-secondary" onclick="fermerRetrait()">Annuler</button><button style="background: var(--primary);" onclick="validerRetrait()">Confirmer</button></div>
         </div>
     </div>
 
-    <!-- SÉCURITÉ PIN -->
+    <!-- SÃCURITÃ PIN -->
     <div class="modal" id="modal-securite">
         <div class="modal-content">
-            <h2 style="text-align: center;">🔒 Code PIN Requis</h2>
+            <h2 style="text-align: center;">ð Code PIN Requis</h2>
             <div class="form-group">
                 <input type="password" inputmode="numeric" id="code-pincode" maxlength="4" style="text-align: center; font-size: 1.6em; letter-spacing: 10px;" placeholder="****">
             </div>
@@ -172,24 +172,24 @@
     <!-- REGLAGES -->
     <div class="modal" id="modal-parametres">
         <div class="modal-content">
-            <h2>⚙️ Réglages & Synchro</h2>
-            <div class="form-group"><label>Modifier Solde (€)</label><input type="number" inputmode="decimal" id="param-solde"></div>
+            <h2>âï¸ RÃ©glages & Synchro</h2>
+            <div class="form-group"><label>Modifier Solde (â¬)</label><input type="number" inputmode="decimal" id="param-solde"></div>
             <div class="form-group"><label>Nom de l'objectif</label><input type="text" id="param-nom-obj"></div>
-            <div class="form-group"><label>Cible objectif (€)</label><input type="number" inputmode="decimal" id="param-cible-obj"></div>
+            <div class="form-group"><label>Cible objectif (â¬)</label><input type="number" inputmode="decimal" id="param-cible-obj"></div>
             
-            <!-- SECTION PROTÉGÉE PAR LE PIN -->
+            <!-- SECTION PROTÃGÃE PAR LE PIN -->
             <div class="param-section">
-                <label style="font-weight: bold; display:block; margin-bottom: 8px; color: var(--blue);">☁️ Connexion Home Assistant (Protégé)</label>
+                <label style="font-weight: bold; display:block; margin-bottom: 8px; color: var(--blue);">âï¸ Connexion Home Assistant (ProtÃ©gÃ©)</label>
                 <div class="form-group">
                     <label>URL d'instance ou Nabu Casa</label>
                     <input type="text" id="param-ha-url" placeholder="https://xxx.ui.nabu.casa">
                 </div>
                 <div class="form-group">
-                    <label>Jeton d'accès de longue durée (Token)</label>
+                    <label>Jeton d'accÃ¨s de longue durÃ©e (Token)</label>
                     <input type="password" id="param-ha-token" placeholder="eyJhbGciOiJIUzI1Ni...">
                 </div>
                 <div style="margin-top: 15px; padding-top: 5px;">
-                    <button style="background: var(--red); width: 100%; font-size: 0.9em; padding: 10px;" onclick="reinitialiserDonneesHA()">⚠️ Tout Réinitialiser les données</button>
+                    <button style="background: var(--red); width: 100%; font-size: 0.9em; padding: 10px;" onclick="reinitialiserDonneesHA()">â ï¸ Tout RÃ©initialiser les donnÃ©es</button>
                 </div>
             </div>
             
@@ -213,12 +213,12 @@
             if (savedUrl && savedToken) {
                 fetchAllEntities();
             } else {
-                document.getElementById('statut-synchro').innerText = "🔌 Mode Local (Non configuré)";
+                document.getElementById('statut-synchro').innerText = "ð Mode Local (Non configurÃ©)";
                 afficher();
             }
         });
 
-        // Lecture d'une entité (GET)
+        // Lecture d'une entitÃ© (GET)
         async function fetchEntityState(entityId) {
             const url = localStorage.getItem("ha_url");
             const token = localStorage.getItem("ha_token");
@@ -232,7 +232,7 @@
             return await response.json();
         }
 
-        // Écriture via Service HA (POST)
+        // Ãcriture via Service HA (POST)
         async function callHAService(domain, service, data) {
             const url = localStorage.getItem("ha_url");
             const token = localStorage.getItem("ha_token");
@@ -252,7 +252,7 @@
             const token = localStorage.getItem("ha_token");
             if (!url || !token) return;
 
-            document.getElementById('statut-synchro').innerText = "🔄 Synchronisation...";
+            document.getElementById('statut-synchro').innerText = "ð Synchronisation...";
 
             try {
                 const [soldeData, tirelireData, objActuelData, objCibleData, nomObjData, historyData] = await Promise.all([
@@ -276,30 +276,30 @@
                     currentHistory = [];
                 }
 
-                document.getElementById('statut-synchro').innerText = "☁️ Synchronisé avec HA";
+                document.getElementById('statut-synchro').innerText = "âï¸ SynchronisÃ© avec HA";
             } catch (error) {
                 console.error(error);
-                document.getElementById('statut-synchro').innerText = "❌ Erreur de liaison HA";
+                document.getElementById('statut-synchro').innerText = "â Erreur de liaison HA";
             }
 
             afficher();
         }
 
         function obtenirBadge(total) {
-            if (total < 20) return { nom: "🌱 Écureuil Débutant", couleur: "#7f8c8d" };
-            if (total < 70) return { nom: "🎯 Apprenti Épargnant", couleur: "#3498db" };
-            if (total < 150) return { nom: "🐷 Pro de la Tirelire", couleur: "#e67e22" };
-            if (total < 300) return { nom: "🏆 As du Trésor", couleur: "#9b59b6" };
-            return { nom: "👑 Maître du Budget", couleur: "#27ae60" };
+            if (total < 20) return { nom: "ð± Ãcureuil DÃ©butant", couleur: "#7f8c8d" };
+            if (total < 70) return { nom: "ð¯ Apprenti Ãpargnant", couleur: "#3498db" };
+            if (total < 150) return { nom: "ð· Pro de la Tirelire", couleur: "#e67e22" };
+            if (total < 300) return { nom: "ð As du TrÃ©sor", couleur: "#9b59b6" };
+            return { nom: "ð MaÃ®tre du Budget", couleur: "#27ae60" };
         }
 
         function afficher() {
             const fortuneTotale = currentSolde + currentTirelire + currentObjectifActuel;
-            document.getElementById('solde').innerText = currentSolde.toFixed(2) + " €";
-            document.getElementById('tirelire').innerText = currentTirelire.toFixed(2) + " €";
-            document.getElementById('obj-val').innerText = currentObjectifActuel.toFixed(2) + " €";
-            document.getElementById('titre-objectif').innerText = "🎯 " + currentNomObjectif;
-            document.getElementById('obj-cible-text').innerText = "sur " + currentObjectifCible.toFixed(2) + " €";
+            document.getElementById('solde').innerText = currentSolde.toFixed(2) + " â¬";
+            document.getElementById('tirelire').innerText = currentTirelire.toFixed(2) + " â¬";
+            document.getElementById('obj-val').innerText = currentObjectifActuel.toFixed(2) + " â¬";
+            document.getElementById('titre-objectif').innerText = "ð¯ " + currentNomObjectif;
+            document.getElementById('obj-cible-text').innerText = "sur " + currentObjectifCible.toFixed(2) + " â¬";
 
             let pourcentage = currentObjectifCible > 0 ? (currentObjectifActuel / currentObjectifCible) * 100 : 0;
             if (pourcentage > 100) pourcentage = 100;
@@ -325,7 +325,7 @@
             const listeHistorique = document.getElementById('liste-historique');
             listeHistorique.innerHTML = "";
             if (currentHistory.length === 0) {
-                listeHistorique.innerHTML = "<div class='vide'>Aucune opération enregistrée.</div>";
+                listeHistorique.innerHTML = "<div class='vide'>Aucune opÃ©ration enregistrÃ©e.</div>";
             } else {
                 [...currentHistory].reverse().forEach(item => {
                     const div = document.createElement('div');
@@ -333,7 +333,7 @@
                     const estGain = item.type === 'gain';
                     const dateFr = item.date.split('-').reverse().join('/');
                     div.innerHTML = `<div><div class="hist-desc">${item.desc}</div><div class="hist-date">${dateFr}</div></div>
-                                    <div class="hist-montant ${estGain ? 'montant-plus' : 'montant-moins'}">${estGain ? '+' : '-'} ${item.montant.toFixed(2)} €</div>`;
+                                    <div class="hist-montant ${estGain ? 'montant-plus' : 'montant-moins'}">${estGain ? '+' : '-'} ${item.montant.toFixed(2)} â¬</div>`;
                     listeHistorique.appendChild(div);
                 });
             }
@@ -349,7 +349,7 @@
             promises.push(
                 callHAService('input_text', 'set_value', { entity_id: 'input_text.budget_historique', value: JSON.stringify(currentHistory) })
             );
-            document.getElementById('statut-synchro').innerText = "⏳ Envoi vers HA...";
+            document.getElementById('statut-synchro').innerText = "â³ Envoi vers HA...";
             await Promise.all(promises);
             await fetchAllEntities();
         }
@@ -368,7 +368,7 @@
                 fermerSecurite();
                 ouvrirParametres();
             } else {
-                alert("Code PIN incorrect ! 🔐");
+                alert("Code PIN incorrect ! ð");
                 document.getElementById('code-pincode').value = '';
             }
         }
@@ -376,9 +376,9 @@
         function ouvrirParametres() { document.getElementById('modal-parametres').style.display = 'flex'; }
         function fermerParametres() { document.getElementById('modal-parametres').style.display = 'none'; }
         
-        // BOUTON DE RÉINITIALISATION COMPLÈTE (RAZ SUR HA)
+        // BOUTON DE RÃINITIALISATION COMPLÃTE (RAZ SUR HA)
         async function reinitialiserDonneesHA() {
-            if (confirm("⚠️ Es-tu sûr de vouloir réinitialiser TOUS tes montants, objectifs et l'historique sur Home Assistant ?")) {
+            if (confirm("â ï¸ Es-tu sÃ»r de vouloir rÃ©initialiser TOUS tes montants, objectifs et l'historique sur Home Assistant ?")) {
                 currentSolde = 0;
                 currentTirelire = 0;
                 currentObjectifActuel = 0;
@@ -387,7 +387,7 @@
                 currentHistory = [];
 
                 fermerParametres();
-                document.getElementById('statut-synchro').innerText = "⏳ Réinitialisation HA...";
+                document.getElementById('statut-synchro').innerText = "â³ RÃ©initialisation HA...";
 
                 await pushMutations([
                     callHAService('input_number', 'set_value', { entity_id: 'input_number.solde_courant', value: 0 }),
@@ -397,7 +397,7 @@
                     callHAService('input_text', 'set_value', { entity_id: 'input_text.nom_objective', value: "Mon Objectif" }),
                     callHAService('input_text', 'set_value', { entity_id: 'input_text.nom_objectif', value: "Mon Objectif" })
                 ]);
-                alert("✅ Toutes les données ont été remises à zéro !");
+                alert("â Toutes les donnÃ©es ont Ã©tÃ© remises Ã  zÃ©ro !");
             }
         }
 
@@ -484,11 +484,13 @@
                 
                 if (cible === 'tirelire') {
                     currentTirelire += m;
-                    empilerHistorique('depense', `🐷 Vers Tirelire`, m, aujourdhuiIso);
+                    currentObjectifActuel += m;
+                    empilerHistorique('depense', `ð· Vers Tirelire`, m, aujourdhuiIso);
                     promises.push(callHAService('input_number', 'set_value', { entity_id: 'input_number.solde_tirelire', value: currentTirelire }));
+                    promises.push(callHAService('input_number', 'set_value', { entity_id: 'input_number.objectif_montant_actuel', value: currentObjectifActuel }));
                 } else if (cible === 'objectif') {
                     currentObjectifActuel += m;
-                    empilerHistorique('depense', `🎯 Vers Objectif`, m, aujourdhuiIso);
+                    empilerHistorique('depense', `ð¯ Vers Objectif`, m, aujourdhuiIso);
                     promises.push(callHAService('input_number', 'set_value', { entity_id: 'input_number.objectif_montant_actuel', value: currentObjectifActuel }));
                 }
                 
@@ -503,8 +505,8 @@
         function ouvrirRetrait(cible) {
             cibleRetraitEnCours = cible;
             const maxVal = cible === 'tirelire' ? currentTirelire : currentObjectifActuel;
-            document.getElementById('retrait-titre').innerText = `↩ Récupérer de ` + (cible === 'tirelire' ? "la Tirelire" : "l'Objectif");
-            document.getElementById('retrait-max').innerText = `Maximum disponible : ${maxVal.toFixed(2)} €`;
+            document.getElementById('retrait-titre').innerText = `â© RÃ©cupÃ©rer de ` + (cible === 'tirelire' ? "la Tirelire" : "l'Objectif");
+            document.getElementById('retrait-max').innerText = `Maximum disponible : ${maxVal.toFixed(2)} â¬`;
             document.getElementById('retrait-montant').value = ''; document.getElementById('modal-retrait').style.display = 'flex';
         }
         function fermerRetrait() { document.getElementById('modal-retrait').style.display = 'none'; }
@@ -520,11 +522,13 @@
                 
                 if (cibleRetraitEnCours === 'tirelire') {
                     currentTirelire -= m;
-                    empilerHistorique('gain', `↩ Retrait Tirelire`, m, aujourdhuiIso);
+                    currentObjectifActuel -= m;
+                    empilerHistorique('gain', `â© Retrait Tirelire`, m, aujourdhuiIso);
                     promises.push(callHAService('input_number', 'set_value', { entity_id: 'input_number.solde_tirelire', value: currentTirelire }));
+                    promises.push(callHAService('input_number', 'set_value', { entity_id: 'input_number.objectif_montant_actuel', value: currentObjectifActuel }));
                 } else {
                     currentObjectifActuel -= m;
-                    empilerHistorique('gain', `↩ Retrait Objectif`, m, aujourdhuiIso);
+                    empilerHistorique('gain', `â© Retrait Objectif`, m, aujourdhuiIso);
                     promises.push(callHAService('input_number', 'set_value', { entity_id: 'input_number.objectif_montant_actuel', value: currentObjectifActuel }));
                 }
                 
