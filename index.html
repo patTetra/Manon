@@ -374,7 +374,7 @@
         function empilerHistorique(type, desc, montant, date) {
             const nouveauLog = { date: date, type: type, desc: desc, montant: parseFloat(montant) };
             currentHistory.push(nouveauLog);
-            if (currentHistory.length > 20) currentHistory.shift(); 
+            if (currentHistory.length > 50) currentHistory.shift(); 
         }
 
         async function pushMutations(promises) {
