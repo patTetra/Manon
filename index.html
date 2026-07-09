@@ -65,14 +65,14 @@
         .modal-actions { display: flex; gap: 10px; margin-top: 18px; }
         .modal-actions button { flex: 1; }
         .btn-secondary { background: #bdc3c7; color: #2d3436; }
-        .param-section { border-top: 1px solid #eee; margin-top: 15px; padding-top: 10px; }
+        .param-section { border-top: 2px dashed #eee; margin-top: 15px; padding-top: 15px; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>Mon Budget Connected 💸</h1>
-            <button class="btn-param" onclick="ouvrirParametres()">⚙️</button>
+            <button class="btn-param" onclick="demanderCodePIN()">⚙️</button>
         </div>
         <div class="synchro-box">
             <div class="synchro-status" id="statut-synchro">🔌 Mode Local (Hors ligne)</div>
@@ -155,6 +155,20 @@
         </div>
     </div>
 
+    <!-- SÉCURITÉ PIN -->
+    <div class="modal" id="modal-securite">
+        <div class="modal-content">
+            <h2 style="text-align: center;">🔒 Code PIN Requis</h2>
+            <div class="form-group">
+                <input type="password" inputmode="numeric" id="code-pincode" maxlength="4" style="text-align: center; font-size: 1.6em; letter-spacing: 10px;" placeholder="****">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" onclick="fermerSecurite()">Annuler</button>
+                <button style="background: var(--primary);" onclick="validerCodePIN()">Valider</button>
+            </div>
+        </div>
+    </div>
+
     <!-- REGLAGES -->
     <div class="modal" id="modal-parametres">
         <div class="modal-content">
@@ -162,8 +176,10 @@
             <div class="form-group"><label>Modifier Solde (€)</label><input type="number" inputmode="decimal" id="param-solde"></div>
             <div class="form-group"><label>Nom de l'objectif</label><input type="text" id="param-nom-obj"></div>
             <div class="form-group"><label>Cible objectif (€)</label><input type="number" inputmode="decimal" id="param-cible-obj"></div>
+            
+            <!-- SECTION PROTÉGÉE PAR LE PIN -->
             <div class="param-section">
-                <label style="font-weight: bold; display:block; margin-bottom: 8px;">☁️ Connexion Home Assistant Token</label>
+                <label style="font-weight: bold; display:block; margin-bottom: 8px; color: var(--blue);">☁️ Connexion Home Assistant (Protégé)</label>
                 <div class="form-group">
                     <label>URL d'instance ou Nabu Casa</label>
                     <input type="text" id="param-ha-url" placeholder="https://xxx.ui.nabu.casa">
@@ -172,13 +188,16 @@
                     <label>Jeton d'accès de longue durée (Token)</label>
                     <input type="password" id="param-ha-token" placeholder="eyJhbGciOiJIUzI1Ni...">
                 </div>
+                <div style="margin-top: 15px; padding-top: 5px;">
+                    <button style="background: var(--red); width: 100%; font-size: 0.9em; padding: 10px;" onclick="reinitialiserDonneesHA()">⚠️ Tout Réinitialiser les données</button>
+                </div>
             </div>
-            <div class="modal-actions" style="margin-top: 15px;"><button class="btn-secondary" onclick="fermerParametres()">Fermer</button><button style="background: var(--primary);" onclick="enregistrerParametres()">Enregistrer</button></div>
+            
+            <div class="modal-actions" style="margin-top: 20px;"><button class="btn-secondary" onclick="fermerParametres()">Fermer</button><button style="background: var(--primary);" onclick="enregistrerParametres()">Enregistrer</button></div>
         </div>
     </div>
 
     <script>
-        // Variables globales alignées sur ton modèle d'entités HA
         let currentSolde = 0;
         let currentTirelire = 0;
         let currentObjectifActuel = 0;
@@ -227,7 +246,7 @@
             return response.ok;
         }
 
-        // Synchronisation globale descendante (Lecture)
+        // Synchronisation globale (Lecture)
         async function fetchAllEntities() {
             const url = localStorage.getItem("ha_url");
             const token = localStorage.getItem("ha_token");
@@ -320,7 +339,6 @@
             }
         }
 
-        // Pousse l'historique dans la limite des 10 éléments max d'HA
         function empilerHistorique(type, desc, montant, date) {
             const nouveauLog = { date: date, type: type, desc: desc, montant: parseFloat(montant) };
             currentHistory.push(nouveauLog);
@@ -334,6 +352,88 @@
             document.getElementById('statut-synchro').innerText = "⏳ Envoi vers HA...";
             await Promise.all(promises);
             await fetchAllEntities();
+        }
+
+        // GESTION DU LOCK PAR CODE PIN
+        function demanderCodePIN() {
+            document.getElementById('code-pincode').value = '';
+            document.getElementById('modal-securite').style.display = 'flex';
+        }
+        function fermerSecurite() {
+            document.getElementById('modal-securite').style.display = 'none';
+        }
+        function validerCodePIN() {
+            const code = document.getElementById('code-pincode').value;
+            if (code === "1607") {
+                fermerSecurite();
+                ouvrirParametres();
+            } else {
+                alert("Code PIN incorrect ! 🔐");
+                document.getElementById('code-pincode').value = '';
+            }
+        }
+
+        function ouvrirParametres() { document.getElementById('modal-parametres').style.display = 'flex'; }
+        function fermerParametres() { document.getElementById('modal-parametres').style.display = 'none'; }
+        
+        // BOUTON DE RÉINITIALISATION COMPLÈTE (RAZ SUR HA)
+        async function reinitialiserDonneesHA() {
+            if (confirm("⚠️ Es-tu sûr de vouloir réinitialiser TOUS tes montants, objectifs et l'historique sur Home Assistant ?")) {
+                currentSolde = 0;
+                currentTirelire = 0;
+                currentObjectifActuel = 0;
+                currentObjectifCible = 50;
+                currentNomObjectif = "Mon Objectif";
+                currentHistory = [];
+
+                fermerParametres();
+                document.getElementById('statut-synchro').innerText = "⏳ Réinitialisation HA...";
+
+                await pushMutations([
+                    callHAService('input_number', 'set_value', { entity_id: 'input_number.solde_courant', value: 0 }),
+                    callHAService('input_number', 'set_value', { entity_id: 'input_number.solde_tirelire', value: 0 }),
+                    callHAService('input_number', 'set_value', { entity_id: 'input_number.objectif_montant_actuel', value: 0 }),
+                    callHAService('input_number', 'set_value', { entity_id: 'input_number.objectif_montant_cible', value: 50 }),
+                    callHAService('input_text', 'set_value', { entity_id: 'input_text.nom_objective', value: "Mon Objectif" }),
+                    callHAService('input_text', 'set_value', { entity_id: 'input_text.nom_objectif', value: "Mon Objectif" })
+                ]);
+                alert("✅ Toutes les données ont été remises à zéro !");
+            }
+        }
+
+        async function enregistrerParametres() {
+            const nvSolde = parseFloat(document.getElementById('param-solde').value);
+            const nvNom = document.getElementById('param-nom-obj').value.trim();
+            const nvCible = parseFloat(document.getElementById('param-cible-obj').value);
+            
+            let url = document.getElementById('param-ha-url').value.trim();
+            if(url.endsWith('/')) url = url.slice(0, -1);
+            const token = document.getElementById('param-ha-token').value.trim();
+
+            localStorage.setItem("ha_url", url);
+            localStorage.setItem("ha_token", token);
+
+            let promises = [];
+            if (!isNaN(nvSolde) && nvSolde !== currentSolde) {
+                currentSolde = nvSolde;
+                promises.push(callHAService('input_number', 'set_value', { entity_id: 'input_number.solde_courant', value: currentSolde }));
+            }
+            if (nvNom && nvNom !== currentNomObjectif) {
+                currentNomObjectif = nvNom;
+                promises.push(callHAService('input_text', 'set_value', { entity_id: 'input_text.nom_objective', value: currentNomObjectif }));
+                promises.push(callHAService('input_text', 'set_value', { entity_id: 'input_text.nom_objectif', value: currentNomObjectif }));
+            }
+            if (!isNaN(nvCible) && nvCible >= 0 && nvCible !== currentObjectifCible) {
+                currentObjectifCible = nvCible;
+                promises.push(callHAService('input_number', 'set_value', { entity_id: 'input_number.objectif_montant_cible', value: currentObjectifCible }));
+            }
+
+            fermerParametres();
+            if(promises.length > 0) {
+                await pushMutations(promises);
+            } else {
+                await fetchAllEntities();
+            }
         }
 
         function ouvrirGain() { document.getElementById('modal-gain').style.display = 'flex'; }
@@ -384,7 +484,7 @@
                 
                 if (cible === 'tirelire') {
                     currentTirelire += m;
-                    currentObjectifActuel += m; // Progression parallèle de l'objectif sur action tirelire
+                    currentObjectifActuel += m;
                     empilerHistorique('depense', `🐷 Vers Tirelire`, m, aujourdhuiIso);
                     promises.push(callHAService('input_number', 'set_value', { entity_id: 'input_number.solde_tirelire', value: currentTirelire }));
                     promises.push(callHAService('input_number', 'set_value', { entity_id: 'input_number.objectif_montant_actuel', value: currentObjectifActuel }));
@@ -422,7 +522,7 @@
                 
                 if (cibleRetraitEnCours === 'tirelire') {
                     currentTirelire -= m;
-                    currentObjectifActuel -= m; // Réduction proportionnelle de l'objectif
+                    currentObjectifActuel -= m;
                     empilerHistorique('gain', `↩ Retrait Tirelire`, m, aujourdhuiIso);
                     promises.push(callHAService('input_number', 'set_value', { entity_id: 'input_number.solde_tirelire', value: currentTirelire }));
                     promises.push(callHAService('input_number', 'set_value', { entity_id: 'input_number.objectif_montant_actuel', value: currentObjectifActuel }));
@@ -435,43 +535,6 @@
                 fermerRetrait();
                 await pushMutations(promises);
             } else { alert("Montant indisponible !"); }
-        }
-
-        function ouvrirParametres() { document.getElementById('modal-parametres').style.display = 'flex'; }
-        function fermerParametres() { document.getElementById('modal-parametres').style.display = 'none'; }
-        async function enregistrerParametres() {
-            const nvSolde = parseFloat(document.getElementById('param-solde').value);
-            const nvNom = document.getElementById('param-nom-obj').value.trim();
-            const nvCible = parseFloat(document.getElementById('param-cible-obj').value);
-            
-            let url = document.getElementById('param-ha-url').value.trim();
-            if(url.endsWith('/')) url = url.slice(0, -1);
-            const token = document.getElementById('param-ha-token').value.trim();
-
-            localStorage.setItem("ha_url", url);
-            localStorage.setItem("ha_token", token);
-
-            let promises = [];
-            if (!isNaN(nvSolde) && nvSolde !== currentSolde) {
-                currentSolde = nvSolde;
-                promises.push(callHAService('input_number', 'set_value', { entity_id: 'input_number.solde_courant', value: currentSolde }));
-            }
-            if (nvNom && nvNom !== currentNomObjectif) {
-                currentNomObjectif = nvNom;
-                promises.push(callHAService('input_text', 'set_value', { entity_id: 'input_text.nom_objective', value: currentNomObjectif }));
-                promises.push(callHAService('input_text', 'set_value', { entity_id: 'input_text.nom_objectif', value: currentNomObjectif }));
-            }
-            if (!isNaN(nvCible) && nvCible >= 0 && nvCible !== currentObjectifCible) {
-                currentObjectifCible = nvCible;
-                promises.push(callHAService('input_number', 'set_value', { entity_id: 'input_number.objectif_montant_cible', value: currentObjectifCible }));
-            }
-
-            fermerParametres();
-            if(promises.length > 0) {
-                await pushMutations(promises);
-            } else {
-                await fetchAllEntities();
-            }
         }
     </script>
 </body>
