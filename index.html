@@ -177,7 +177,6 @@
             <div class="form-group"><label>Nom de l'objectif</label><input type="text" id="param-nom-obj"></div>
             <div class="form-group"><label>Cible objectif (€)</label><input type="number" inputmode="decimal" id="param-cible-obj"></div>
             
-            <!-- SECTION PROTÉGÉE PAR LE PIN -->
             <div class="param-section">
                 <label style="font-weight: bold; display:block; margin-bottom: 8px; color: var(--blue);">☁️ Connexion Home Assistant (Protégé)</label>
                 <div class="form-group">
@@ -218,7 +217,6 @@
             }
         });
 
-        // Lecture d'une entité (GET)
         async function fetchEntityState(entityId) {
             const url = localStorage.getItem("ha_url");
             const token = localStorage.getItem("ha_token");
@@ -232,7 +230,6 @@
             return await response.json();
         }
 
-        // Écriture via Service HA (POST)
         async function callHAService(domain, service, data) {
             const url = localStorage.getItem("ha_url");
             const token = localStorage.getItem("ha_token");
@@ -246,7 +243,7 @@
             return response.ok;
         }
 
-        // Synchronisation globale (Lecture)
+        // Synchronisation globale (Lecture + Gestion automatique des 15€ mensuels)
         async function fetchAllEntities() {
             const url = localStorage.getItem("ha_url");
             const token = localStorage.getItem("ha_token");
@@ -270,11 +267,34 @@
                 currentObjectifCible = objCibleData ? parseFloat(objCibleData.state) : 50;
                 currentNomObjectif = nomObjData ? nomObjData.state : "Mon Objectif";
 
-                if (historyData && historyData.state && historyData.state !== 'unknown') {
+                if (historyData && historyData.state && historyData.state !== 'unknown' && historyData.state !== '') {
                     try { currentHistory = JSON.parse(historyData.state); } catch(e) { currentHistory = []; }
                 } else {
                     currentHistory = [];
                 }
+
+                // --- GESTION DU VERSEMENT DES 15€ MENSUELS ---
+                const dateActuelle = new Date();
+                const moisEnCoursStr = dateActuelle.toISOString().slice(0, 7); // Donne "2026-07"
+                const aujourdhuiIso = dateActuelle.toISOString().split('T')[0];
+
+                // Scénario A : Sécurité juste après un "Tout Réinitialiser" (Tout est à zéro et vide)
+                const estRazComplete = (currentSolde === 0 && currentTirelire === 0 && currentObjectifActuel === 0 && currentHistory.length === 0);
+
+                // Scénario B : Changement de mois normal (On cherche s'il y a déjà eu le bonus ce mois-ci)
+                const aDejaEuLeBonusCeMois = currentHistory.some(item => 
+                    item.desc === "Argent de poche du mois 🎁" && item.date.startsWith(moisEnCoursStr)
+                );
+
+                if (estRazComplete || !aDejaEuLeBonusCeMois) {
+                    currentSolde += 15.0;
+                    empilerHistorique('gain', 'Argent de poche du mois 🎁', 15.0, aujourdhuiIso);
+                    
+                    await pushMutations([
+                        callHAService('input_number', 'set_value', { entity_id: 'input_number.solde_courant', value: currentSolde })
+                    ]);
+                }
+                // ---------------------------------------------
 
                 document.getElementById('statut-synchro').innerText = "☁️ Synchronisé avec HA";
             } catch (error) {
@@ -354,7 +374,6 @@
             await fetchAllEntities();
         }
 
-        // GESTION DU LOCK PAR CODE PIN
         function demanderCodePIN() {
             document.getElementById('code-pincode').value = '';
             document.getElementById('modal-securite').style.display = 'flex';
@@ -373,10 +392,10 @@
             }
         }
 
+        function abrirParametres() { ouvrirParametres(); }
         function ouvrirParametres() { document.getElementById('modal-parametres').style.display = 'flex'; }
         function fermerParametres() { document.getElementById('modal-parametres').style.display = 'none'; }
         
-        // BOUTON DE RÉINITIALISATION COMPLÈTE (RAZ SUR HA)
         async function reinitialiserDonneesHA() {
             if (confirm("⚠️ Es-tu sûr de vouloir réinitialiser TOUS tes montants, objectifs et l'historique sur Home Assistant ?")) {
                 currentSolde = 0;
@@ -397,7 +416,7 @@
                     callHAService('input_text', 'set_value', { entity_id: 'input_text.nom_objective', value: "Mon Objectif" }),
                     callHAService('input_text', 'set_value', { entity_id: 'input_text.nom_objectif', value: "Mon Objectif" })
                 ]);
-                alert("✅ Toutes les données ont été remises à zéro !");
+                alert("✅ Données effacées ! Rechargement du bonus initial...");
             }
         }
 
