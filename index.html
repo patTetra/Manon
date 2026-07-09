@@ -4,284 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mon Budget Connected</title>
-    <script>
-        // Variables globales pour stocker l'état local
-        let currentSolde = 0;
-        let currentTirelire = 0;
-        let currentObjectifActuel = 0;
-        let currentObjectifCible = 0;
-        let currentHistory = [];
-        let nomObjectif = "Mon Objectif";
-
-        document.addEventListener("DOMContentLoaded", () => {
-            const savedUrl = localStorage.getItem("ha_url");
-            const savedToken = localStorage.getItem("ha_token");
-            
-            if (savedUrl && savedToken) {
-                document.getElementById("haUrlInput").value = savedUrl;
-                document.getElementById("haTokenInput").value = savedToken;
-                fetchAllEntities();
-            } else {
-                ouvrirParametres();
-            }
-        });
-
-        // Récupération des états HA individuels
-        async function fetchEntityState(entityId) {
-            const url = localStorage.getItem("ha_url");
-            const token = localStorage.getItem("ha_token");
-            try {
-                const response = await fetch(`${url}/api/states/${entityId}`, {
-                    method: 'GET',
-                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
-                });
-                if (!response.ok) return null;
-                return await response.json();
-            } catch(e) {
-                return null;
-            }
-        }
-
-        // Envoi de données vers HA
-        async function callHAService(domain, service, data) {
-            const url = localStorage.getItem("ha_url");
-            const token = localStorage.getItem("ha_token");
-            const response = await fetch(`${url}/api/services/${domain}/${service}`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-            return response.ok;
-        }
-
-        async function fetchAllEntities() {
-            document.getElementById('statut-synchro').innerText = "🔄 Synchronisation...";
-            
-            try {
-                const [soldeData, tirelireData, objActuelData, objCibleData, nomObjData, historyData] = await Promise.all([
-                    fetchEntityState('input_number.solde_courant'),
-                    fetchEntityState('input_number.solde_tirelire'),
-                    fetchEntityState('input_number.objectif_montant_actuel'),
-                    fetchEntityState('input_number.objectif_montant_cible'),
-                    fetchEntityState('input_text.nom_objectif'),
-                    fetchEntityState('input_text.budget_historique')
-                ]);
-
-                currentSolde = soldeData ? parseFloat(soldeData.state) : 0;
-                currentTirelire = tirelireData ? parseFloat(tirelireData.state) : 0;
-                currentObjectifActuel = objActuelData ? parseFloat(objActuelData.state) : 0;
-                currentObjectifCible = objCibleData ? parseFloat(objCibleData.state) : 0;
-                nomObjectif = nomObjData && nomObjData.state !== 'unknown' ? nomObjData.state : "Mon Objectif";
-
-                if (historyData && historyData.state && historyData.state !== 'unknown') {
-                    try { currentHistory = JSON.parse(historyData.state); } catch(e) { currentHistory = []; }
-                } else {
-                    currentHistory = [];
-                }
-
-                document.getElementById('statut-synchro').innerText = "☁️ Synchronisé avec HA";
-                afficher();
-            } catch (error) {
-                document.getElementById('statut-synchro').innerText = "🔌 Mode Local / Erreur Connexion";
-            }
-        }
-
-        function obtenirBadge(total) {
-            if (total < 20) return { nom: "🌱 Écureuil Débutant", couleur: "#7f8c8d" };
-            if (total < 70) return { nom: "🎯 Apprenti Épargnant", couleur: "#3498db" };
-            if (total < 150) return { nom: "🐷 Pro de la Tirelire", couleur: "#e67e22" };
-            if (total < 300) return { nom: "🏆 As du Trésor", couleur: "#9b59b6" };
-            return { nom: "👑 Maître du Budget", couleur: "#27ae60" };
-        }
-
-        function afficher() {
-            const fortuneTotale = currentSolde + currentTirelire;
-            document.getElementById('solde').innerText = currentSolde.toFixed(2) + " €";
-            document.getElementById('tirelire').innerText = currentTirelire.toFixed(2) + " €";
-            document.getElementById('obj-val').innerText = currentObjectifActuel.toFixed(2) + " €";
-            document.getElementById('titre-objectif').innerText = "🎯 " + nomObjectif;
-            document.getElementById('obj-cible-text').innerText = "sur " + currentObjectifCible.toFixed(2) + " €";
-
-            let pourcentage = currentObjectifCible > 0 ? (currentObjectifActuel / currentObjectifCible) * 100 : 0;
-            if (pourcentage > 100) pourcentage = 100;
-            const barre = document.getElementById('barre-progression');
-            barre.style.width = pourcentage + "%";
-            barre.style.background = pourcentage < 40 ? "var(--orange)" : (pourcentage < 80 ? "var(--blue)" : "var(--primary)");
-            document.getElementById('pourcentage-text').innerText = Math.round(pourcentage) + "%";
-
-            const badge = obtenirBadge(fortuneTotale);
-            const badgeEl = document.getElementById('badge-statut');
-            badgeEl.innerText = badge.nom; badgeEl.style.backgroundColor = badge.couleur;
-
-            // Préparation des inputs réglages
-            document.getElementById('param-solde').value = currentSolde;
-            document.getElementById('param-nom-obj').value = nomObjectif;
-            document.getElementById('param-cible-obj').value = currentObjectifCible;
-
-            const aujourdhuiIso = new Date().toISOString().split('T')[0];
-            document.getElementById('depense-date').value = aujourdhuiIso;
-            document.getElementById('gain-date').value = aujourdhuiIso;
-
-            const listeHistorique = document.getElementById('liste-historique');
-            listeHistorique.innerHTML = "";
-            if (currentHistory.length === 0) {
-                listeHistorique.innerHTML = "<div class='vide'>Aucune opération enregistrée.</div>";
-            } else {
-                [...currentHistory].reverse().forEach(item => {
-                    const div = document.createElement('div');
-                    div.className = 'hist-item';
-                    const estGain = item.type === 'gain';
-                    div.innerHTML = `<div><div class="hist-desc">${item.desc}</div><div class="hist-date">${item.date.split('-').reverse().join('/')}</div></div>
-                                    <div class="hist-montant ${estGain ? 'montant-plus' : 'montant-moins'}">${estGain ? '+' : '-'} ${item.montant.toFixed(2)} €</div>`;
-                    listeHistorique.appendChild(div);
-                });
-            }
-        }
-
-        async function pousserMutations(nSolde, nTirelire, nObjActuel, logType, logDesc, logMontant, logDate) {
-            document.getElementById('statut-synchro').innerText = "⏳ Envoi vers HA...";
-            
-            const newLog = { date: logDate, type: logType, desc: logDesc, montant: logMontant };
-            currentHistory.push(newLog);
-            if(currentHistory.length > 10) currentHistory.shift();
-
-            try {
-                await Promise.all([
-                    callHAService('input_number', 'set_value', { entity_id: 'input_number.solde_courant', value: nSolde }),
-                    callHAService('input_number', 'set_value', { entity_id: 'input_number.solde_tirelire', value: nTirelire }),
-                    callHAService('input_number', 'set_value', { entity_id: 'input_number.objectif_montant_actuel', value: nObjActuel }),
-                    callHAService('input_text', 'set_value', { entity_id: 'input_text.budget_historique', value: JSON.stringify(currentHistory) })
-                ]);
-                await fetchAllEntities();
-            } catch(e) {
-                alert("Erreur de sauvegarde HA");
-            }
-        }
-
-        function ouvrirGain() { document.getElementById('modal-gain').style.display = 'flex'; }
-        function fermerGain() { document.getElementById('modal-gain').style.display = 'none'; }
-        function enregistrerGain() {
-            const m = parseFloat(document.getElementById('gain-montant').value);
-            const d = document.getElementById('gain-desc').value.trim();
-            const dt = document.getElementById('gain-date').value;
-            if (!m || m <= 0 || !d || !dt) { alert("Remplis toutes les cases !"); return; }
-            
-            pousserMutations(currentSolde + m, currentTirelire, currentObjectifActuel, 'gain', d, m, dt);
-            document.getElementById('gain-montant').value = ''; document.getElementById('gain-desc').value = '';
-            fermerGain();
-        }
-
-        function abrirDepense() { document.getElementById('modal-depense').style.display = 'flex'; }
-        function fermerDepense() { document.getElementById('modal-depense').style.display = 'none'; }
-        function enregistrerDepense() {
-            const m = parseFloat(document.getElementById('depense-montant').value);
-            const d = document.getElementById('depense-desc').value.trim();
-            const dt = document.getElementById('depense-date').value;
-            if (!m || m <= 0 || !d || !dt) { alert("Remplis toutes les cases !"); return; }
-            
-            if (currentSolde >= m) {
-                pousserMutations(currentSolde - m, currentTirelire, currentObjectifActuel, 'depense', d, m, dt);
-                document.getElementById('depense-montant').value = ''; document.getElementById('depense-desc').value = '';
-                fermerDepense();
-            } else { alert("Solde insuffisant !"); }
-        }
-
-        function ajouterEpargneRapide(montant) {
-            if (currentSolde >= montant) {
-                const today = new Date().toISOString().split('T')[0];
-                pousserMutations(currentSolde - montant, currentTirelire + montant, currentObjectifActuel + montant, 'depense', '🐷 Épargne Tirelire', montant, today);
-            } else { alert("Solde insuffisant !"); }
-        }
-
-        function actionEpargnePerso() {
-            const input = document.getElementById('input-tirelire');
-            const m = parseFloat(input.value);
-            if (!m || m <= 0) return;
-            if (currentSolde >= m) {
-                const today = new Date().toISOString().split('T')[0];
-                pousserMutations(currentSolde - m, currentTirelire + m, currentObjectifActuel + m, 'depense', '🐷 Épargne Tirelire', m, today);
-                input.value = '';
-            } else { alert("Solde insuffisant !"); }
-        }
-
-        function ajouterObjectifRapide(montant) {
-            if (currentSolde >= montant) {
-                const today = new Date().toISOString().split('T')[0];
-                pousserMutations(currentSolde - montant, currentTirelire, currentObjectifActuel + montant, 'depense', '🎯 Épargne Objectif', montant, today);
-            } else { alert("Solde insuffisant !"); }
-        }
-
-        function actionObjectifPerso() {
-            const input = document.getElementById('input-objectif');
-            const m = parseFloat(input.value);
-            if (!m || m <= 0) return;
-            if (currentSolde >= m) {
-                const today = new Date().toISOString().split('T')[0];
-                pousserMutations(currentSolde - m, currentTirelire, currentObjectifActuel + m, 'depense', '🎯 Épargne Objectif', m, today);
-                input.value = '';
-            } else { alert("Solde insuffisant !"); }
-        }
-
-        function ouvrirRetrait(cible) {
-            let max = cible === 'tirelire' ? currentTirelire : currentObjectifActuel;
-            document.getElementById('retrait-titre').innerText = `↩ Récupérer de ` + (cible === 'tirelire' ? "la Tirelire" : "l'Objectif");
-            document.getElementById('retrait-max').innerText = `Maximum disponible : ${max.toFixed(2)} €`;
-            document.getElementById('retrait-montant').value = ''; 
-            document.getElementById('modal-retrait').setAttribute('data-target', cible);
-            document.getElementById('modal-retrait').style.display = 'flex';
-        }
-        function fermerRetrait() { document.getElementById('modal-retrait').style.display = 'none'; }
-        function validerRetrait() {
-            const m = parseFloat(document.getElementById('retrait-montant').value);
-            const cible = document.getElementById('modal-retrait').getAttribute('data-target');
-            if (!m || m <= 0) return;
-            
-            let max = cible === 'tirelire' ? currentTirelire : currentObjectifActuel;
-            if (m <= max) {
-                const today = new Date().toISOString().split('T')[0];
-                if(cible === 'tirelire') {
-                    pousserMutations(currentSolde + m, currentTirelire - m, currentObjectifActuel, 'gain', '↩ Retrait Tirelire', m, today);
-                } else {
-                    pousserMutations(currentSolde + m, currentTirelire, currentObjectifActuel - m, 'gain', '↩ Retrait Objectif', m, today);
-                }
-                fermerRetrait();
-            } else { alert("Montant indisponible !"); }
-        }
-
-        function ouvrirParametres() { 
-            document.getElementById('param-ha-url').value = localStorage.getItem("ha_url") || "";
-            document.getElementById('param-ha-token').value = localStorage.getItem("ha_token") || "";
-            document.getElementById('modal-parametres').style.display = 'flex'; 
-        }
-        function fermerParametres() { document.getElementById('modal-parametres').style.display = 'none'; }
-        
-        async function enregistrerParametres() {
-            const nvSolde = parseFloat(document.getElementById('param-solde').value);
-            const nvNom = document.getElementById('param-nom-obj').value.trim();
-            const nvCible = parseFloat(document.getElementById('param-cible-obj').value);
-            let url = document.getElementById('param-ha-url').value.trim();
-            const token = document.getElementById('param-ha-token').value.trim();
-
-            if(url.endsWith('/')) url = url.slice(0, -1);
-            localStorage.setItem('ha_url', url);
-            localStorage.setItem('ha_token', token);
-
-            try {
-                await Promise.all([
-                    callHAService('input_number', 'set_value', { entity_id: 'input_number.solde_courant', value: nvSolde }),
-                    callHAService('input_text', 'set_value', { entity_id: 'input_text.nom_objectif', value: nvNom }),
-                    callHAService('input_number', 'set_value', { entity_id: 'input_number.objectif_montant_cible', value: nvCible })
-                ]);
-                fermerParametres();
-                fetchAllEntities();
-            } catch(e) {
-                alert("Erreur lors de la mise à jour des paramètres");
-            }
-        }
-    </script>
     <style>
-        :root { --bg-color: #f7f9fa; --card-bg: #ffffff; --text-main: #2d3436; --primary: #2ecc71; --orange: #e67e22; --blue: #3498db; --red: #e74c3c; }
-        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg-color); padding: 15px; margin: 0; color: var(--text-main); }
+        :root { 
+            --bg-color: #f7f9fa; 
+            --card-bg: #ffffff; 
+            --text-main: #2d3436; 
+            --primary: #2ecc71; 
+            --orange: #e67e22; 
+            --blue: #3498db; 
+            --red: #e74c3c; 
+        }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
+            background: var(--bg-color); 
+            padding: 15px; 
+            margin: 0; 
+            color: var(--text-main); 
+        }
         .container { max-width: 450px; margin: 0 auto; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
         .header h1 { font-size: 1.4em; margin: 0; }
@@ -386,7 +125,7 @@
         <div class="card"><h3>📊 Mon Historique</h3><div class="liste-historique" id="liste-historique"></div></div>
     </div>
 
-    <!-- MODALS -->
+    <!-- MODALS (FENÊTRES FLOTTANTES) -->
     <div class="modal" id="modal-gain">
         <div class="modal-content">
             <h2>➕ Recevoir</h2>
@@ -416,7 +155,7 @@
         </div>
     </div>
 
-    <!-- REGLAGES -->
+    <!-- REGLAGES (AVEC SÉCURITÉ CONCURRENTIELLE JETON/URL) -->
     <div class="modal" id="modal-parametres">
         <div class="modal-content">
             <h2>⚙️ Réglages & Synchro</h2>
@@ -426,7 +165,7 @@
             <div class="param-section">
                 <label style="font-weight: bold; display:block; margin-bottom: 8px;">☁️ Connexion Home Assistant</label>
                 <div class="form-group">
-                    <label>URL Instance</label>
+                    <label>URL de l'instance</label>
                     <input type="text" id="param-ha-url" placeholder="https://xxx.ui.nabu.casa">
                 </div>
                 <div class="form-group">
@@ -437,5 +176,291 @@
             <div class="modal-actions" style="margin-top: 15px;"><button class="btn-secondary" onclick="fermerParametres()">Fermer</button><button style="background: var(--primary);" onclick="enregistrerParametres()">Enregistrer</button></div>
         </div>
     </div>
+
+    <script>
+        // États de l'application (Synchronisés avec HA)
+        let currentSolde = 0;
+        let currentTirelire = 0;
+        let currentObjectifActuel = 0;
+        let currentObjectifCible = 0;
+        let currentHistory = [];
+        let nomObjectif = "Mon Objectif";
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const savedUrl = localStorage.getItem("ha_url");
+            const savedToken = localStorage.getItem("ha_token");
+            
+            if (savedUrl && savedToken) {
+                fetchAllEntities();
+            } else {
+                ouvrirParametres();
+            }
+        });
+
+        // Lecture d'état unitaire (Méthode GET héritée du test)
+        async function fetchEntityState(entityId) {
+            const url = localStorage.getItem("ha_url");
+            const token = localStorage.getItem("ha_token");
+            if (!url || !token) return null;
+            try {
+                const response = await fetch(`${url}/api/states/${entityId}`, {
+                    method: 'GET',
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+                });
+                if (!response.ok) return null;
+                return await response.json();
+            } catch(e) {
+                return null;
+            }
+        }
+
+        // Mutation d'état unitaire (Méthode POST héritée du test)
+        async function callHAService(domain, service, data) {
+            const url = localStorage.getItem("ha_url");
+            const token = localStorage.getItem("ha_token");
+            if (!url || !token) return false;
+            try {
+                const response = await fetch(`${url}/api/services/${domain}/${service}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                return response.ok;
+            } catch(e) {
+                return false;
+            }
+        }
+
+        // Récupération globale asynchrone par promesses (Comme dans le test)
+        async function fetchAllEntities() {
+            document.getElementById('statut-synchro').innerText = "🔄 Synchronisation...";
+            
+            try {
+                const [soldeData, tirelireData, objActuelData, objCibleData, nomObjData, historyData] = await Promise.all([
+                    fetchEntityState('input_number.solde_courant'),
+                    fetchEntityState('input_number.solde_tirelire'),
+                    fetchEntityState('input_number.objectif_montant_actuel'),
+                    fetchEntityState('input_number.objectif_montant_cible'),
+                    fetchEntityState('input_text.nom_objectif'),
+                    fetchEntityState('input_text.budget_historique')
+                ]);
+
+                currentSolde = soldeData ? parseFloat(soldeData.state) : 0;
+                currentTirelire = tirelireData ? parseFloat(tirelireData.state) : 0;
+                currentObjectifActuel = objActuelData ? parseFloat(objActuelData.state) : 0;
+                currentObjectifCible = objCibleData ? parseFloat(objCibleData.state) : 0;
+                nomObjectif = nomObjData && nomObjData.state !== 'unknown' ? nomObjData.state : "Mon Objectif";
+
+                if (historyData && historyData.state && historyData.state !== 'unknown') {
+                    try { currentHistory = JSON.parse(historyData.state); } catch(e) { currentHistory = []; }
+                } else {
+                    currentHistory = [];
+                }
+
+                document.getElementById('statut-synchro').innerText = "☁️ Synchronisé avec HA";
+                afficher();
+            } catch (error) {
+                document.getElementById('statut-synchro').innerText = "❌ Erreur de Connexion";
+            }
+        }
+
+        function obtenirBadge(total) {
+            if (total < 20) return { nom: "🌱 Écureuil Débutant", couleur: "#7f8c8d" };
+            if (total < 70) return { nom: "🎯 Apprenti Épargnant", couleur: "#3498db" };
+            if (total < 150) return { nom: "🐷 Pro de la Tirelire", couleur: "#e67e22" };
+            if (total < 300) return { nom: "🏆 As du Trésor", couleur: "#9b59b6" };
+            return { nom: "👑 Maître du Budget", couleur: "#27ae60" };
+        }
+
+        // Rendu complet de l'interface graphique
+        function afficher() {
+            const fortuneTotale = currentSolde + currentTirelire;
+            document.getElementById('solde').innerText = currentSolde.toFixed(2) + " €";
+            document.getElementById('tirelire').innerText = currentTirelire.toFixed(2) + " €";
+            document.getElementById('obj-val').innerText = currentObjectifActuel.toFixed(2) + " €";
+            document.getElementById('titre-objectif').innerText = "🎯 " + nomObjectif;
+            document.getElementById('obj-cible-text').innerText = "sur " + currentObjectifCible.toFixed(2) + " €";
+
+            let pourcentage = currentObjectifCible > 0 ? (currentObjectifActuel / currentObjectifCible) * 100 : 0;
+            if (pourcentage > 100) pourcentage = 100;
+            const barre = document.getElementById('barre-progression');
+            barre.style.width = pourcentage + "%";
+            barre.style.background = pourcentage < 40 ? "var(--orange)" : (pourcentage < 80 ? "var(--blue)" : "var(--primary)");
+            document.getElementById('pourcentage-text').innerText = Math.round(pourcentage) + "%";
+
+            const badge = obtenirBadge(fortuneTotale);
+            const badgeEl = document.getElementById('badge-statut');
+            badgeEl.innerText = badge.nom; badgeEl.style.backgroundColor = badge.couleur;
+
+            // Remplissage des champs de configuration
+            document.getElementById('param-solde').value = currentSolde;
+            document.getElementById('param-nom-obj').value = nomObjectif;
+            document.getElementById('param-cible-obj').value = currentObjectifCible;
+
+            const aujourdhuiIso = new Date().toISOString().split('T')[0];
+            document.getElementById('depense-date').value = aujourdhuiIso;
+            document.getElementById('gain-date').value = aujourdhuiIso;
+
+            const listeHistorique = document.getElementById('liste-historique');
+            listeHistorique.innerHTML = "";
+            if (currentHistory.length === 0) {
+                listeHistorique.innerHTML = "<div class='vide'>Aucune opération enregistrée.</div>";
+            } else {
+                [...currentHistory].reverse().forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'hist-item';
+                    const estGain = item.type === 'gain';
+                    div.innerHTML = `<div><div class="hist-desc">${item.desc}</div><div class="hist-date">${item.date.split('-').reverse().join('/')}</div></div>
+                                    <div class="hist-montant ${estGain ? 'montant-plus' : 'montant-moins'}">${estGain ? '+' : '-'} ${item.montant.toFixed(2)} €</div>`;
+                    listeHistorique.appendChild(div);
+                });
+            }
+        }
+
+        // Centralisation des écritures vers HA (Gestion de l'historique bridé à 10 entrées)
+        async function pousserMutations(nSolde, nTirelire, nObjActuel, logType, logDesc, logMontant, logDate) {
+            document.getElementById('statut-synchro').innerText = "⏳ Envoi vers HA...";
+            
+            const newLog = { date: logDate, type: logType, desc: logDesc, montant: logMontant };
+            currentHistory.push(newLog);
+            if(currentHistory.length > 10) currentHistory.shift(); // Limite stricte pour l'input_text (255 caractères)
+
+            try {
+                await Promise.all([
+                    callHAService('input_number', 'set_value', { entity_id: 'input_number.solde_courant', value: nSolde }),
+                    callHAService('input_number', 'set_value', { entity_id: 'input_number.solde_tirelire', value: nTirelire }),
+                    callHAService('input_number', 'set_value', { entity_id: 'input_number.objectif_montant_actuel', value: nObjActuel }),
+                    callHAService('input_text', 'set_value', { entity_id: 'input_text.budget_historique', value: JSON.stringify(currentHistory) })
+                ]);
+                await fetchAllEntities();
+            } catch(e) {
+                alert("Erreur de communication avec l'API Home Assistant");
+            }
+        }
+
+        // Actions UI - Gains & Dépenses
+        function abrirDepense() { document.getElementById('modal-depense').style.display = 'flex'; }
+        function fermerDepense() { document.getElementById('modal-depense').style.display = 'none'; }
+        function enregistrerDepense() {
+            const m = parseFloat(document.getElementById('depense-montant').value);
+            const d = document.getElementById('depense-desc').value.trim();
+            const dt = document.getElementById('depense-date').value;
+            if (!m || m <= 0 || !d || !dt) { alert("Remplis toutes les cases !"); return; }
+            if (currentSolde >= m) {
+                pousserMutations(currentSolde - m, currentTirelire, currentObjectifActuel, 'depense', d, m, dt);
+                document.getElementById('depense-montant').value = ''; document.getElementById('depense-desc').value = '';
+                fermerDepense();
+            } else { alert("Solde insuffisant !"); }
+        }
+
+        function ouvrirGain() { document.getElementById('modal-gain').style.display = 'flex'; }
+        function fermerGain() { document.getElementById('modal-gain').style.display = 'none'; }
+        function enregistrerGain() {
+            const m = parseFloat(document.getElementById('gain-montant').value);
+            const d = document.getElementById('gain-desc').value.trim();
+            const dt = document.getElementById('gain-date').value;
+            if (!m || m <= 0 || !d || !dt) { alert("Remplis toutes les cases !"); return; }
+            pousserMutations(currentSolde + m, currentTirelire, currentObjectifActuel, 'gain', d, m, dt);
+            document.getElementById('gain-montant').value = ''; document.getElementById('gain-desc').value = '';
+            fermerGain();
+        }
+
+        // Transferts Tirelire Rapides & Personnalisés
+        function ajouterEpargneRapide(montant) {
+            if (currentSolde >= montant) {
+                const today = new Date().toISOString().split('T')[0];
+                pousserMutations(currentSolde - montant, currentTirelire + montant, currentObjectifActuel + montant, 'depense', '🐷 Épargne Tirelire', montant, today);
+            } else { alert("Solde insuffisant !"); }
+        }
+
+        function actionEpargnePerso() {
+            const input = document.getElementById('input-tirelire');
+            const m = parseFloat(input.value);
+            if (!m || m <= 0) return;
+            if (currentSolde >= m) {
+                const today = new Date().toISOString().split('T')[0];
+                pousserMutations(currentSolde - m, currentTirelire + m, currentObjectifActuel + m, 'depense', '🐷 Épargne Tirelire', m, today);
+                input.value = '';
+            } else { alert("Solde insuffisant !"); }
+        }
+
+        // Transferts Objectifs Rapides & Personnalisés
+        function ajouterObjectifRapide(montant) {
+            if (currentSolde >= montant) {
+                const today = new Date().toISOString().split('T')[0];
+                pousserMutations(currentSolde - montant, currentTirelire, currentObjectifActuel + montant, 'depense', '🎯 Épargne Objectif', montant, today);
+            } else { alert("Solde insuffisant !"); }
+        }
+
+        function actionObjectifPerso() {
+            const input = document.getElementById('input-objectif');
+            const m = parseFloat(input.value);
+            if (!m || m <= 0) return;
+            if (currentSolde >= m) {
+                const today = new Date().toISOString().split('T')[0];
+                pousserMutations(currentSolde - m, currentTirelire, currentObjectifActuel + m, 'depense', '🎯 Épargne Objectif', m, today);
+                input.value = '';
+            } else { alert("Solde insuffisant !"); }
+        }
+
+        // Retraits (Modals)
+        function ouvrirRetrait(cible) {
+            let max = cible === 'tirelire' ? currentTirelire : currentObjectifActuel;
+            document.getElementById('retrait-titre').innerText = `↩ Récupérer de ` + (cible === 'tirelire' ? "la Tirelire" : "l'Objectif");
+            document.getElementById('retrait-max').innerText = `Maximum disponible : ${max.toFixed(2)} €`;
+            document.getElementById('retrait-montant').value = ''; 
+            document.getElementById('modal-retrait').setAttribute('data-target', cible);
+            document.getElementById('modal-retrait').style.display = 'flex';
+        }
+        function fermerRetrait() { document.getElementById('modal-retrait').style.display = 'none'; }
+        function validerRetrait() {
+            const m = parseFloat(document.getElementById('retrait-montant').value);
+            const cible = document.getElementById('modal-retrait').getAttribute('data-target');
+            if (!m || m <= 0) return;
+            
+            let max = cible === 'tirelire' ? currentTirelire : currentObjectifActuel;
+            if (m <= max) {
+                const today = new Date().toISOString().split('T')[0];
+                if(cible === 'tirelire') {
+                    pousserMutations(currentSolde + m, currentTirelire - m, currentObjectifActuel, 'gain', '↩ Retrait Tirelire', m, today);
+                } else {
+                    pousserMutations(currentSolde + m, currentTirelire, currentObjectifActuel - m, 'gain', '↩ Retrait Objectif', m, today);
+                }
+                fermerRetrait();
+            } else { alert("Montant indisponible !"); }
+        }
+
+        // Réglages système complets
+        function ouvrirParametres() { 
+            document.getElementById('param-ha-url').value = localStorage.getItem("ha_url") || "";
+            document.getElementById('param-ha-token').value = localStorage.getItem("ha_token") || "";
+            document.getElementById('modal-parametres').style.display = 'flex'; 
+        }
+        function fermerParametres() { document.getElementById('modal-parametres').style.display = 'none'; }
+        
+        async function enregistrerParametres() {
+            const nvSolde = parseFloat(document.getElementById('param-solde').value);
+            const nvNom = document.getElementById('param-nom-obj').value.trim();
+            const nvCible = parseFloat(document.getElementById('param-cible-obj').value);
+            let url = document.getElementById('param-ha-url').value.trim();
+            const token = document.getElementById('param-ha-token').value.trim();
+
+            if(url.endsWith('/')) url = url.slice(0, -1);
+            localStorage.setItem('ha_url', url);
+            localStorage.setItem('ha_token', token);
+
+            try {
+                await Promise.all([
+                    callHAService('input_number', 'set_value', { entity_id: 'input_number.solde_courant', value: nvSolde }),
+                    callHAService('input_text', 'set_value', { entity_id: 'input_text.nom_objectif', value: nvNom }),
+                    callHAService('input_number', 'set_value', { entity_id: 'input_number.objective_montant_cible' }, { entity_id: 'input_number.objectif_montant_cible', value: nvCible })
+                ]);
+                fermerParametres();
+                fetchAllEntities();
+            } catch(e) {
+                alert("Erreur lors de la sauvegarde des paramètres généraux");
+            }
+        }
+    </script>
 </body>
 </html>
