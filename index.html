@@ -246,6 +246,31 @@
             return response.ok;
         }
 
+        // Sauvegarde de l'historique dans un attribut pour lever la limite de taille
+        async function sauvegarderHistoriqueLongHA(historiqueTableau) {
+            const url = localStorage.getItem("ha_url");
+            const token = localStorage.getItem("ha_token");
+            if (!url || !token) return false;
+
+            const entityId = "input_text.budget_historique";
+            
+            const response = await fetch(`${url}/api/states/${entityId}`, {
+                method: 'POST',
+                headers: { 
+                    'Authorization': `Bearer ${token}`, 
+                    'Content-Type': 'application/json' 
+                },
+                body: JSON.stringify({
+                    state: "Synchronisé",
+                    attributes: {
+                        friendly_name: "Budget Historique",
+                        historique_json: JSON.stringify(historiqueTableau)
+                    }
+                })
+            });
+            return response.ok;
+        }
+
         // Synchronisation globale (Lecture)
         async function fetchAllEntities() {
             const url = localStorage.getItem("ha_url");
@@ -270,7 +295,14 @@
                 currentObjectifCible = objCibleData ? parseFloat(objCibleData.state) : 50;
                 currentNomObjectif = nomObjData ? nomObjData.state : "Mon Objectif";
 
-                if (historyData && historyData.state && historyData.state !== 'unknown') {
+                // Lecture depuis l'attribut personnalisé en priorité
+                if (historyData && historyData.attributes && historyData.attributes.historique_json) {
+                    try { 
+                        currentHistory = JSON.parse(historyData.attributes.historique_json); 
+                    } catch(e) { 
+                        currentHistory = []; 
+                    }
+                } else if (historyData && historyData.state && historyData.state !== 'unknown' && historyData.state !== 'Synchronisé') {
                     try { currentHistory = JSON.parse(historyData.state); } catch(e) { currentHistory = []; }
                 } else {
                     currentHistory = [];
@@ -342,15 +374,13 @@
         function empilerHistorique(type, desc, montant, date) {
             const nouveauLog = { date: date, type: type, desc: desc, montant: parseFloat(montant) };
             currentHistory.push(nouveauLog);
-            if (currentHistory.length > 10) currentHistory.shift(); 
+            if (currentHistory.length > 20) currentHistory.shift(); 
         }
 
         async function pushMutations(promises) {
-            promises.push(
-                callHAService('input_text', 'set_value', { entity_id: 'input_text.budget_historique', value: JSON.stringify(currentHistory) })
-            );
             document.getElementById('statut-synchro').innerText = "⏳ Envoi vers HA...";
             await Promise.all(promises);
+            await sauvegarderHistoriqueLongHA(currentHistory);
             await fetchAllEntities();
         }
 
@@ -373,10 +403,10 @@
             }
         }
 
+        function abrirParametres() { ouvrirParametres(); } // Hack pour aligner l'appel d'origine si nécessaire
         function ouvrirParametres() { document.getElementById('modal-parametres').style.display = 'flex'; }
         function fermerParametres() { document.getElementById('modal-parametres').style.display = 'none'; }
         
-        // BOUTON DE RÉINITIALISATION COMPLÈTE (RAZ SUR HA)
         async function reinitialiserDonneesHA() {
             if (confirm("⚠️ Es-tu sûr de vouloir réinitialiser TOUS tes montants, objectifs et l'historique sur Home Assistant ?")) {
                 currentSolde = 0;
@@ -429,7 +459,7 @@
             }
 
             fermerParametres();
-            if(promises.length > 0) {
+            if(promises.length > 0 || currentHistory.length > 0) {
                 await pushMutations(promises);
             } else {
                 await fetchAllEntities();
