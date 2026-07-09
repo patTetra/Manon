@@ -66,6 +66,11 @@
         .modal-actions button { flex: 1; }
         .btn-secondary { background: #bdc3c7; color: #2d3436; }
         .param-section { border-top: 2px dashed #eee; margin-top: 15px; padding-top: 15px; }
+        
+        /* Boutons de suggestions rapides */
+        .suggestions-rapides { display: flex; gap: 8px; margin-bottom: 8px; }
+        .btn-suggestion { background: #e2e8f0; color: #475569; padding: 6px 12px; border-radius: 20px; font-size: 0.85em; font-weight: 600; border: none; cursor: pointer; flex: 1; }
+        .btn-suggestion:active { background: #cbd5e1; }
     </style>
 </head>
 <body>
@@ -130,7 +135,15 @@
         <div class="modal-content">
             <h2>➕ Recevoir</h2>
             <div class="form-group"><label>Montant (€)</label><input type="number" inputmode="decimal" id="gain-montant"></div>
-            <div class="form-group"><label>Provenance</label><input type="text" id="gain-desc"></div>
+            <div class="form-group">
+                <label>Provenance</label>
+                <!-- 💡 AJOUT : Boutons de choix rapides -->
+                <div class="suggestions-rapides">
+                    <button class="btn-suggestion" onclick="choisirProvenance('Grands-parents')">👴👵 Grands-parents</button>
+                    <button class="btn-suggestion" onclick="choisirProvenance('Papa')">👨 Papa</button>
+                </div>
+                <input type="text" id="gain-desc" placeholder="Ou saisis une autre provenance...">
+            </div>
             <div class="form-group"><label>Date</label><input type="date" id="gain-date"></div>
             <div class="modal-actions"><button class="btn-secondary" onclick="fermerGain()">Annuler</button><button style="background: var(--primary);" onclick="enregistrerGain()">Ajouter</button></div>
         </div>
@@ -285,7 +298,7 @@
                     fetchEntityState('input_number.solde_tirelire'),
                     fetchEntityState('input_number.objectif_montant_actuel'),
                     fetchEntityState('input_number.objectif_montant_cible'),
-                    fetchEntityState('input_text.nom_objectif'), // ✅ Nettoyé : uniquement la bonne entité
+                    fetchEntityState('input_text.nom_objectif'),
                     fetchEntityState('input_text.budget_historique')
                 ]);
 
@@ -295,7 +308,6 @@
                 currentObjectifCible = objCibleData ? parseFloat(objCibleData.state) : 50;
                 currentNomObjectif = nomObjData ? nomObjData.state : "Mon Objectif";
 
-                // Lecture depuis l'attribut personnalisé en priorité
                 if (historyData && historyData.attributes && historyData.attributes.historique_json) {
                     try { 
                         currentHistory = JSON.parse(historyData.attributes.historique_json); 
@@ -374,7 +386,7 @@
         function empilerHistorique(type, desc, montant, date) {
             const nouveauLog = { date: date, type: type, desc: desc, montant: parseFloat(montant) };
             currentHistory.push(nouveauLog);
-            if (currentHistory.length > 50) currentHistory.shift(); 
+            if (currentHistory.length > 50) currentHistory.shift(); // 💡 Porté à 50 éléments ici[span_0](start_span)[span_0](end_span)
         }
 
         async function pushMutations(promises) {
@@ -448,7 +460,6 @@
             }
             if (nvNom && nvNom !== currentNomObjectif) {
                 currentNomObjectif = nvNom;
-                // ✅ Nettoyé : pointe uniquement vers la bonne entité trouvée dans HA
                 promises.push(callHAService('input_text', 'set_value', { entity_id: 'input_text.nom_objectif', value: currentNomObjectif }));
             }
             if (!isNaN(nvCible) && nvCible >= 0 && nvCible !== currentObjectifCible) {
@@ -462,6 +473,11 @@
             } else {
                 await fetchAllEntities();
             }
+        }
+
+        // 💡 AJOUT : Remplissage automatique de la provenance
+        function choisirProvenance(texte) {
+            document.getElementById('gain-desc').value = texte;
         }
 
         function ouvrirGain() { document.getElementById('modal-gain').style.display = 'flex'; }
