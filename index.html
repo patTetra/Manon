@@ -285,7 +285,7 @@
                     fetchEntityState('input_number.solde_tirelire'),
                     fetchEntityState('input_number.objectif_montant_actuel'),
                     fetchEntityState('input_number.objectif_montant_cible'),
-                    fetchEntityState('input_text.nom_objective') || fetchEntityState('input_text.nom_objectif'),
+                    fetchEntityState('input_text.nom_objectif'), // ✅ Nettoyé : uniquement la bonne entité
                     fetchEntityState('input_text.budget_historique')
                 ]);
 
@@ -403,7 +403,6 @@
             }
         }
 
-        function abrirParametres() { ouvrirParametres(); } // Hack pour aligner l'appel d'origine si nécessaire
         function ouvrirParametres() { document.getElementById('modal-parametres').style.display = 'flex'; }
         function fermerParametres() { document.getElementById('modal-parametres').style.display = 'none'; }
         
@@ -424,7 +423,6 @@
                     callHAService('input_number', 'set_value', { entity_id: 'input_number.solde_tirelire', value: 0 }),
                     callHAService('input_number', 'set_value', { entity_id: 'input_number.objectif_montant_actuel', value: 0 }),
                     callHAService('input_number', 'set_value', { entity_id: 'input_number.objectif_montant_cible', value: 50 }),
-                    callHAService('input_text', 'set_value', { entity_id: 'input_text.nom_objective', value: "Mon Objectif" }),
                     callHAService('input_text', 'set_value', { entity_id: 'input_text.nom_objectif', value: "Mon Objectif" })
                 ]);
                 alert("✅ Toutes les données ont été remises à zéro !");
@@ -450,7 +448,7 @@
             }
             if (nvNom && nvNom !== currentNomObjectif) {
                 currentNomObjectif = nvNom;
-                promises.push(callHAService('input_text', 'set_value', { entity_id: 'input_text.nom_objective', value: currentNomObjectif }));
+                // ✅ Nettoyé : pointe uniquement vers la bonne entité trouvée dans HA
                 promises.push(callHAService('input_text', 'set_value', { entity_id: 'input_text.nom_objectif', value: currentNomObjectif }));
             }
             if (!isNaN(nvCible) && nvCible >= 0 && nvCible !== currentObjectifCible) {
