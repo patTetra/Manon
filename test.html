@@ -36,17 +36,18 @@
             color: var(--text-color);
         }
 
-        .config-panel {
+        .config-panel, .transaction-panel {
             background-color: var(--card-bg);
             border-radius: 12px;
             padding: 15px;
             margin-bottom: 20px;
             border: 1px solid var(--border-color);
         }
-        .config-panel h3 { margin-top: 0; margin-bottom: 10px; font-size: 16px; }
-        .config-field { margin-bottom: 12px; }
-        .config-field label { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
-        .config-field input {
+        h3 { margin-top: 0; margin-bottom: 15px; font-size: 16px; color: var(--text-color); }
+        
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+        .form-group input, .form-group select {
             width: 100%;
             padding: 10px;
             border-radius: 6px;
@@ -55,6 +56,7 @@
             color: white;
             box-sizing: border-box;
             font-family: inherit;
+            font-size: 14px;
         }
         
         .btn {
@@ -69,6 +71,7 @@
             margin-bottom: 10px;
             font-size: 14px;
         }
+        .btn-success { background-color: var(--accent-green); }
         .btn-danger { background-color: #e74c3c; }
         .btn:hover { opacity: 0.9; }
 
@@ -128,28 +131,28 @@
     <h1>📊 Application Budget</h1>
 
     <div id="actionButtons" style="display: none; display: flex; gap: 10px; margin-bottom: 20px;">
-        <button id="btnRefresh" class="btn" onclick="fetchBudgetData()">🔄 Actualiser les données</button>
+        <button id="btnRefresh" class="btn" onclick="fetchAllEntities()">🔄 Actualiser les données</button>
     </div>
 
-    <div id="loader" class="loader">Connexion à Home Assistant...</div>
+    <div id="loader" class="loader">Synchro Home Assistant...</div>
 
-    <!-- Panneau de configuration -->
+    <!-- Panneau de configuration Réseau -->
     <div id="configPanel" class="config-panel" style="display: none;">
         <h3>🔑 Configuration Connexion</h3>
-        <div class="config-field">
-            <label for="haUrlInput">URL de votre instance (ex: https://xxxxxx.ui.nabu.casa) :</label>
+        <div class="form-group">
+            <label for="haUrlInput">URL de votre instance :</label>
             <input type="url" id="haUrlInput" placeholder="https://xxxxxxxx.ui.nabu.casa">
         </div>
-        <div class="config-field">
-            <label for="haTokenInput">Jeton d'accès de longue durée (Long-Lived Access Token) :</label>
-            <input type="password" id="haTokenInput" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+        <div class="form-group">
+            <label for="haTokenInput">Jeton d'accès de longue durée :</label>
+            <input type="password" id="haTokenInput" placeholder="eyJhbGciOiJIUzI1Ni...">
         </div>
         <button class="btn" onclick="saveConfig()">Enregistrer</button>
         <button class="btn btn-danger" onclick="toggleConfig(false)">Annuler</button>
     </div>
 
     <!-- Dashboard -->
-    <div id="dashboard" style="display: block;">
+    <div id="dashboard">
         <div class="kpi-grid">
             <div class="card">
                 <div class="card-title">Solde</div>
@@ -163,7 +166,7 @@
 
         <div class="goal-card">
             <div class="goal-header">
-                <span id="lblObjectif" style="font-weight: bold;">Objectif</span>
+                <span id="lblObjectif" style="font-weight: bold;">--</span>
                 <span id="valObjectifProgression">-- / -- €</span>
             </div>
             <div class="progress-bar-bg">
@@ -171,6 +174,29 @@
             </div>
         </div>
 
+        <!-- FORMULAIRE D'ÉCRITURE -->
+        <div class="transaction-panel">
+            <h3>📝 Ajouter une opération</h3>
+            <div class="form-group">
+                <label for="txType">Type d'opération :</label>
+                <select id="txType">
+                    <option value="gain">➕ Gain (Ajouter au Solde)</option>
+                    <option value="depense">➖ Dépense (Retirer du Solde)</option>
+                    <option value="tirelire">🐷 Épargne (Transférer du Solde vers Tirelire)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="txDescription">Description :</label>
+                <input type="text" id="txDescription" placeholder="Ex: Course, Salaire, Argent de poche...">
+            </div>
+            <div class="form-group">
+                <label for="txMontant">Montant (€) :</label>
+                <input type="number" id="txMontant" step="any" placeholder="0.00">
+            </div>
+            <button class="btn btn-success" onclick="submitTransaction()">Enregistrer le mouvement</button>
+        </div>
+
+        <!-- HISTORIQUE -->
         <div class="history-card">
             <h2>Historique des mouvements</h2>
             <table>
@@ -184,7 +210,7 @@
                 </thead>
                 <tbody id="tableHistory">
                     <tr>
-                        <td colspan="4" style="text-align: center; color: var(--text-secondary);">Aucune donnée chargée. Cliquez sur actualiser.</td>
+                        <td colspan="4" style="text-align: center; color: var(--text-secondary);">Aucun mouvement enregistré.</td>
                     </tr>
                 </tbody>
             </table>
@@ -195,6 +221,13 @@
 </div>
 
 <script>
+    // Variables globales pour stocker l'état local chiffré
+    let currentSolde = 0;
+    let currentTirelire = 0;
+    let currentObjectifActuel = 0;
+    let currentObjectifCible = 0;
+    let currentHistory = [];
+
     document.addEventListener("DOMContentLoaded", () => {
         const savedUrl = localStorage.getItem("ha_url");
         const savedToken = localStorage.getItem("ha_token");
@@ -203,7 +236,7 @@
             document.getElementById("haUrlInput").value = savedUrl;
             document.getElementById("haTokenInput").value = savedToken;
             document.getElementById("actionButtons").style.display = "flex";
-            fetchBudgetData();
+            fetchAllEntities();
         } else {
             toggleConfig(true);
         }
@@ -216,96 +249,154 @@
     function saveConfig() {
         let url = document.getElementById("haUrlInput").value.trim();
         const token = document.getElementById("haTokenInput").value.trim();
+        if (!url || !token) return alert("Champs requis.");
+        if(url.endsWith('/')) url = url.slice(0, -1);
         
-        if (!url || !token) {
-            alert("Veuillez remplir tous les champs.");
-            return;
-        }
-        
-        if(url.endsWith('/')) {
-            url = url.slice(0, -1);
-        }
-
         localStorage.setItem("ha_url", url);
         localStorage.setItem("ha_token", token);
-        
         toggleConfig(false);
         document.getElementById("actionButtons").style.display = "flex";
-        fetchBudgetData();
+        fetchAllEntities();
     }
 
-    async function fetchBudgetData() {
+    // Récupération des états HA individuels (GET /api/states/<entity_id>)
+    async function fetchEntityState(entityId) {
         const url = localStorage.getItem("ha_url");
         const token = localStorage.getItem("ha_token");
+        const response = await fetch(`${url}/api/states/${entityId}`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+        });
+        if (!response.ok) return null;
+        return await response.json();
+    }
+
+    // Envoi de données vers HA (POST /api/services/<domain>/<service>)
+    async function callHAService(domain, service, data) {
+        const url = localStorage.getItem("ha_url");
+        const token = localStorage.getItem("ha_token");
+        const response = await fetch(`${url}/api/services/${domain}/${service}`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        return response.ok;
+    }
+
+    async function fetchAllEntities() {
         const loader = document.getElementById("loader");
-
-        if (!url || !token) {
-            toggleConfig(true);
-            return;
-        }
-
         loader.style.display = "block";
 
         try {
-            // Utilisation du point d'accès d'action unifié /api/actions/ pour éviter l'erreur 400
-            const response = await fetch(`${url}/api/actions/todo/get_items`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    entity_id: 'todo.application_budget'
-                })
-            });
+            const [soldeData, tirelireData, objActuelData, objCibleData, nomObjData, historyData] = await Promise.all([
+                fetchEntityState('input_number.solde_courant'),
+                fetchEntityState('input_number.solde_tirelire'),
+                fetchEntityState('input_number.objectif_montant_actuel'),
+                fetchEntityState('input_number.objectif_montant_cible'),
+                fetchEntityState('input_text.nom_objective') || fetchEntityState('input_text.nom_objectif'),
+                fetchEntityState('input_text.budget_historique') // Entité bonus optionnelle pour sauvegarder l'historique
+            ]);
 
-            if (!response.ok) throw new Error(`Erreur HTTP : ${response.status}`);
+            currentSolde = soldeData ? parseFloat(soldeData.state) : 0;
+            currentTirelire = tirelireData ? parseFloat(tirelireData.state) : 0;
+            currentObjectifActuel = objActuelData ? parseFloat(objActuelData.state) : 0;
+            currentObjectifCible = objCibleData ? parseFloat(objCibleData.state) : 0;
+            const nomObjectif = nomObjData ? nomObjData.state : "Objectif Épargne";
 
-            const result = await response.json();
-            
-            // Extraction robuste de la liste des tâches renvoyée
-            const items = result['todo.application_budget']?.items || result[0]?.details?.items || [];
-            
-            // Recherche spécifique de l'élément nommé 'data_budget'
-            const budgetItem = items.find(item => item.summary === 'data_budget') || items[0];
-            
-            if (budgetItem) {
-                const rawJson = budgetItem.description;
-                if (rawJson) {
-                    const budgetData = JSON.parse(rawJson);
-                    renderDashboard(budgetData);
-                } else {
-                    throw new Error("La description de l'élément 'data_budget' est vide.");
-                }
-            } else {
-                throw new Error("Impossible de trouver l'élément 'data_budget' dans la liste.");
+            if (historyData && historyData.state && historyData.state !== 'unknown') {
+                try { currentHistory = JSON.parse(historyData.state); } catch(e) { currentHistory = []; }
             }
 
+            // Mise à jour UI
+            document.getElementById("valSolde").innerText = `${currentSolde.toFixed(2)} €`;
+            document.getElementById("valTirelire").innerText = `${currentTirelire.toFixed(2)} €`;
+            document.getElementById("lblObjectif").innerText = nomObjectif;
+            document.getElementById("valObjectifProgression").innerText = `${currentObjectifActuel.toFixed(2)} / ${currentObjectifCible.toFixed(2)} €`;
+            
+            const pourcentage = currentObjectifCible > 0 ? Math.min(100, Math.round((currentObjectifActuel / currentObjectifCible) * 100)) : 0;
+            document.getElementById("barObjectif").style.width = `${pourcentage}%`;
+
+            renderHistory();
         } catch (error) {
-            alert("Erreur lors de la récupération des données :\n" + error.message);
+            alert("Erreur de synchronisation : " + error.message);
         } finally {
             loader.style.display = "none";
         }
     }
 
-    function renderDashboard(data) {
-        document.getElementById("valSolde").innerText = `${data.solde ?? data.solde_restant ?? '0'} €`;
-        document.getElementById("valTirelire").innerText = `${data.tirelire ?? '0'} €`;
-        document.getElementById("lblObjectif").innerText = data.nom_objectif || "Objectif";
-        
-        const cible = data.cible_objective || data.cible_objectif || 0;
-        const actuel = data.objectif_courant ?? 0;
-        document.getElementById("valObjectifProgression").innerText = `${actuel} / ${cible} €`;
-        
-        const pourcentage = cible > 0 ? Math.min(100, Math.round((actuel / cible) * 100)) : 0;
-        document.getElementById("barObjectif").style.width = `${pourcentage}%`;
+    // Gestion de la soumission du formulaire d'écriture
+    async function submitTransaction() {
+        const type = document.getElementById("txType").value;
+        const desc = document.getElementById("txDescription").value.trim();
+        const montant = parseFloat(document.getElementById("txMontant").value);
 
+        if (!desc || isNaN(montant) || montant <= 0) {
+            alert("Veuillez remplir une description valide et un montant supérieur à 0.");
+            return;
+        }
+
+        const loader = document.getElementById("loader");
+        loader.style.display = "block";
+
+        let newSolde = currentSolde;
+        let newTirelire = currentTirelire;
+        let newObjActuel = currentObjectifActuel;
+
+        // Calcul des mutations
+        if (type === 'gain') {
+            newSolde += montant;
+        } else if (type === 'depense') {
+            newSolde -= montant;
+        } else if (type === 'tirelire') {
+            if (montant > currentSolde) {
+                alert("Erreur : Solde insuffisant pour alimenter la tirelire.");
+                loader.style.display = "none";
+                return;
+            }
+            newSolde -= montant;
+            newTirelire += montant;
+            newObjActuel += montant; // L'argent mis en tirelire fait progresser l'objectif
+        }
+
+        try {
+            // 1. Envoi des mises à jour des états numériques vers HA via les services officiels
+            const promises = [
+                callHAService('input_number', 'set_value', { entity_id: 'input_number.solde_courant', value: newSolde }),
+                callHAService('input_number', 'set_value', { entity_id: 'input_number.solde_tirelire', value: newTirelire }),
+                callHAService('input_number', 'set_value', { entity_id: 'input_number.objectif_montant_actuel', value: newObjActuel })
+            ];
+
+            // 2. Gestion et empilement de l'historique
+            const today = new Date().toISOString().split('T')[0];
+            const newLog = { date: today, type: type === 'tirelire' ? 'depense' : type, desc: type === 'tirelire' ? `🐷 Vers Tirelire : ${desc}` : desc, montant: montant };
+            currentHistory.push(newLog);
+            if(currentHistory.length > 10) currentHistory.shift(); // Garde les 10 derniers mouvements maximum pour respecter la limite de caractères input_text (255 car.)
+
+            promises.push(
+                callHAService('input_text', 'set_value', { entity_id: 'input_text.budget_historique', value: JSON.stringify(currentHistory) })
+            );
+
+            await Promise.all(promises);
+
+            // Reset formulaire et rafraîchissement complet
+            document.getElementById("txDescription").value = "";
+            document.getElementById("txMontant").value = "";
+            await fetchAllEntities();
+
+        } catch (error) {
+            alert("Erreur lors de l'enregistrement : " + error.message);
+        } finally {
+            loader.style.display = "none";
+        }
+    }
+
+    function renderHistory() {
         const tbody = document.getElementById("tableHistory");
         tbody.innerHTML = "";
 
-        if (data.historique && Array.isArray(data.historique) && data.historique.length > 0) {
-            const sortedHistory = [...data.historique].reverse();
-            sortedHistory.forEach(item => {
+        if (currentHistory.length > 0) {
+            const sorted = [...currentHistory].reverse();
+            sorted.forEach(item => {
                 const tr = document.createElement("tr");
                 const badgeClass = item.type === "gain" ? "badge-gain" : "badge-depense";
                 const labelType = item.type === "gain" ? "Gain" : "Dépense";
@@ -315,7 +406,7 @@
                 tr.innerHTML = `
                     <td>${formatDate(item.date)}</td>
                     <td><span class="badge ${badgeClass}">${labelType}</span></td>
-                    <td>${item.desc || item.description || ''}</td>
+                    <td>${item.desc || ''}</td>
                     <td style="text-align: right; font-weight: bold;" class="${amountClass}">${sign}${item.montant} €</td>
                 `;
                 tbody.appendChild(tr);
