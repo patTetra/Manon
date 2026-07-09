@@ -205,13 +205,13 @@
         let currentHistory = [];
         
         let cibleRetraitEnCours = "";
-        let versementEnCours = false; // Sécurité anti-boucle infinie
+        let premierChargementReussi = false;
 
         document.addEventListener("DOMContentLoaded", () => {
             const savedUrl = localStorage.getItem("ha_url");
             const savedToken = localStorage.getItem("ha_token");
             if (savedUrl && savedToken) {
-                fetchAllEntities();
+                initApp();
             } else {
                 document.getElementById('statut-synchro').innerText = "🔌 Mode Local (Non configuré)";
                 afficher();
@@ -244,8 +244,36 @@
             return response.ok;
         }
 
-        // Synchronisation globale (Lecture + Gestion automatique des 15€ mensuels)
-        async function fetchAllEntities() {
+        // Point d'entrée unique au démarrage de l'application
+        async function initApp() {
+            await fetchAllEntities(false); // Récupération initiale
+
+            // Une fois les entités lues, on vérifie si un versement mensuel est nécessaire
+            const dateActuelle = new Date();
+            const moisEnCoursStr = dateActuelle.toISOString().slice(0, 7); 
+            const aujourdhuiIso = dateActuelle.toISOString().split('T')[0];
+
+            const estRazComplete = (currentSolde === 0 && currentTirelire === 0 && currentObjectifActuel === 0 && currentHistory.length === 0);
+            const aDejaEuLeBonusCeMois = currentHistory.some(item => 
+                item.desc === "Argent de poche du mois 🎁" && item.date.startsWith(moisEnCoursStr)
+            );
+
+            if (estRazComplete || !aDejaEuLeBonusCeMois) {
+                currentSolde += 15.0;
+                empilerHistorique('gain', 'Argent de poche du mois 🎁', 15.0, aujourdhuiIso);
+                
+                // Envoi unique sans déclencher de boucle
+                await pushMutationsDirect([
+                    callHAService('input_number', 'set_value', { entity_id: 'input_number.solde_courant', value: currentSolde })
+                ]);
+            }
+            
+            premierChargementReussi = true;
+            afficher();
+        }
+
+        // Fonction de lecture pure
+        async function fetchAllEntities(doDisplay = true) {
             const url = localStorage.getItem("ha_url");
             const token = localStorage.getItem("ha_token");
             if (!url || !token) return;
@@ -274,38 +302,13 @@
                     currentHistory = [];
                 }
 
-                // --- GESTION DU VERSEMENT DES 15€ MENSUELS (SÉCURISÉE) ---
-                if (!versementEnCours) {
-                    const dateActuelle = new Date();
-                    const moisEnCoursStr = dateActuelle.toISOString().slice(0, 7); 
-                    const aujourdhuiIso = dateActuelle.toISOString().split('T')[0];
-
-                    const estRazComplete = (currentSolde === 0 && currentTirelire === 0 && currentObjectifActuel === 0 && currentHistory.length === 0);
-                    const aDejaEuLeBonusCeMois = currentHistory.some(item => 
-                        item.desc === "Argent de poche du mois 🎁" && item.date.startsWith(moisEnCoursStr)
-                    );
-
-                    if (estRazComplete || !aDejaEuLeBonusCeMois) {
-                        versementEnCours = true; // Verrouillage immédiat
-                        currentSolde += 15.0;
-                        empilerHistorique('gain', 'Argent de poche du mois 🎁', 15.0, aujourdhuiIso);
-                        
-                        await pushMutations([
-                            callHAService('input_number', 'set_value', { entity_id: 'input_number.solde_courant', value: currentSolde })
-                        ]);
-                        versementEnCours = false; // Déverrouillage après retour HA
-                    }
-                }
-                // ---------------------------------------------
-
                 document.getElementById('statut-synchro').innerText = "☁️ Synchronisé avec HA";
             } catch (error) {
                 console.error(error);
                 document.getElementById('statut-synchro').innerText = "❌ Erreur de liaison HA";
-                versementEnCours = false;
             }
 
-            afficher();
+            if (doDisplay) afficher();
         }
 
         function obtenirBadge(total) {
@@ -368,13 +371,21 @@
             if (currentHistory.length > 10) currentHistory.shift(); 
         }
 
-        async function pushMutations(promises) {
+        // Version silencieuse d'envoi (sans re-lecture immédiate pour briser la boucle)
+        async function pushMutationsDirect(promises) {
             promises.push(
                 callHAService('input_text', 'set_value', { entity_id: 'input_text.budget_historique', value: JSON.stringify(currentHistory) })
             );
-            document.getElementById('statut-synchro').innerText = "⏳ Envoi vers HA...";
             await Promise.all(promises);
-            await fetchAllEntities();
+            // Petit délai pour laisser HA respirer
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+
+        // Mutation standard pour les actions utilisateurs
+        async function pushMutations(promises) {
+            document.getElementById('statut-synchro').innerText = "⏳ Envoi vers HA...";
+            await pushMutationsDirect(promises);
+            await fetchAllEntities(true);
         }
 
         function demanderCodePIN() {
@@ -401,25 +412,31 @@
         
         async function reinitialiserDonneesHA() {
             if (confirm("⚠️ Es-tu sûr de vouloir réinitialiser TOUS tes montants, objectifs et l'historique sur Home Assistant ?")) {
-                currentSolde = 0;
+                currentSolde = 15.0; // Intègre directement le montant du mois à la réinitialisation
                 currentTirelire = 0;
                 currentObjectifActuel = 0;
                 currentObjectifCible = 50;
                 currentNomObjectif = "Mon Objectif";
+                
+                const aujourdhuiIso = new Date().toISOString().split('T')[0];
                 currentHistory = [];
+                empilerHistorique('gain', 'Argent de poche du mois 🎁', 15.0, aujourdhuiIso);
 
                 fermerParametres();
                 document.getElementById('statut-synchro').innerText = "⏳ Réinitialisation HA...";
 
-                await pushMutations([
-                    callHAService('input_number', 'set_value', { entity_id: 'input_number.solde_courant', value: 0 }),
+                // On pousse tout d'un coup
+                await pushMutationsDirect([
+                    callHAService('input_number', 'set_value', { entity_id: 'input_number.solde_courant', value: 15.0 }),
                     callHAService('input_number', 'set_value', { entity_id: 'input_number.solde_tirelire', value: 0 }),
                     callHAService('input_number', 'set_value', { entity_id: 'input_number.objectif_montant_actuel', value: 0 }),
                     callHAService('input_number', 'set_value', { entity_id: 'input_number.objectif_montant_cible', value: 50 }),
                     callHAService('input_text', 'set_value', { entity_id: 'input_text.nom_objective', value: "Mon Objectif" }),
                     callHAService('input_text', 'set_value', { entity_id: 'input_text.nom_objectif', value: "Mon Objectif" })
                 ]);
-                alert("✅ Données effacées ! Rechargement du bonus initial...");
+                
+                alert("✅ Données effacées ! Les 15€ du mois ont été versés.");
+                afficher();
             }
         }
 
@@ -454,7 +471,7 @@
             if(promises.length > 0) {
                 await pushMutations(promises);
             } else {
-                await fetchAllEntities();
+                await fetchAllEntities(true);
             }
         }
 
