@@ -72,7 +72,7 @@
             display: flex; justify-content: space-between; align-items: center;
         }
 
-        .day-title { display: flex; align-items: center; gap: 8px; }
+        .day-title { display: flex; align-items: center; gap: 8px; cursor: pointer; }
         .today-badge {
             background: var(--accent); color: white; font-size: 10px;
             padding: 2px 6px; border-radius: 10px; text-transform: uppercase;
@@ -85,6 +85,7 @@
         .period-row {
             display: flex; margin-bottom: 8px; align-items: center;
             padding: 8px; border-radius: 8px; background: rgba(255,255,255,0.5);
+            cursor: pointer;
         }
         .period-row:last-child { margin-bottom: 0; }
 
@@ -117,7 +118,7 @@
         .form-group { margin-bottom: 14px; }
         .form-group label { display: block; font-size: 12px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
         
-        input[type="text"], input[type="time"], select {
+        input[type="text"], input[type="time"] {
             width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 10px;
             font-size: 16px; background-color: #f2f2f7; color: var(--text-main); outline: none; font-family: inherit;
         }
@@ -132,13 +133,13 @@
 <body>
 
     <header>
-        <h1>Mon Planning Vacances</h1>
+        <h1>Mon Planning</h1>
         <button class="btn-add" onclick="addNewDay()">+ Jour</button>
     </header>
 
     <div id="planning-container"></div>
 
-    <!-- Modale d'édition -->
+    <!-- Modale d'édition d'activité -->
     <div id="edit-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -191,14 +192,6 @@
     </div>
 
     <script>
-        // Configuration Home Assistant si besoin de synchroniser
-        const HA_CONFIG = {
-            url: "https://VOTRE_HA_URL.ui.nabu.casa", 
-            token: "VOTRE_LONG_LIVED_ACCESS_TOKEN", 
-            entity: "input_text.planning_vacances",
-            enabled: false 
-        };
-
         let planning = [];
         let currentEditing = { dayIndex: null, period: null };
         let selectedTheme = "";
@@ -211,27 +204,8 @@
             return `${j}/${m}`;
         }
 
-        async function loadData() {
-            if (HA_CONFIG.enabled) {
-                try {
-                    let response = await fetch(`${HA_CONFIG.url}/api/states/${HA_CONFIG.entity}`, {
-                        headers: { "Authorization": `Bearer ${HA_CONFIG.token}`, "Content-Type": "application/json" }
-                    });
-                    let data = await response.json();
-                    planning = JSON.parse(data.state);
-                } catch(e) {
-                    console.error("Échec HA, chargement local", e);
-                    loadLocal();
-                }
-            } else {
-                loadLocal();
-            }
-            renderPlanning();
-        }
-
-        function loadLocal() {
-            // Liste complète restaurée d'après vos photos
-            planning = JSON.parse(localStorage.getItem('holiday_planning_v3')) || [
+        function loadData() {
+            planning = JSON.parse(localStorage.getItem('holiday_planning_local')) || [
                 { date: "13/07", day: "Lundi", theme: "detente", matin: { text: "manger 11h", start: "", end: "" }, aprem: { text: "Sarlat", start: "", end: "" }, soir: { text: "Domme - Bois d'Enveaux", start: "", end: "" } },
                 { date: "14/07", day: "Mardi", theme: "visite", matin: { text: "Rocamadour (village)", start: "", end: "" }, aprem: { text: "Padirac", start: "14:15", end: "" }, soir: { text: "repas bungalow", start: "", end: "" } },
                 { date: "15/07", day: "Mercredi", theme: "", matin: { text: "", start: "", end: "" }, aprem: { text: "Céou", start: "", end: "" }, soir: { text: "Bingo", start: "", end: "" } },
@@ -245,19 +219,11 @@
                 { date: "23/07", day: "Jeudi", theme: "", matin: { text: "", start: "", end: "" }, aprem: { text: "Château Reignac", start: "", end: "" }, soir: { text: "Marché gourmand St Cyprien", start: "", end: "" } },
                 { date: "24/07", day: "Vendredi", theme: "detente", matin: { text: "", start: "", end: "" }, aprem: { text: "Rivière", start: "", end: "" }, soir: { text: "Restaurant", start: "", end: "" } }
             ];
+            renderPlanning();
         }
 
-        async function saveData() {
-            localStorage.setItem('holiday_planning_v3', JSON.stringify(planning));
-            if (HA_CONFIG.enabled) {
-                try {
-                    await fetch(`${HA_CONFIG.url}/api/states/${HA_CONFIG.entity}`, {
-                        method: "POST",
-                        headers: { "Authorization": `Bearer ${HA_CONFIG.token}`, "Content-Type": "application/json" },
-                        body: JSON.stringify({ state: JSON.stringify(planning) })
-                    });
-                } catch(e) { console.error("Erreur sauvegarde HA", e); }
-            }
+        function saveData() {
+            localStorage.setItem('holiday_planning_local', JSON.stringify(planning));
         }
 
         function renderPlanning() {
@@ -346,9 +312,16 @@
         }
 
         function addNewDay() {
+            const promptVal = prompt("Date et Jour (ex: 25/07 : Samedi) :", "25/07 : Samedi");
+            if(!promptVal) return;
+            const parts = promptVal.split(':');
             planning.push({
-                date: "25/07", day: "Samedi", theme: "",
-                matin: { text: "", start: "", end: "" }, aprem: { text: "", start: "", end: "" }, soir: { text: "", start: "", end: "" }
+                date: parts[0] ? parts[0].trim() : "25/07", 
+                day: parts[1] ? parts[1].trim() : "Samedi", 
+                theme: "",
+                matin: { text: "", start: "", end: "" }, 
+                aprem: { text: "", start: "", end: "" }, 
+                soir: { text: "", start: "", end: "" }
             });
             saveData(); renderPlanning();
         }
