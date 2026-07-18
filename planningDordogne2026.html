@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Planning Vacances</title>
@@ -14,6 +14,7 @@
             --text-muted: #8e8e93;
             --accent: #007aff;
             --border: #e5e5ea;
+            --modal-bg: rgba(0, 0, 0, 0.4);
         }
 
         * {
@@ -72,6 +73,7 @@
             color: var(--accent);
             display: flex;
             justify-content: space-between;
+            align-items: center;
         }
 
         .delete-day {
@@ -84,7 +86,15 @@
         .period-row {
             display: flex;
             margin-bottom: 10px;
-            align-items: flex-start;
+            align-items: center;
+            padding: 6px 4px;
+            border-radius: 6px;
+            transition: background-color 0.2s;
+            cursor: pointer;
+        }
+
+        .period-row:active {
+            background-color: #f2f2f7;
         }
 
         .period-row:last-child {
@@ -92,31 +102,131 @@
         }
 
         .period-label {
-            width: 70px;
+            width: 65px;
             font-size: 14px;
             font-weight: 500;
             color: var(--text-muted);
-            padding-top: 2px;
         }
 
         .period-content {
             flex: 1;
             font-size: 16px;
             color: var(--text-main);
-            min-height: 22px;
-            border-bottom: 1px dashed transparent;
-            padding: 0 4px;
-            outline: none;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
-        .period-content:focus {
-            border-bottom-color: var(--accent);
-            background-color: #f9f9f9;
+        .time-tag {
+            font-weight: 600;
+            color: var(--text-main);
+            background-color: #e5e5ea;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+            margin-right: 6px;
         }
 
-        .period-content:empty::before {
-            content: "—";
+        .empty-dash {
             color: var(--text-muted);
+        }
+
+        /* Styles de la fenêtre de modification (Modale) */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--modal-bg);
+            z-index: 1000;
+            justify-content: center;
+            align-items: flex-end; /* Style "Sheet" iOS du bas vers le haut */
+        }
+
+        .modal.open {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            width: 100%;
+            border-top-left-radius: 16px;
+            border-top-right-radius: 16px;
+            padding: 20px 16px;
+            padding-bottom: calc(env(safe-area-inset-bottom) + 20px);
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.15);
+            animation: slideUp 0.25s ease-out;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 19px;
+            font-weight: 600;
+        }
+
+        .btn-text {
+            color: var(--accent);
+            font-size: 16px;
+            font-weight: 600;
+            background: none;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-text.cancel {
+            color: #ff3b30;
+            font-weight: 400;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+
+        .form-row-time {
+            display: flex;
+            gap: 12px;
+        }
+
+        .form-row-time .form-group {
+            flex: 1;
+        }
+
+        input[type="text"], input[type="time"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 16px;
+            background-color: #f2f2f7;
+            color: var(--text-main);
+            outline: none;
+            font-family: inherit;
+        }
+
+        input[type="text"]:focus, input[type="time"]:focus {
+            border-color: var(--accent);
+            background-color: var(--card-bg);
         }
     </style>
 </head>
@@ -129,65 +239,129 @@
 
     <div id="planning-container"></div>
 
+    <!-- Fenêtre de modification (Modale iOS style) -->
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button class="btn-text cancel" onclick="closeModal()">Annuler</button>
+                <div class="modal-title" id="modal-title">Modifier l'activité</div>
+                <button class="btn-text" onclick="saveActivity()">OK</button>
+            </div>
+            
+            <div class="form-group">
+                <label for="input-text">Activité / Événement</label>
+                <input type="text" id="input-text" placeholder="Ex: Restaurant, plage...">
+            </div>
+
+            <div class="form-row-time">
+                <div class="form-group">
+                    <label for="input-start">Début</label>
+                    <input type="time" id="input-start">
+                </div>
+                <div class="form-group">
+                    <label for="input-end">Fin (Optionnel)</label>
+                    <input type="time" id="input-end">
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
-        // Données initiales extraites de vos photos
+        // Configuration initiale pré-remplie
         const initialData = [
-            { date: "13/07", day: "Lundi", matin: "manger 11h", aprem: "Sarlat", soir: "Domme - Bois d'Enveaux" },
-            { date: "14/07", day: "Mardi", matin: "Rocamadour (village)", aprem: "Padirac 14h15", soir: "repas bungalow" },
-            { date: "15/07", day: "Mercredi", matin: "", aprem: "Céou", soir: "Bingo" },
-            { date: "16/07", day: "Jeudi", matin: "", aprem: "Vaiana", soir: "Apéro Camping Restaurant" },
-            { date: "17/07", day: "Vendredi", matin: "11h repas -> église St Léon sur Vézère", aprem: "Musée de la préhistoire", soir: "Marché gourmand Sarlat" },
-            { date: "18/07", day: "Samedi", matin: "", aprem: "La Roque Gageac", soir: "" },
-            { date: "19/07", day: "Dimanche", matin: "", aprem: "Rivière", soir: "Marché gourmand de Vézac" },
-            { date: "20/07", day: "Lundi", matin: "", aprem: "Velorail", soir: "" },
-            { date: "21/07", day: "Mardi", matin: "Bergerac + restaurant", aprem: "Bergerac + restaurant", soir: "" },
-            { date: "22/07", day: "Mercredi", matin: "", aprem: "Jeu immersif (à voir France)", soir: "" },
-            { date: "23/07", day: "Jeudi", matin: "", aprem: "Château Reignac", soir: "Marché gourmand St Cyprien" },
-            { date: "24/07", day: "Vendredi", matin: "", aprem: "Rivière", soir: "Restaurant" }
+            { date: "13/07", day: "Lundi", matin: { text: "manger 11h", start: "", end: "" }, aprem: { text: "Sarlat", start: "", end: "" }, soir: { text: "Domme - Bois d'Enveaux", start: "", end: "" } },
+            { date: "14/07", day: "Mardi", matin: { text: "Rocamadour (village)", start: "", end: "" }, aprem: { text: "Padirac", start: "14:15", end: "" }, soir: { text: "repas bungalow", start: "", end: "" } },
+            { date: "15/07", day: "Mercredi", matin: { text: "", start: "", end: "" }, aprem: { text: "Céou", start: "", end: "" }, soir: { text: "Bingo", start: "", end: "" } },
+            { date: "16/07", day: "Jeudi", matin: { text: "", start: "", end: "" }, aprem: { text: "Vaiana", start: "", end: "" }, soir: { text: "Apéro Camping Restaurant", start: "", end: "" } },
+            { date: "17/07", day: "Vendredi", matin: { text: "repas -> église St Léon sur Vézère", start: "11:00", end: "" }, aprem: { text: "Musée de la préhistoire", start: "", end: "" }, soir: { text: "Marché gourmand Sarlat", start: "", end: "" } },
+            { date: "18/07", day: "Samedi", matin: { text: "", start: "", end: "" }, aprem: { text: "La Roque Gageac", start: "", end: "" }, soir: { text: "", start: "", end: "" } },
+            { date: "19/07", day: "Dimanche", matin: { text: "", start: "", end: "" }, aprem: { text: "Rivière", start: "", end: "" }, soir: { text: "Marché gourmand de Vézac", start: "", end: "" } },
+            { date: "20/07", day: "Lundi", matin: { text: "", start: "", end: "" }, aprem: { text: "Velorail", start: "", end: "" }, soir: { text: "", start: "", end: "" } },
+            { date: "21/07", day: "Mardi", matin: { text: "Bergerac + restaurant", start: "", end: "" }, aprem: { text: "Bergerac + restaurant", start: "", end: "" }, soir: { text: "", start: "", end: "" } },
+            { date: "22/07", day: "Mercredi", matin: { text: "", start: "", end: "" }, aprem: { text: "Jeu immersif (à voir France)", start: "", end: "" }, soir: { text: "", start: "", end: "" } },
+            { date: "23/07", day: "Jeudi", matin: { text: "", start: "", end: "" }, aprem: { text: "Château Reignac", start: "", end: "" }, soir: { text: "Marché gourmand St Cyprien", start: "", end: "" } },
+            { date: "24/07", day: "Vendredi", matin: { text: "", start: "", end: "" }, aprem: { text: "Rivière", start: "", end: "" }, soir: { text: "Restaurant", start: "", end: "" } }
         ];
 
-        // Charger depuis le localStorage ou utiliser les données initiales
-        let planning = JSON.parse(localStorage.getItem('holiday_planning')) || initialData;
+        let planning = JSON.parse(localStorage.getItem('holiday_planning_v2')) || initialData;
+        let currentEditing = { dayIndex: null, period: null };
 
-        function saveTemplate() {
-            localStorage.setItem('holiday_planning', JSON.stringify(planning));
+        function saveToStorage() {
+            localStorage.setItem('holiday_planning_v2', JSON.stringify(planning));
+        }
+
+        function formatTimeDisplay(start, end) {
+            if (!start) return '';
+            if (end) return `<span class="time-tag">${start} - ${end}</span>`;
+            return `<span class="time-tag">${start}</span>`;
         }
 
         function renderPlanning() {
             const container = document.getElementById('planning-container');
             container.innerHTML = '';
 
-            planning.forEach((item, index) => {
+            planning.forEach((item, dayIndex) => {
                 const card = document.createElement('div');
                 card.className = 'day-card';
-                card.innerHTML = `
+                
+                let html = `
                     <div class="day-header">
-                        <span contenteditable="true" onblur="updateDayHeader(${index}, 'date_day', this.innerText)">${item.date} : ${item.day}</span>
-                        <span class="delete-day" onclick="deleteDay(${index})">Supprimer</span>
-                    </div>
-                    <div class="period-row">
-                        <div class="period-label">Matin</div>
-                        <div class="period-content" contenteditable="true" onblur="updatePeriod(${index}, 'matin', this.innerText)">${item.matin}</div>
-                    </div>
-                    <div class="period-row">
-                        <div class="period-label">Aprem</div>
-                        <div class="period-content" contenteditable="true" onblur="updatePeriod(${index}, 'aprem', this.innerText)">${item.aprem}</div>
-                    </div>
-                    <div class="period-row">
-                        <div class="period-label">Soir</div>
-                        <div class="period-content" contenteditable="true" onblur="updatePeriod(${index}, 'soir', this.innerText)">${item.soir}</div>
+                        <span contenteditable="true" onblur="updateDayName(${dayIndex}, this.innerText)">${item.date} : ${item.day}</span>
+                        <span class="delete-day" onclick="deleteDay(${dayIndex})">Supprimer</span>
                     </div>
                 `;
+
+                ['matin', 'aprem', 'soir'].forEach(period => {
+                    const data = item[period] || { text: "", start: "", end: "" };
+                    const timeHTML = formatTimeDisplay(data.start, data.end);
+                    const label = period.charAt(0).toUpperCase() + period.slice(1);
+                    
+                    html += `
+                        <div class="period-row" onclick="openModal(${dayIndex}, '${period}')">
+                            <div class="period-label">${label}</div>
+                            <div class="period-content">
+                                ${timeHTML}${data.text ? data.text : '<span class="empty-dash">—</span>'}
+                            </div>
+                        </div>
+                    `;
+                });
+
+                card.innerHTML = html;
                 container.appendChild(card);
             });
         }
 
-        function updatePeriod(index, period, text) {
-            planning[index][period] = text.trim();
-            saveTemplate();
+        function openModal(dayIndex, period) {
+            currentEditing = { dayIndex, period };
+            const data = planning[dayIndex][period];
+            
+            document.getElementById('modal-title').innerText = `${planning[dayIndex].day} (${period})`;
+            document.getElementById('input-text').value = data.text || '';
+            document.getElementById('input-start').value = data.start || '';
+            document.getElementById('input-end').value = data.end || '';
+            
+            document.getElementById('edit-modal').classList.add('open');
         }
 
-        function updateDayHeader(index, type, text) {
+        function closeModal() {
+            document.getElementById('edit-modal').classList.remove('open');
+        }
+
+        function saveActivity() {
+            const { dayIndex, period } = currentEditing;
+            if (dayIndex !== null && period) {
+                planning[dayIndex][period] = {
+                    text: document.getElementById('input-text').value.trim(),
+                    start: document.getElementById('input-start').value,
+                    end: document.getElementById('input-end').value
+                };
+                saveToStorage();
+                renderPlanning();
+            }
+            closeModal();
+        }
+
+        function updateDayName(index, text) {
             const parts = text.split(':');
             if(parts.length >= 2) {
                 planning[index].date = parts[0].trim();
@@ -195,7 +369,7 @@
             } else {
                 planning[index].date = text.trim();
             }
-            saveTemplate();
+            saveToStorage();
         }
 
         function addNewDay() {
@@ -206,8 +380,13 @@
             const date = parts[0] ? parts[0].trim() : "00/00";
             const day = parts[1] ? parts[1].trim() : "Jour";
 
-            planning.push({ date, day, matin: "", aprem: "", soir: "" });
-            saveTemplate();
+            planning.push({
+                date, day,
+                matin: { text: "", start: "", end: "" },
+                aprem: { text: "", start: "", end: "" },
+                soir: { text: "", start: "", end: "" }
+            });
+            saveToStorage();
             renderPlanning();
             window.scrollTo(0, document.body.scrollHeight);
         }
@@ -215,13 +394,21 @@
         function deleteDay(index) {
             if(confirm("Supprimer ce jour du planning ?")) {
                 planning.splice(index, 1);
-                saveTemplate();
+                saveToStorage();
                 renderPlanning();
             }
         }
 
-        // Initialisation au chargement
+        // Initialisation de la vue
         renderPlanning();
+
+        // Fermer la modale si on clique à l'extérieur de la feuille de style
+        window.onclick = function(event) {
+            const modal = document.getElementById('edit-modal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
     </script>
 </body>
 </html>
