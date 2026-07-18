@@ -33,12 +33,36 @@
             padding-top: calc(env(safe-area-inset-top) + 20px);
         }
 
-        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        header { margin-bottom: 24px; }
+        
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        
         h1 { font-size: 28px; font-weight: 700; }
 
         .btn-add {
             background-color: var(--accent); color: white; border: none;
             padding: 8px 14px; border-radius: 18px; font-size: 14px; font-weight: 600;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-secondary {
+            background-color: #e5e5ea;
+            color: var(--text-main);
+            border: none;
+            padding: 6px 12px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
         }
 
         /* Fiches quotidiennes */
@@ -133,8 +157,15 @@
 <body>
 
     <header>
-        <h1>Mon Planning</h1>
-        <button class="btn-add" onclick="addNewDay()">+ Jour</button>
+        <div class="header-top">
+            <h1>Mon Planning</h1>
+            <button class="btn-add" onclick="addNewDay()">+ Jour</button>
+        </div>
+        <div class="header-actions">
+            <button class="btn-secondary" onclick="exportPlanning()">📤 Exporter</button>
+            <button class="btn-secondary" onclick="triggerImport()">📥 Importer</button>
+            <input type="file" id="import-file" style="display: none;" accept=".json" onchange="importPlanning(event)">
+        </div>
     </header>
 
     <div id="planning-container"></div>
@@ -328,6 +359,47 @@
 
         function deleteDay(index) {
             if(confirm("Supprimer ce jour ?")) { planning.splice(index, 1); saveData(); renderPlanning(); }
+        }
+
+        /* NOUVELLES FONCTIONS IMPORT / EXPORT */
+        function exportPlanning() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(planning, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", "planning_vacances.json");
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function triggerImport() {
+            document.getElementById('import-file').click();
+        }
+
+        function importPlanning(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if (Array.isArray(importedData)) {
+                        if (confirm("Importer ce planning ? Cela remplacera vos données actuelles sur cet iPhone.")) {
+                            planning = importedData;
+                            saveData();
+                            renderPlanning();
+                            alert("Planning importé avec succès !");
+                        }
+                    } else {
+                        alert("Le fichier ne semble pas valide.");
+                    }
+                } catch (err) {
+                    alert("Erreur lors de la lecture du fichier.");
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = ''; // Reset l'input pour pouvoir ré-importer le même fichier si besoin
         }
 
         window.onclick = function(e) {
