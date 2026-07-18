@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Planning Vacances</title>
+    <style>
+        :root {
+            --bg-color: #f2f2f7;
+            --card-bg: #ffffff;
+            --text-main: #1c1c1e;
+            --text-muted: #8e8e93;
+            --accent: #007aff;
+            --border: #e5e5ea;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 20px 16px 40px 16px;
+            padding-top: calc(env(safe-area-inset-top) + 20px);
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .btn-add {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 18px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .day-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .day-header {
+            font-size: 17px;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+            color: var(--accent);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .delete-day {
+            color: #ff3b30;
+            font-size: 13px;
+            font-weight: 400;
+            cursor: pointer;
+        }
+
+        .period-row {
+            display: flex;
+            margin-bottom: 10px;
+            align-items: flex-start;
+        }
+
+        .period-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .period-label {
+            width: 70px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-muted);
+            padding-top: 2px;
+        }
+
+        .period-content {
+            flex: 1;
+            font-size: 16px;
+            color: var(--text-main);
+            min-height: 22px;
+            border-bottom: 1px dashed transparent;
+            padding: 0 4px;
+            outline: none;
+        }
+
+        .period-content:focus {
+            border-bottom-color: var(--accent);
+            background-color: #f9f9f9;
+        }
+
+        .period-content:empty::before {
+            content: "—";
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Planning Vacances</h1>
+        <button class="btn-add" onclick="addNewDay()">+ Jour</button>
+    </header>
+
+    <div id="planning-container"></div>
+
+    <script>
+        // Données initiales extraites de vos photos
+        const initialData = [
+            { date: "13/07", day: "Lundi", matin: "manger 11h", aprem: "Sarlat", soir: "Domme - Bois d'Enveaux" },
+            { date: "14/07", day: "Mardi", matin: "Rocamadour (village)", aprem: "Padirac 14h15", soir: "repas bungalow" },
+            { date: "15/07", day: "Mercredi", matin: "", aprem: "Céou", soir: "Bingo" },
+            { date: "16/07", day: "Jeudi", matin: "", aprem: "Vaiana", soir: "Apéro Camping Restaurant" },
+            { date: "17/07", day: "Vendredi", matin: "11h repas -> église St Léon sur Vézère", aprem: "Musée de la préhistoire", soir: "Marché gourmand Sarlat" },
+            { date: "18/07", day: "Samedi", matin: "", aprem: "La Roque Gageac", soir: "" },
+            { date: "19/07", day: "Dimanche", matin: "", aprem: "Rivière", soir: "Marché gourmand de Vézac" },
+            { date: "20/07", day: "Lundi", matin: "", aprem: "Velorail", soir: "" },
+            { date: "21/07", day: "Mardi", matin: "Bergerac + restaurant", aprem: "Bergerac + restaurant", soir: "" },
+            { date: "22/07", day: "Mercredi", matin: "", aprem: "Jeu immersif (à voir France)", soir: "" },
+            { date: "23/07", day: "Jeudi", matin: "", aprem: "Château Reignac", soir: "Marché gourmand St Cyprien" },
+            { date: "24/07", day: "Vendredi", matin: "", aprem: "Rivière", soir: "Restaurant" }
+        ];
+
+        // Charger depuis le localStorage ou utiliser les données initiales
+        let planning = JSON.parse(localStorage.getItem('holiday_planning')) || initialData;
+
+        function saveTemplate() {
+            localStorage.setItem('holiday_planning', JSON.stringify(planning));
+        }
+
+        function renderPlanning() {
+            const container = document.getElementById('planning-container');
+            container.innerHTML = '';
+
+            planning.forEach((item, index) => {
+                const card = document.createElement('div');
+                card.className = 'day-card';
+                card.innerHTML = `
+                    <div class="day-header">
+                        <span contenteditable="true" onblur="updateDayHeader(${index}, 'date_day', this.innerText)">${item.date} : ${item.day}</span>
+                        <span class="delete-day" onclick="deleteDay(${index})">Supprimer</span>
+                    </div>
+                    <div class="period-row">
+                        <div class="period-label">Matin</div>
+                        <div class="period-content" contenteditable="true" onblur="updatePeriod(${index}, 'matin', this.innerText)">${item.matin}</div>
+                    </div>
+                    <div class="period-row">
+                        <div class="period-label">Aprem</div>
+                        <div class="period-content" contenteditable="true" onblur="updatePeriod(${index}, 'aprem', this.innerText)">${item.aprem}</div>
+                    </div>
+                    <div class="period-row">
+                        <div class="period-label">Soir</div>
+                        <div class="period-content" contenteditable="true" onblur="updatePeriod(${index}, 'soir', this.innerText)">${item.soir}</div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function updatePeriod(index, period, text) {
+            planning[index][period] = text.trim();
+            saveTemplate();
+        }
+
+        function updateDayHeader(index, type, text) {
+            const parts = text.split(':');
+            if(parts.length >= 2) {
+                planning[index].date = parts[0].trim();
+                planning[index].day = parts[1].trim();
+            } else {
+                planning[index].date = text.trim();
+            }
+            saveTemplate();
+        }
+
+        function addNewDay() {
+            const newDate = prompt("Date et Jour (ex: 25/07 : Samedi) :", "");
+            if (!newDate) return;
+            
+            const parts = newDate.split(':');
+            const date = parts[0] ? parts[0].trim() : "00/00";
+            const day = parts[1] ? parts[1].trim() : "Jour";
+
+            planning.push({ date, day, matin: "", aprem: "", soir: "" });
+            saveTemplate();
+            renderPlanning();
+            window.scrollTo(0, document.body.scrollHeight);
+        }
+
+        function deleteDay(index) {
+            if(confirm("Supprimer ce jour du planning ?")) {
+                planning.splice(index, 1);
+                saveTemplate();
+                renderPlanning();
+            }
+        }
+
+        // Initialisation au chargement
+        renderPlanning();
+    </script>
+</body>
+</html>
