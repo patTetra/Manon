@@ -132,7 +132,7 @@
 <body>
 
     <header>
-        <h1>Mon HTML Planning</h1>
+        <h1>Mon Planning Vacances</h1>
         <button class="btn-add" onclick="addNewDay()">+ Jour</button>
     </header>
 
@@ -191,12 +191,12 @@
     </div>
 
     <script>
-        // Remplacer par vos infos Home Assistant si besoin de synchroniser
+        // Configuration Home Assistant si besoin de synchroniser
         const HA_CONFIG = {
-            url: "https://VOTRE_HA_URL.ui.nabu.casa", // ou IP locale
+            url: "https://VOTRE_HA_URL.ui.nabu.casa", 
             token: "VOTRE_LONG_LIVED_ACCESS_TOKEN", 
             entity: "input_text.planning_vacances",
-            enabled: false // Mettez à true pour activer la synchro HA
+            enabled: false 
         };
 
         let planning = [];
@@ -204,7 +204,6 @@
         let selectedTheme = "";
         let currentDayIndex = null;
 
-        // Détection de la date d'aujourd'hui (format "JJ/MM")
         function getTodayString() {
             const now = new Date();
             const j = String(now.getDate()).padStart(2, '0');
@@ -231,9 +230,20 @@
         }
 
         function loadLocal() {
+            // Liste complète restaurée d'après vos photos
             planning = JSON.parse(localStorage.getItem('holiday_planning_v3')) || [
-                { date: "13/07", day: "Lundi", theme: "detente", matin: { text: "manger 11h", start: "", end: "" }, aprem: { text: "Sarlat", start: "", end: "" }, soir: { text: "Domme", start: "", end: "" } },
-                { date: "14/07", day: "Mardi", theme: "visite", matin: { text: "Rocamadour", start: "", end: "" }, aprem: { text: "Padirac", start: "14:15", end: "" }, soir: { text: "repas bungalow", start: "", end: "" } }
+                { date: "13/07", day: "Lundi", theme: "detente", matin: { text: "manger 11h", start: "", end: "" }, aprem: { text: "Sarlat", start: "", end: "" }, soir: { text: "Domme - Bois d'Enveaux", start: "", end: "" } },
+                { date: "14/07", day: "Mardi", theme: "visite", matin: { text: "Rocamadour (village)", start: "", end: "" }, aprem: { text: "Padirac", start: "14:15", end: "" }, soir: { text: "repas bungalow", start: "", end: "" } },
+                { date: "15/07", day: "Mercredi", theme: "", matin: { text: "", start: "", end: "" }, aprem: { text: "Céou", start: "", end: "" }, soir: { text: "Bingo", start: "", end: "" } },
+                { date: "16/07", day: "Jeudi", theme: "", matin: { text: "", start: "", end: "" }, aprem: { text: "Vaiana", start: "", end: "" }, soir: { text: "Apéro Camping Restaurant", start: "", end: "" } },
+                { date: "17/07", day: "Vendredi", theme: "nature", matin: { text: "repas -> église St Léon sur Vézère", start: "11:00", end: "" }, aprem: { text: "Musée de la préhistoire", start: "", end: "" }, soir: { text: "Marché gourmand Sarlat", start: "", end: "" } },
+                { date: "18/07", day: "Samedi", theme: "", matin: { text: "", start: "", end: "" }, aprem: { text: "La Roque Gageac", start: "", end: "" }, soir: { text: "", start: "", end: "" } },
+                { date: "19/07", day: "Dimanche", theme: "", matin: { text: "", start: "", end: "" }, aprem: { text: "Rivière", start: "", end: "" }, soir: { text: "Marché gourmand de Vézac", start: "", end: "" } },
+                { date: "20/07", day: "Lundi", theme: "route", matin: { text: "", start: "", end: "" }, aprem: { text: "Velorail", start: "", end: "" }, soir: { text: "", start: "", end: "" } },
+                { date: "21/07", day: "Mardi", theme: "visite", matin: { text: "Bergerac + restaurant", start: "", end: "" }, aprem: { text: "Bergerac + restaurant", start: "", end: "" }, soir: { text: "", start: "", end: "" } },
+                { date: "22/07", day: "Mercredi", theme: "", matin: { text: "", start: "", end: "" }, aprem: { text: "Jeu immersif (à voir France)", start: "", end: "" }, soir: { text: "", start: "", end: "" } },
+                { date: "23/07", day: "Jeudi", theme: "", matin: { text: "", start: "", end: "" }, aprem: { text: "Château Reignac", start: "", end: "" }, soir: { text: "Marché gourmand St Cyprien", start: "", end: "" } },
+                { date: "24/07", day: "Vendredi", theme: "detente", matin: { text: "", start: "", end: "" }, aprem: { text: "Rivière", start: "", end: "" }, soir: { text: "Restaurant", start: "", end: "" } }
             ];
         }
 
@@ -290,7 +300,6 @@
             });
         }
 
-        /* Fonctions Modale Événement */
         function openModal(dayIndex, period) {
             currentEditing = { dayIndex, period };
             const data = planning[dayIndex][period] || {text:"", start:"", end:""};
@@ -299,6 +308,7 @@
             document.getElementById('input-end').value = data.end || '';
             document.getElementById('edit-modal').classList.add('open');
         }
+        
         function closeModal() { document.getElementById('edit-modal').classList.remove('open'); }
         
         function saveActivity() {
@@ -311,7 +321,6 @@
             saveData(); renderPlanning(); closeModal();
         }
 
-        /* Fonctions Modale Jour / Couleur */
         function openDayModal(index) {
             currentDayIndex = index;
             const day = planning[index];
@@ -319,7 +328,8 @@
             selectTheme(day.theme || '');
             document.getElementById('day-modal').classList.add('open');
         }
-        function closeDayModal() { document.getElementById('day-modal').classList.remove('remove'); document.getElementById('day-modal').classList.remove('open'); }
+        
+        function closeDayModal() { document.getElementById('day-modal').classList.remove('open'); }
         
         function selectTheme(themeName) {
             selectedTheme = themeName;
