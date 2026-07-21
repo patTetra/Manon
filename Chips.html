@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Chips Score">
+  <title>Paquet de Chips - Scorekeeper</title>
+  <style>
+    :root {
+      --bg-color: #f2f2f7;
+      --card-bg: #ffffff;
+      --primary: #ff9500;
+      --primary-dark: #e08200;
+      --danger: #ff3b30;
+      --text: #000000;
+      --subtext: #8e8e93;
+      --border: #e5e5ea;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text);
+      margin: 0;
+      padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom) 16px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      text-align: center;
+      padding: 20px 0 10px;
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 700;
+      margin: 0;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: var(--subtext);
+      margin-top: 4px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    label {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--subtext);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    input[type="text"], input[type="number"] {
+      width: 100%;
+      padding: 12px;
+      font-size: 17px;
+      border: 1px solid var(--border);
+      background: var(--bg-color);
+      border-radius: 10px;
+      outline: none;
+      -webkit-user-select: text;
+      user-select: text;
+    }
+
+    .btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 14px;
+      font-size: 17px;
+      font-weight: 600;
+      width: 100%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 0.2s;
+    }
+
+    .btn:active {
+      background: var(--primary-dark);
+    }
+
+    .btn-secondary {
+      background: #e5e5ea;
+      color: #000;
+    }
+
+    .btn-danger {
+      background: rgba(255, 59, 48, 0.1);
+      color: var(--danger);
+    }
+
+    .player-inputs {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    /* Scoreboard */
+    .player-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .player-row:last-child {
+      border-bottom: none;
+    }
+
+    .player-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .player-name {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .tokens {
+      display: flex;
+      gap: 4px;
+      margin-top: 4px;
+    }
+
+    .token-icon {
+      font-size: 18px;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn-circle {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: none;
+      background: var(--bg-color);
+      font-size: 20px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .score-val {
+      font-size: 20px;
+      font-weight: 700;
+      min-width: 24px;
+      text-align: center;
+    }
+
+    .actions-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: auto;
+      padding-top: 10px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* Winner Banner */
+    .winner-banner {
+      background: #ffcc00;
+      color: #000;
+      text-align: center;
+      padding: 12px;
+      border-radius: 12px;
+      font-weight: bold;
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>🍟 Paquet de Chips</h1>
+    <div class="subtitle">Compteur de score</div>
+  </header>
+
+  <div id="winnerBanner" class="winner-banner hidden"></div>
+
+  <!-- Ecran 1: Configuration -->
+  <div id="setupScreen" class="card">
+    <label>Nombre de joueurs (2 à 5)</label>
+    <input type="number" id="playerCount" min="2" max="5" value="3" onchange="generateNameInputs()">
+    
+    <div style="margin-top: 16px;">
+      <label>Noms des joueurs</label>
+      <div id="nameInputsContainer" class="player-inputs"></div>
+    </div>
+
+    <button class="btn" style="margin-top: 20px;" onclick="startGame()">Lancer la partie 🚀</button>
+  </div>
+
+  <!-- Ecran 2: Tableau des scores -->
+  <div id="gameScreen" class="card hidden">
+    <label>Jetons "Roi de la Chips" (4 pour gagner)</label>
+    <div id="scoreboard"></div>
+  </div>
+
+  <!-- Actions (Import / Export / Reset) -->
+  <div id="gameActions" class="actions-grid hidden">
+    <button class="btn btn-secondary" onclick="exportJSON()">📤 Exporter</button>
+    <button class="btn btn-secondary" onclick="document.getElementById('importFile').click()">📥 Importer</button>
+    <button class="btn btn-danger" style="grid-column: span 2;" onclick="resetGame()">🔄 Nouvelle partie</button>
+  </div>
+
+  <input type="file" id="importFile" accept=".json" class="hidden" onchange="importJSON(event)">
+
+  <script>
+    let gameState = {
+      players: []
+    };
+
+    // Initialisation
+    window.onload = () => {
+      const saved = localStorage.getItem('chips_game_state');
+      if (saved) {
+        try {
+          gameState = JSON.parse(saved);
+          if (gameState.players && gameState.players.length > 0) {
+            renderScoreboard();
+            showScreen('game');
+            return;
+          }
+        } catch(e) {}
+      }
+      generateNameInputs();
+      showScreen('setup');
+    };
+
+    function saveState() {
+      localStorage.setItem('chips_game_state', JSON.stringify(gameState));
+    }
+
+    function generateNameInputs() {
+      const countInput = document.getElementById('playerCount');
+      let count = parseInt(countInput.value) || 2;
+      count = Math.max(2, Math.min(5, count));
+      countInput.value = count;
+
+      const container = document.getElementById('nameInputsContainer');
+      container.innerHTML = '';
+
+      for (let i = 0; i < count; i++) {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.placeholder = `Joueur ${i + 1}`;
+        input.id = `playerName_${i}`;
+        input.value = gameState.players[i] ? gameState.players[i].name : `Joueur ${i + 1}`;
+        container.appendChild(input);
+      }
+    }
+
+    function startGame() {
+      const count = parseInt(document.getElementById('playerCount').value);
+      gameState.players = [];
+
+      for (let i = 0; i < count; i++) {
+        const nameInput = document.getElementById(`playerName_${i}`);
+        const name = nameInput.value.trim() || `Joueur ${i + 1}`;
+        gameState.players.push({ name: name, score: 0 });
+      }
+
+      saveState();
+      renderScoreboard();
+      showScreen('game');
+    }
+
+    function changeScore(index, delta) {
+      gameState.players[index].score = Math.max(0, gameState.players[index].score + delta);
+      saveState();
+      renderScoreboard();
+    }
+
+    function renderScoreboard() {
+      const container = document.getElementById('scoreboard');
+      container.innerHTML = '';
+
+      let winner = null;
+
+      gameState.players.forEach((player, index) => {
+        if (player.score >= 4 && !winner) {
+          winner = player.name;
+        }
+
+        const row = document.createElement('div');
+        row.className = 'player-row';
+
+        let tokensHTML = '';
+        for (let i = 0; i < player.score; i++) {
+          tokensHTML += '<span class="token-icon">🪙</span>';
+        }
+
+        row.innerHTML = `
+          <div class="player-info">
+            <span class="player-name">${escapeHtml(player.name)}</span>
+            <div class="tokens">${tokensHTML || '<span style="font-size: 12px; color: var(--subtext);">0 jeton</span>'}</div>
+          </div>
+          <div class="controls">
+            <button class="btn-circle" onclick="changeScore(${index}, -1)">-</button>
+            <span class="score-val">${player.score}</span>
+            <button class="btn-circle" onclick="changeScore(${index}, 1)">+</button>
+          </div>
+        `;
+        container.appendChild(row);
+      });
+
+      const banner = document.getElementById('winnerBanner');
+      if (winner) {
+        banner.textContent = `🎉 ${winner} a gagné la partie ! 🎉`;
+        banner.classList.remove('hidden');
+      } else {
+        banner.classList.add('hidden');
+      }
+    }
+
+    function showScreen(screen) {
+      if (screen === 'setup') {
+        document.getElementById('setupScreen').classList.remove('hidden');
+        document.getElementById('gameScreen').classList.add('hidden');
+        document.getElementById('gameActions').classList.add('hidden');
+        document.getElementById('winnerBanner').classList.add('hidden');
+      } else {
+        document.getElementById('setupScreen').classList.add('hidden');
+        document.getElementById('gameScreen').classList.remove('hidden');
+        document.getElementById('gameActions').classList.remove('hidden');
+      }
+    }
+
+    function resetGame() {
+      if (confirm("Voulez-vous vraiment démarrer une nouvelle partie ?")) {
+        localStorage.removeItem('chips_game_state');
+        gameState = { players: [] };
+        generateNameInputs();
+        showScreen('setup');
+      }
+    }
+
+    // Export JSON
+    function exportJSON() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(gameState, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `chips_score_${new Date().toISOString().slice(0,10)}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    // Import JSON
+    function importJSON(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const importedData = JSON.parse(e.target.result);
+          if (importedData && Array.isArray(importedData.players)) {
+            gameState = importedData;
+            saveState();
+            renderScoreboard();
+            showScreen('game');
+            alert("Partie importée avec succès !");
+          } else {
+            alert("Fichier JSON invalide.");
+          }
+        } catch (err) {
+          alert("Erreur lors de la lecture du fichier JSON.");
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = ''; // Reset input
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+  </script>
+</body>
+</html>
