@@ -148,7 +148,7 @@
       font-size: 13px;
       color: #3a3a3c;
       margin-top: 2px;
-      font-weight: 500;
+      font-weight: 600;
     }
 
     .tokens {
@@ -226,6 +226,7 @@
 
   <div id="winnerBanner" class="winner-banner hidden"></div>
 
+  <!-- Ecran 1: Configuration -->
   <div id="setupScreen" class="card">
     <label>Nombre de joueurs (2 à 5)</label>
     <input type="number" id="playerCount" min="2" max="5" value="3" onchange="generateNameInputs()">
@@ -242,11 +243,13 @@
     </div>
   </div>
 
+  <!-- Ecran 2: Tableau des scores -->
   <div id="gameScreen" class="card hidden">
     <label>Jetons "Roi de la Chips" (4 pour gagner)</label>
     <div id="scoreboard"></div>
   </div>
 
+  <!-- Actions en cours de jeu -->
   <div id="gameActions" class="actions-grid hidden">
     <button class="btn btn-secondary" onclick="exportJSON()">📤 Exporter JSON</button>
     <button class="btn btn-secondary" onclick="triggerImport()">📥 Importer JSON</button>
@@ -264,7 +267,7 @@
 
     // Initialisation
     window.onload = () => {
-      const saved = localStorage.getItem('chips_game_state_v2');
+      const saved = localStorage.getItem('chips_game_state_v3');
       if (saved) {
         try {
           gameState = JSON.parse(saved);
@@ -280,7 +283,7 @@
     };
 
     function saveState() {
-      localStorage.setItem('chips_game_state_v2', JSON.stringify(gameState));
+      localStorage.setItem('chips_game_state_v3', JSON.stringify(gameState));
     }
 
     function generateNameInputs() {
@@ -335,7 +338,7 @@
       const prevScore = player.score;
       player.score = Math.max(0, player.score + delta);
 
-      // Si le joueur passe à 4 jetons (victoire)
+      // Si le joueur atteint 4 jetons (victoire)
       if (player.score >= 4 && prevScore < 4) {
         player.wins = (player.wins || 0) + 1;
       } else if (prevScore >= 4 && player.score < 4) {
@@ -407,7 +410,7 @@
       }
     }
 
-    // Nouvelle manche : remet les scores à 0 mais conserve les joueurs et leur nombre de victoires
+    // Nouvelle manche : remet les scores à 0 sans toucher au compteur de victoires
     function nextGame() {
       gameState.players.forEach(p => p.score = 0);
       saveState();
@@ -417,7 +420,7 @@
     // Réinitialisation complète : efface tout
     function resetAll() {
       if (confirm("Voulez-vous réinitialiser complètement le jeu (noms et victoires inclus) ?")) {
-        localStorage.removeItem('chips_game_state_v2');
+        localStorage.removeItem('chips_game_state_v3');
         gameState = { players: [] };
         generateNameInputs();
         showScreen('setup');
