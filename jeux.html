@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Boîte à Jeux Familiale</title>
+    <title>La Boîte à Jeux Familiale</title>
     <style>
         :root {
             --bg-color: #0f172a;
@@ -208,7 +208,80 @@
             justify-content: center;
             align-items: center;
             box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-            transition: transform 0.3s;
+        }
+
+        /* Gestion des scores intégrée aux jeux */
+        .game-scoreboard {
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid #334155;
+        }
+
+        .game-scoreboard h3 {
+            margin: 0 0 10px 0;
+            font-size: 1rem;
+            color: #94a3b8;
+        }
+
+        .score-chips-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .score-chip {
+            background: #334155;
+            border: 2px solid transparent;
+            border-radius: 12px;
+            padding: 10px 16px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 90px;
+            transition: transform 0.1s, background 0.2s, border-color 0.2s;
+        }
+
+        .score-chip:active {
+            transform: scale(0.95);
+            background: var(--success);
+            color: #0f172a;
+        }
+
+        .score-chip-name {
+            font-size: 0.85rem;
+            color: #cbd5e1;
+            margin-bottom: 4px;
+            font-weight: bold;
+        }
+
+        .score-chip-points {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: var(--accent);
+        }
+
+        .score-chip:active .score-chip-name,
+        .score-chip:active .score-chip-points {
+            color: #0f172a;
+        }
+
+        /* Setup initial des joueurs par jeu */
+        .setup-screen {
+            text-align: center;
+            padding: 20px 0;
+        }
+
+        .setup-screen input {
+            background: #0f172a;
+            border: 1px solid #475569;
+            color: var(--text-color);
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 1rem;
+            margin: 5px;
+            width: 70%;
+            max-width: 300px;
         }
     </style>
 </head>
@@ -216,74 +289,89 @@
 
 <div class="container">
     <header>
-        <h1>🎲 La Boîte à Jeux (4-5 Joueurs)</h1>
+        <h1>🎲 La Boîte à Jeux Familiale</h1>
         <button class="back-btn" id="home-btn" style="display:none;" onclick="showHub()">🏠 Accueil</button>
     </header>
 
     <!-- HUB DE SÉLECTION (8 JEUX) -->
     <div id="game-hub">
-        <div class="game-card" onclick="startLabyrinth()">
+        <div class="game-card" onclick="openGameSetup('labyrinth')">
             <div>
                 <h2>🔮 Labyrinthe des Murmures</h2>
                 <p>Trouvez le mot secret grâce à un indice unique donné par le maître du jeu.</p>
             </div>
-            <span class="game-tag">Déduction • 4-5 Joueurs</span>
+            <span class="game-tag">Déduction</span>
         </div>
 
-        <div class="game-card" onclick="startChrono()">
+        <div class="game-card" onclick="openGameSetup('chrono')">
             <div>
                 <h2>⏱️ Alerte Rouge !</h2>
                 <p>Enchaînez les mots d'une catégorie avant l'explosion de la minuterie.</p>
             </div>
-            <span class="game-tag">Rapidité • 4-5 Joueurs</span>
+            <span class="game-tag">Rapidité</span>
         </div>
 
-        <div class="game-card" onclick="startAlchimie()">
+        <div class="game-card" onclick="openGameSetup('alchimie')">
             <div>
                 <h2>🧪 Alchimiste Express</h2>
                 <p>Devinez l'ingrédient secret du chaudron en explorant les pistes virtuelles.</p>
             </div>
-            <span class="game-tag">Réflexion • 4-5 Joueurs</span>
+            <span class="game-tag">Réflexion</span>
         </div>
 
-        <div class="game-card" onclick="startDices()">
+        <div class="game-card" onclick="openGameSetup('dices')">
             <div>
                 <h2>🎲 Le Royaume des Dés Fous</h2>
                 <p>Lancez les dés virtuels, tentez des combos et prenez des risques calculés.</p>
             </div>
-            <span class="game-tag">Dés & Bluff • 4-5 Joueurs</span>
+            <span class="game-tag">Dés & Bluff</span>
         </div>
 
-        <div class="game-card" onclick="startChest()">
+        <div class="game-card" onclick="openGameSetup('chest')">
             <div>
                 <h2>🃏 Le Coffre aux 7 Clés</h2>
                 <p>Piochez, échangez vos cartes virtuelles et devinez la combinaison gagnante.</p>
             </div>
-            <span class="game-tag">Cartes • 4-5 Joueurs</span>
+            <span class="game-tag">Cartes</span>
         </div>
 
-        <div class="game-card" onclick="startImposteur()">
+        <div class="game-card" onclick="openGameSetup('imposteur')">
             <div>
                 <h2>🕵️ L'Intrus du Salon</h2>
                 <p>Tout le monde connaît le mot secret... sauf un joueur qui doit bluffer !</p>
             </div>
-            <span class="game-tag">Bluff • 4-5 Joueurs</span>
+            <span class="game-tag">Bluff</span>
         </div>
 
-        <div class="game-card" onclick="startDuel()">
+        <div class="game-card" onclick="openGameSetup('duel')">
             <div>
                 <h2>⚡ Duel Réflexe Tactile</h2>
                 <p>Soyez le premier à toucher votre camp quand la couleur magique apparaît sur l'écran.</p>
             </div>
-            <span class="game-tag">Réflexe • 4-5 Joueurs</span>
+            <span class="game-tag">Réflexe</span>
         </div>
 
-        <div class="game-card" onclick="startOrdonnance()">
+        <div class="game-card" onclick="openGameSetup('ordonnance')">
             <div>
                 <h2>📜 L'Ordre des Chronos</h2>
                 <p>Classez des événements farfelus dans le bon ordre chronologique caché.</p>
             </div>
-            <span class="game-tag">Mémoire • 4-5 Joueurs</span>
+            <span class="game-tag">Mémoire</span>
+        </div>
+    </div>
+
+    <!-- ÉCRAN DE CONFIGURATION DES JOUEURS POUR UN JEU -->
+    <div id="game-setup-view" class="game-view">
+        <h2 id="setup-title">Configuration des joueurs</h2>
+        <div class="setup-screen">
+            <p>Entrez les prénoms des participants pour cette partie :</p>
+            <div id="setup-inputs-container"></div>
+            <div style="margin-top: 15px;">
+                <button class="action-btn" onclick="addPlayerInput()">+ Ajouter un joueur</button>
+            </div>
+            <div style="margin-top: 25px;">
+                <button class="action-btn" style="background: var(--success); color: #0f172a; font-size: 1.1rem; padding: 14px 30px;" onclick="launchGameFromSetup()">Lancer la partie 🚀</button>
+            </div>
         </div>
     </div>
 
@@ -292,6 +380,10 @@
         <h2>🔮 Labyrinthe des Murmures</h2>
         <div class="rules-box"><strong>Règle :</strong> Le Maître lit le mot secret, puis donne un indice d'un seul mot. Les autres devinent !</div>
         <div id="lab-content"><button class="action-btn" onclick="nextLabRound()">Lancer une manche</button></div>
+        <div class="game-scoreboard">
+            <h3>🏆 Scoreboard (touchez un nom pour +1 point) :</h3>
+            <div class="score-chips-grid" id="score-lab"></div>
+        </div>
     </div>
 
     <div id="game-chrono" class="game-view">
@@ -302,12 +394,20 @@
             <div class="timer-display" id="chrono-timer">5</div>
             <button class="action-btn" onclick="startChronoTurn()">C'est parti ! (Tour suivant)</button>
         </div>
+        <div class="game-scoreboard">
+            <h3>🏆 Scoreboard (touchez un nom pour +1 point) :</h3>
+            <div class="score-chips-grid" id="score-chrono"></div>
+        </div>
     </div>
 
     <div id="game-alchimie" class="game-view">
         <h2>🧪 Alchimiste Express</h2>
         <div class="rules-box"><strong>Règle :</strong> Explorez les cartes ingrédients pour deviner la potion choisie par le chaudron.</div>
         <div id="alchimie-board"><button class="action-btn" onclick="initAlchimie()">Distribuer les ingrédients</button></div>
+        <div class="game-scoreboard">
+            <h3>🏆 Scoreboard (touchez un nom pour +1 point) :</h3>
+            <div class="score-chips-grid" id="score-alchimie"></div>
+        </div>
     </div>
 
     <div id="game-dices" class="game-view">
@@ -322,6 +422,10 @@
             <p id="dice-message" style="color: var(--success); font-weight: bold; margin: 15px 0;"></p>
             <button class="action-btn" onclick="rollDices()">Lancer les dés 🎲</button>
         </div>
+        <div class="game-scoreboard">
+            <h3>🏆 Scoreboard (touchez un nom pour +1 point) :</h3>
+            <div class="score-chips-grid" id="score-dices"></div>
+        </div>
     </div>
 
     <div id="game-chest" class="game-view">
@@ -329,6 +433,10 @@
         <div class="rules-box"><strong>Règle :</strong> Piochez et échangez vos cartes virtuelles pour trouver la suite secrète du coffre.</div>
         <div style="text-align: center;" id="chest-board">
             <button class="action-btn" onclick="initChest()">Ouvrir le coffre mystère</button>
+        </div>
+        <div class="game-scoreboard">
+            <h3>🏆 Scoreboard (touchez un nom pour +1 point) :</h3>
+            <div class="score-chips-grid" id="score-chest"></div>
         </div>
     </div>
 
@@ -338,6 +446,10 @@
         <div id="imposteur-content" style="text-align:center;">
             <button class="action-btn" onclick="initImposteur()">Commencer la distribution</button>
         </div>
+        <div class="game-scoreboard">
+            <h3>🏆 Scoreboard (touchez un nom pour +1 point) :</h3>
+            <div class="score-chips-grid" id="score-imposteur"></div>
+        </div>
     </div>
 
     <div id="game-duel" class="game-view">
@@ -345,6 +457,10 @@
         <div class="rules-box"><strong>Règle :</strong> Posez un doigt chacun autour de l'iPad. Quand l'écran change de couleur, le plus rapide gagne !</div>
         <div id="duel-box" style="background:#334155; height:200px; border-radius:12px; display:flex; justify-content:center; align-items:center; font-size:1.5rem; font-weight:bold; cursor:pointer;" onclick="triggerDuel()">
             Touchez ici pour lancer le signal
+        </div>
+        <div class="game-scoreboard">
+            <h3>🏆 Scoreboard (touchez un nom pour +1 point) :</h3>
+            <div class="score-chips-grid" id="score-duel"></div>
         </div>
     </div>
 
@@ -354,10 +470,18 @@
         <div id="chrono-board" style="text-align:center;">
             <button class="action-btn" onclick="initOrdonnance()">Affirmer le défi</button>
         </div>
+        <div class="game-scoreboard">
+            <h3>🏆 Scoreboard (touchez un nom pour +1 point) :</h3>
+            <div class="score-chips-grid" id="score-ordonnance"></div>
+        </div>
     </div>
 </div>
 
 <script>
+    let currentGameKey = '';
+    let currentPlayers = [];
+    let activeTimer = null;
+
     function showHub() {
         document.getElementById('game-hub').style.display = 'grid';
         document.querySelectorAll('.game-view').forEach(v => v.classList.remove('active'));
@@ -365,18 +489,85 @@
         if(activeTimer) clearInterval(activeTimer);
     }
 
-    function hideHub(gameId) {
+    function openGameSetup(gameKey) {
+        currentGameKey = gameKey;
         document.getElementById('game-hub').style.display = 'none';
         document.querySelectorAll('.game-view').forEach(v => v.classList.remove('active'));
-        document.getElementById(gameId).classList.add('active');
+        document.getElementById('game-setup-view').classList.add('active');
         document.getElementById('home-btn').style.display = 'block';
+
+        // Pré-remplir avec 3 joueurs par défaut modifiables
+        const container = document.getElementById('setup-inputs-container');
+        container.innerHTML = '';
+        ['Joueur 1', 'Joueur 2', 'Joueur 3', 'Joueur 4'].forEach(name => {
+            appendPlayerInput(name);
+        });
     }
 
-    let activeTimer = null;
+    function addPlayerInput() {
+        appendPlayerInput('Joueur ' + (document.getElementById('setup-inputs-container').children.length + 1));
+    }
+
+    function appendPlayerInput(value) {
+        const container = document.getElementById('setup-inputs-container');
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = value;
+        container.appendChild(input);
+    }
+
+    function launchGameFromSetup() {
+        const inputs = document.querySelectorAll('#setup-inputs-container input');
+        currentPlayers = [];
+        inputs.forEach(input => {
+            if(input.value.trim() !== '') {
+                currentPlayers.push({ name: input.value.trim(), score: 0 });
+            }
+        });
+
+        if(currentPlayers.length === 0) {
+            alert('Veuillez entrer au moins un joueur.');
+            return;
+        }
+
+        // Basculer vers la vue du jeu sélectionné
+        document.getElementById('game-setup-view').classList.remove('active');
+        document.getElementById('game-' + currentGameKey).classList.add('active');
+        
+        // Initialiser les tableaux de score pour ce jeu spécifique
+        renderScoreboard(currentGameKey);
+
+        // Lancer les initialisations spécifiques du jeu
+        if(currentGameKey === 'labyrinth') nextLabRound();
+        if(currentGameKey === 'chrono') { document.getElementById('chrono-category').textContent = "Prêt ?"; document.getElementById('chrono-timer').textContent = "5"; }
+        if(currentGameKey === 'alchimie') initAlchimie();
+        if(currentGameKey === 'dices') rollDices();
+        if(currentGameKey === 'chest') initChest();
+        if(currentGameKey === 'imposteur') { impostorStep = 1; renderImposteur(); }
+        if(currentGameKey === 'ordonnance') initOrdonnance();
+    }
+
+    function renderScoreboard(gameKey) {
+        const grid = document.getElementById('score-' + gameKey);
+        if(!grid) return;
+        grid.innerHTML = '';
+        currentPlayers.forEach((p, index) => {
+            const chip = document.createElement('div');
+            chip.className = 'score-chip';
+            chip.onclick = () => {
+                p.score += 1;
+                renderScoreboard(gameKey);
+            };
+            chip.innerHTML = `
+                <span class="score-chip-name">${p.name}</span>
+                <span class="score-chip-points">${p.score}</span>
+            `;
+            grid.appendChild(chip);
+        });
+    }
 
     // --- 1. Labyrinth ---
     const labWords = ["Chocolat", "Astronaute", "Canapé", "Montgolfière", "Bibliothèque", "Volcan", "Pyramide", "Pirate"];
-    function startLabyrinth() { hideHub('game-labyrinth'); nextLabRound(); }
     function nextLabRound() {
         const word = labWords[Math.floor(Math.random() * labWords.length)];
         document.getElementById('lab-content').innerHTML = `
@@ -389,13 +580,11 @@
 
     // --- 2. Chrono ---
     const chronoCategories = ["Animal aquatique", "Marque de voiture", "Objet de cuisine", "Ville en M", "Film SF"];
-    let timeLeft = 5;
-    function startChrono() { hideHub('game-chrono'); document.getElementById('chrono-category').textContent = "Prêt ?"; document.getElementById('chrono-timer').textContent = "5"; }
     function startChronoTurn() {
         if(activeTimer) clearInterval(activeTimer);
         const cat = chronoCategories[Math.floor(Math.random() * chronoCategories.length)];
         document.getElementById('chrono-category').textContent = `Catégorie : ${cat}`;
-        timeLeft = 6;
+        let timeLeft = 6;
         activeTimer = setInterval(() => {
             timeLeft--;
             document.getElementById('chrono-timer').textContent = timeLeft;
@@ -405,7 +594,6 @@
 
     // --- 3. Alchimie ---
     const ingredients = ["Poussière d'étoile", "Cristal de givre", "Racine de mandragore", "Écaille de dragon", "Larme de phénix"];
-    function startAlchimie() { hideHub('game-alchimie'); initAlchimie(); }
     function initAlchimie() {
         let html = `<p>Explorez les pistes cachées :</p><div class="card-grid">`;
         ingredients.forEach((ing, i) => {
@@ -416,7 +604,6 @@
     }
 
     // --- 4. Dés Fous ---
-    function startDices() { hideHub('game-dices'); rollDices(); }
     function rollDices() {
         const d1 = Math.floor(Math.random() * 6) + 1;
         const d2 = Math.floor(Math.random() * 6) + 1;
@@ -432,7 +619,6 @@
     }
 
     // --- 5. Coffre aux 7 Clés ---
-    function startChest() { hideHub('game-chest'); initChest(); }
     function initChest() {
         const secretKey = Math.floor(Math.random() * 7) + 1;
         document.getElementById('chest-board').innerHTML = `
@@ -447,16 +633,16 @@
 
     // --- 6. L'Intrus du Salon ---
     let impostorStep = 0;
-    const secretWordsList = ["Plage", "Montagne", "Cinéma", "Restaurant", "Aéroport"];
-    function startImposteur() { hideHub('game-imposteur'); impostorStep = 1; renderImposteur(); }
+    function initImposteur() { impostorStep = 1; renderImposteur(); }
     function renderImposteur() {
         const box = document.getElementById('imposteur-content');
-        if(impostorStep > 4) {
-            box.innerHTML = `<p style="font-size:1.2rem; color:var(--success);">Distribution terminée ! Débattez pour trouver l'intrus.</p><button class="action-btn" onclick="startImposteur()">Recommencer</button>`;
+        if(impostorStep > currentPlayers.length) {
+            box.innerHTML = `<p style="font-size:1.2rem; color:var(--success);">Distribution terminée ! Débattez pour trouver l'intrus.</p><button class="action-btn" onclick="initImposteur()">Recommencer</button>`;
             return;
         }
+        const currentPlayerName = currentPlayers[impostorStep - 1].name;
         box.innerHTML = `
-            <p>Passez l'iPad au <strong>Joueur ${impostorStep}</strong> (les autres ne regardent pas).</p>
+            <p>Passez l'iPad à <strong>${currentPlayerName}</strong> (les autres ne regardent pas).</p>
             <button class="action-btn" onclick="this.nextElementSibling.style.display='block'; this.style.display='none';">Voir mon rôle secret</button>
             <div style="display:none; font-size:1.5rem; color:var(--accent); font-weight:bold; margin:20px 0;">${impostorStep === 2 ? '🕵️ TU ES L\'INTRUS !' : 'Mot : Glace / Vanille'}</div>
             <button class="action-btn" style="background:#334155; color:var(--text-color); margin-top:15px;" onclick="impostorStep++; renderImposteur();">Joueur suivant ➔</button>
@@ -464,12 +650,6 @@
     }
 
     // --- 7. Duel Réflexe Tactile ---
-    function startDuel() { hideHub('game-duel'); resetDuel(); }
-    function resetDuel() {
-        const box = document.getElementById('duel-box');
-        box.style.background = "#334155";
-        box.textContent = "Touchez pour lancer le signal (Attendez le vert...)";
-    }
     function triggerDuel() {
         const box = document.getElementById('duel-box');
         box.style.background = "#1e3a8a";
@@ -487,7 +667,6 @@
         { event: "Premiers pas sur la Lune", year: 1969 },
         { event: "Sortie du premier iPhone", year: 2007 }
     ];
-    function startOrdonnance() { hideHub('game-ordonnance'); initOrdonnance(); }
     function initOrdonnance() {
         let html = `<p>Remettez ces 3 événements du plus ancien au plus récent :</p><div style="display:flex; flex-direction:column; gap:10px; margin:15px 0;">`;
         chronosData.forEach((item, idx) => {
