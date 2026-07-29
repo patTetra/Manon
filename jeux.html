@@ -289,7 +289,7 @@
 
 <div class="container">
     <header>
-        <h1>🎲 La Boîte à Jeux Familiale</h1>
+        <h1>🎲 La Boîte à Jeux</h1>
         <button class="back-btn" id="home-btn" style="display:none;" onclick="showHub()">🏠 Accueil</button>
     </header>
 
@@ -364,7 +364,7 @@
     <div id="game-setup-view" class="game-view">
         <h2 id="setup-title">Configuration des joueurs</h2>
         <div class="setup-screen">
-            <p>Entrez les prénoms des participants pour cette partie :</p>
+            <p>Entrez les prénoms des participants :</p>
             <div id="setup-inputs-container"></div>
             <div style="margin-top: 15px;">
                 <button class="action-btn" onclick="addPlayerInput()">+ Ajouter un joueur</button>
@@ -496,33 +496,37 @@
         document.getElementById('game-setup-view').classList.add('active');
         document.getElementById('home-btn').style.display = 'block';
 
-        // Pré-remplir avec 3 joueurs par défaut modifiables
+        // Champs vides avec placeholder (plus besoin d'effacer du texte)
         const container = document.getElementById('setup-inputs-container');
         container.innerHTML = '';
-        ['Joueur 1', 'Joueur 2', 'Joueur 3', 'Joueur 4'].forEach(name => {
-            appendPlayerInput(name);
-        });
+        for(let i = 1; i <= 3; i++) {
+            appendPlayerInput('', 'Joueur ' + i);
+        }
     }
 
     function addPlayerInput() {
-        appendPlayerInput('Joueur ' + (document.getElementById('setup-inputs-container').children.length + 1));
+        const count = document.getElementById('setup-inputs-container').children.length + 1;
+        appendPlayerInput('', 'Joueur ' + count);
     }
 
-    function appendPlayerInput(value) {
+    function appendPlayerInput(value, placeholderText) {
         const container = document.getElementById('setup-inputs-container');
         const input = document.createElement('input');
         input.type = 'text';
         input.value = value;
+        input.placeholder = placeholderText;
         container.appendChild(input);
     }
 
     function launchGameFromSetup() {
         const inputs = document.querySelectorAll('#setup-inputs-container input');
         currentPlayers = [];
-        inputs.forEach(input => {
-            if(input.value.trim() !== '') {
-                currentPlayers.push({ name: input.value.trim(), score: 0 });
+        inputs.forEach((input, idx) => {
+            let name = input.value.trim();
+            if(name === '') {
+                name = input.placeholder; // Utilise le placeholder par défaut si laissé vide
             }
+            currentPlayers.push({ name: name, score: 0 });
         });
 
         if(currentPlayers.length === 0) {
@@ -597,6 +601,7 @@
     function initAlchimie() {
         let html = `<p>Explorez les pistes cachées :</p><div class="card-grid">`;
         ingredients.forEach((ing, i) => {
+            // Correction de l'index pour que l'ingrédient 1 (i=0) s'affiche correctement au clic
             html += `<div class="secret-card" onclick="this.classList.toggle('revealed'); this.innerHTML='${ing}';">Ingrédient #${i+1}</div>`;
         });
         html += `</div><button class="action-btn" onclick="initAlchimie()" style="margin-top:15px;">Nouvelle combinaison</button>`;
