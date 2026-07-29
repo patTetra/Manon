@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Boîte à Jeux Familiale</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --card-hover: #334155;
+            --text-color: #f8fafc;
+            --accent: #38bdf8;
+            --accent-hover: #0ea5e9;
+            --danger: #f43f5e;
+            --success: #22c55e;
+            --warning: #f59e0b;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            background: var(--card-bg);
+            padding: 15px 25px;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            font-size: 1.4rem;
+            margin: 0;
+            color: var(--accent);
+        }
+
+        .back-btn {
+            background-color: #334155;
+            color: var(--text-color);
+            border: none;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        /* Hub de sélection des jeux */
+        #game-hub {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 20px;
+        }
+
+        .game-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: transform 0.2s, background 0.2s;
+            border: 2px solid transparent;
+        }
+
+        .game-card:hover {
+            background: var(--card-hover);
+            transform: translateY(-3px);
+            border-color: var(--accent);
+        }
+
+        .game-card h2 {
+            margin-top: 0;
+            color: var(--accent);
+            font-size: 1.1rem;
+        }
+
+        .game-card p {
+            color: #94a3b8;
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+
+        .game-tag {
+            display: inline-block;
+            background: rgba(56, 189, 248, 0.1);
+            color: var(--accent);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            margin-top: 15px;
+            align-self: flex-start;
+        }
+
+        /* Vues des jeux */
+        .game-view {
+            display: none;
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .game-view.active {
+            display: block;
+        }
+
+        button.action-btn {
+            background-color: var(--accent);
+            color: #0f172a;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button.action-btn:hover {
+            background-color: var(--accent-hover);
+        }
+
+        .rules-box {
+            background: rgba(15, 23, 42, 0.5);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+            color: #cbd5e1;
+            border-left: 4px solid var(--accent);
+        }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .secret-card {
+            background: #334155;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            min-height: 80px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.1rem;
+            transition: background 0.2s;
+        }
+
+        .secret-card:hover { background: #475569; }
+        .secret-card.revealed {
+            background: #0f172a;
+            border: 2px solid var(--success);
+            color: var(--success);
+            font-weight: bold;
+        }
+
+        .timer-display {
+            font-size: 3rem;
+            font-weight: 800;
+            text-align: center;
+            margin: 20px 0;
+            color: var(--warning);
+        }
+
+        .dice-container {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .die {
+            width: 70px; height: 70px;
+            background: #f8fafc;
+            color: #0f172a;
+            border-radius: 12px;
+            font-size: 2rem;
+            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            transition: transform 0.3s;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>🎲 La Boîte à Jeux (4-5 Joueurs)</h1>
+        <button class="back-btn" id="home-btn" style="display:none;" onclick="showHub()">🏠 Accueil</button>
+    </header>
+
+    <!-- HUB DE SÉLECTION (8 JEUX) -->
+    <div id="game-hub">
+        <div class="game-card" onclick="startLabyrinth()">
+            <div>
+                <h2>🔮 Labyrinthe des Murmures</h2>
+                <p>Trouvez le mot secret grâce à un indice unique donné par le maître du jeu.</p>
+            </div>
+            <span class="game-tag">Déduction • 4-5 Joueurs</span>
+        </div>
+
+        <div class="game-card" onclick="startChrono()">
+            <div>
+                <h2>⏱️ Alerte Rouge !</h2>
+                <p>Enchaînez les mots d'une catégorie avant l'explosion de la minuterie.</p>
+            </div>
+            <span class="game-tag">Rapidité • 4-5 Joueurs</span>
+        </div>
+
+        <div class="game-card" onclick="startAlchimie()">
+            <div>
+                <h2>🧪 Alchimiste Express</h2>
+                <p>Devinez l'ingrédient secret du chaudron en explorant les pistes virtuelles.</p>
+            </div>
+            <span class="game-tag">Réflexion • 4-5 Joueurs</span>
+        </div>
+
+        <div class="game-card" onclick="startDices()">
+            <div>
+                <h2>🎲 Le Royaume des Dés Fous</h2>
+                <p>Lancez les dés virtuels, tentez des combos et prenez des risques calculés.</p>
+            </div>
+            <span class="game-tag">Dés & Bluff • 4-5 Joueurs</span>
+        </div>
+
+        <div class="game-card" onclick="startChest()">
+            <div>
+                <h2>🃏 Le Coffre aux 7 Clés</h2>
+                <p>Piochez, échangez vos cartes virtuelles et devinez la combinaison gagnante.</p>
+            </div>
+            <span class="game-tag">Cartes • 4-5 Joueurs</span>
+        </div>
+
+        <div class="game-card" onclick="startImposteur()">
+            <div>
+                <h2>🕵️ L'Intrus du Salon</h2>
+                <p>Tout le monde connaît le mot secret... sauf un joueur qui doit bluffer !</p>
+            </div>
+            <span class="game-tag">Bluff • 4-5 Joueurs</span>
+        </div>
+
+        <div class="game-card" onclick="startDuel()">
+            <div>
+                <h2>⚡ Duel Réflexe Tactile</h2>
+                <p>Soyez le premier à toucher votre camp quand la couleur magique apparaît sur l'écran.</p>
+            </div>
+            <span class="game-tag">Réflexe • 4-5 Joueurs</span>
+        </div>
+
+        <div class="game-card" onclick="startOrdonnance()">
+            <div>
+                <h2>📜 L'Ordre des Chronos</h2>
+                <p>Classez des événements farfelus dans le bon ordre chronologique caché.</p>
+            </div>
+            <span class="game-tag">Mémoire • 4-5 Joueurs</span>
+        </div>
+    </div>
+
+    <!-- VUES DES JEUX -->
+    <div id="game-labyrinth" class="game-view">
+        <h2>🔮 Labyrinthe des Murmures</h2>
+        <div class="rules-box"><strong>Règle :</strong> Le Maître lit le mot secret, puis donne un indice d'un seul mot. Les autres devinent !</div>
+        <div id="lab-content"><button class="action-btn" onclick="nextLabRound()">Lancer une manche</button></div>
+    </div>
+
+    <div id="game-chrono" class="game-view">
+        <h2>⏱️ Alerte Rouge !</h2>
+        <div class="rules-box"><strong>Règle :</strong> Donnez un mot de la catégorie et passez l'iPad avant la fin du temps.</div>
+        <div style="text-align: center;">
+            <div id="chrono-category" style="font-size: 1.2rem; margin-bottom: 15px; color: var(--accent); font-weight: bold;">Prêt ?</div>
+            <div class="timer-display" id="chrono-timer">5</div>
+            <button class="action-btn" onclick="startChronoTurn()">C'est parti ! (Tour suivant)</button>
+        </div>
+    </div>
+
+    <div id="game-alchimie" class="game-view">
+        <h2>🧪 Alchimiste Express</h2>
+        <div class="rules-box"><strong>Règle :</strong> Explorez les cartes ingrédients pour deviner la potion choisie par le chaudron.</div>
+        <div id="alchimie-board"><button class="action-btn" onclick="initAlchimie()">Distribuer les ingrédients</button></div>
+    </div>
+
+    <div id="game-dices" class="game-view">
+        <h2>🎲 Le Royaume des Dés Fous</h2>
+        <div class="rules-box"><strong>Règle :</strong> Lancez les 3 dés virtuels et réalisez le meilleur score de combinaison possible.</div>
+        <div style="text-align: center;">
+            <div class="dice-container">
+                <div class="die" id="d1">?</div>
+                <div class="die" id="d2">?</div>
+                <div class="die" id="d3">?</div>
+            </div>
+            <p id="dice-message" style="color: var(--success); font-weight: bold; margin: 15px 0;"></p>
+            <button class="action-btn" onclick="rollDices()">Lancer les dés 🎲</button>
+        </div>
+    </div>
+
+    <div id="game-chest" class="game-view">
+        <h2>🃏 Le Coffre aux 7 Clés</h2>
+        <div class="rules-box"><strong>Règle :</strong> Piochez et échangez vos cartes virtuelles pour trouver la suite secrète du coffre.</div>
+        <div style="text-align: center;" id="chest-board">
+            <button class="action-btn" onclick="initChest()">Ouvrir le coffre mystère</button>
+        </div>
+    </div>
+
+    <div id="game-imposteur" class="game-view">
+        <h2>🕵️ L'Intrus du Salon</h2>
+        <div class="rules-box"><strong>Règle :</strong> Passez l'iPad à tour de rôle. Un joueur découvrira qu'il est l'Intrus, les autres verront le mot secret.</div>
+        <div id="imposteur-content" style="text-align:center;">
+            <button class="action-btn" onclick="initImposteur()">Commencer la distribution</button>
+        </div>
+    </div>
+
+    <div id="game-duel" class="game-view">
+        <h2>⚡ Duel Réflexe Tactile</h2>
+        <div class="rules-box"><strong>Règle :</strong> Posez un doigt chacun autour de l'iPad. Quand l'écran change de couleur, le plus rapide gagne !</div>
+        <div id="duel-box" style="background:#334155; height:200px; border-radius:12px; display:flex; justify-content:center; align-items:center; font-size:1.5rem; font-weight:bold; cursor:pointer;" onclick="triggerDuel()">
+            Touchez ici pour lancer le signal
+        </div>
+    </div>
+
+    <div id="game-ordonnance" class="game-view">
+        <h2>📜 L'Ordre des Chronos</h2>
+        <div class="rules-box"><strong>Règle :</strong> Remettez les 3 cartes événements dans l'ordre chronologique de leur invention ou apparition.</div>
+        <div id="chrono-board" style="text-align:center;">
+            <button class="action-btn" onclick="initOrdonnance()">Affirmer le défi</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function showHub() {
+        document.getElementById('game-hub').style.display = 'grid';
+        document.querySelectorAll('.game-view').forEach(v => v.classList.remove('active'));
+        document.getElementById('home-btn').style.display = 'none';
+        if(activeTimer) clearInterval(activeTimer);
+    }
+
+    function hideHub(gameId) {
+        document.getElementById('game-hub').style.display = 'none';
+        document.querySelectorAll('.game-view').forEach(v => v.classList.remove('active'));
+        document.getElementById(gameId).classList.add('active');
+        document.getElementById('home-btn').style.display = 'block';
+    }
+
+    let activeTimer = null;
+
+    // --- 1. Labyrinth ---
+    const labWords = ["Chocolat", "Astronaute", "Canapé", "Montgolfière", "Bibliothèque", "Volcan", "Pyramide", "Pirate"];
+    function startLabyrinth() { hideHub('game-labyrinth'); nextLabRound(); }
+    function nextLabRound() {
+        const word = labWords[Math.floor(Math.random() * labWords.length)];
+        document.getElementById('lab-content').innerHTML = `
+            <p>Passez l'iPad au <strong>Maître du Secret</strong>.</p>
+            <button class="action-btn" onclick="this.nextElementSibling.style.display='block'; this.style.display='none';">Afficher le mot</button>
+            <div style="display:none; font-size:1.8rem; color:var(--success); font-weight:bold; margin:15px 0;">Mot : ${word}</div>
+            <button class="action-btn" style="background:#334155; color:var(--text-color); margin-top:15px;" onclick="nextLabRound()">Manche suivante ➔</button>
+        `;
+    }
+
+    // --- 2. Chrono ---
+    const chronoCategories = ["Animal aquatique", "Marque de voiture", "Objet de cuisine", "Ville en M", "Film SF"];
+    let timeLeft = 5;
+    function startChrono() { hideHub('game-chrono'); document.getElementById('chrono-category').textContent = "Prêt ?"; document.getElementById('chrono-timer').textContent = "5"; }
+    function startChronoTurn() {
+        if(activeTimer) clearInterval(activeTimer);
+        const cat = chronoCategories[Math.floor(Math.random() * chronoCategories.length)];
+        document.getElementById('chrono-category').textContent = `Catégorie : ${cat}`;
+        timeLeft = 6;
+        activeTimer = setInterval(() => {
+            timeLeft--;
+            document.getElementById('chrono-timer').textContent = timeLeft;
+            if(timeLeft <= 0) { clearInterval(activeTimer); document.getElementById('chrono-timer').textContent = "BOOM ! 💥"; }
+        }, 1000);
+    }
+
+    // --- 3. Alchimie ---
+    const ingredients = ["Poussière d'étoile", "Cristal de givre", "Racine de mandragore", "Écaille de dragon", "Larme de phénix"];
+    function startAlchimie() { hideHub('game-alchimie'); initAlchimie(); }
+    function initAlchimie() {
+        let html = `<p>Explorez les pistes cachées :</p><div class="card-grid">`;
+        ingredients.forEach((ing, i) => {
+            html += `<div class="secret-card" onclick="this.classList.toggle('revealed'); this.innerHTML='${ing}';">Ingrédient #${i+1}</div>`;
+        });
+        html += `</div><button class="action-btn" onclick="initAlchimie()" style="margin-top:15px;">Nouvelle combinaison</button>`;
+        document.getElementById('alchimie-board').innerHTML = html;
+    }
+
+    // --- 4. Dés Fous ---
+    function startDices() { hideHub('game-dices'); rollDices(); }
+    function rollDices() {
+        const d1 = Math.floor(Math.random() * 6) + 1;
+        const d2 = Math.floor(Math.random() * 6) + 1;
+        const d3 = Math.floor(Math.random() * 6) + 1;
+        document.getElementById('d1').textContent = d1;
+        document.getElementById('d2').textContent = d2;
+        document.getElementById('d3').textContent = d3;
+        
+        let msg = "Simple lancer.";
+        if(d1 === d2 && d2 === d3) msg = "🔥 BRELAN ! Jackpot de points !";
+        else if(d1 === d2 || d2 === d3 || d1 === d3) msg = "✨ Paire trouvée !";
+        document.getElementById('dice-message').textContent = msg;
+    }
+
+    // --- 5. Coffre aux 7 Clés ---
+    function startChest() { hideHub('game-chest'); initChest(); }
+    function initChest() {
+        const secretKey = Math.floor(Math.random() * 7) + 1;
+        document.getElementById('chest-board').innerHTML = `
+            <p>Le coffre attend votre combinaison (Chiffre de 1 à 7)</p>
+            <div class="card-grid">
+                <div class="secret-card revealed" style="font-size:2rem; color:var(--warning);">🔒 ?</div>
+                <div class="secret-card" onclick="this.classList.toggle('revealed'); this.innerHTML='Clé #${secretKey}';">Tester l'ouverture</div>
+            </div>
+            <button class="action-btn" onclick="initChest()" style="margin-top:15px;">Changer de code</button>
+        `;
+    }
+
+    // --- 6. L'Intrus du Salon ---
+    let impostorStep = 0;
+    const secretWordsList = ["Plage", "Montagne", "Cinéma", "Restaurant", "Aéroport"];
+    function startImposteur() { hideHub('game-imposteur'); impostorStep = 1; renderImposteur(); }
+    function renderImposteur() {
+        const box = document.getElementById('imposteur-content');
+        if(impostorStep > 4) {
+            box.innerHTML = `<p style="font-size:1.2rem; color:var(--success);">Distribution terminée ! Débattez pour trouver l'intrus.</p><button class="action-btn" onclick="startImposteur()">Recommencer</button>`;
+            return;
+        }
+        box.innerHTML = `
+            <p>Passez l'iPad au <strong>Joueur ${impostorStep}</strong> (les autres ne regardent pas).</p>
+            <button class="action-btn" onclick="this.nextElementSibling.style.display='block'; this.style.display='none';">Voir mon rôle secret</button>
+            <div style="display:none; font-size:1.5rem; color:var(--accent); font-weight:bold; margin:20px 0;">${impostorStep === 2 ? '🕵️ TU ES L\'INTRUS !' : 'Mot : Glace / Vanille'}</div>
+            <button class="action-btn" style="background:#334155; color:var(--text-color); margin-top:15px;" onclick="impostorStep++; renderImposteur();">Joueur suivant ➔</button>
+        `;
+    }
+
+    // --- 7. Duel Réflexe Tactile ---
+    function startDuel() { hideHub('game-duel'); resetDuel(); }
+    function resetDuel() {
+        const box = document.getElementById('duel-box');
+        box.style.background = "#334155";
+        box.textContent = "Touchez pour lancer le signal (Attendez le vert...)";
+    }
+    function triggerDuel() {
+        const box = document.getElementById('duel-box');
+        box.style.background = "#1e3a8a";
+        box.textContent = "Patientez...";
+        const delay = 2000 + Math.random() * 3000;
+        setTimeout(() => {
+            box.style.background = "#22c55e";
+            box.textContent = "⚡ CLIQUEZ VITE ! ⚡";
+        }, delay);
+    }
+
+    // --- 8. L'Ordre des Chronos ---
+    const chronosData = [
+        { event: "Premier vol des Frères Wright", year: 1903 },
+        { event: "Premiers pas sur la Lune", year: 1969 },
+        { event: "Sortie du premier iPhone", year: 2007 }
+    ];
+    function startOrdonnance() { hideHub('game-ordonnance'); initOrdonnance(); }
+    function initOrdonnance() {
+        let html = `<p>Remettez ces 3 événements du plus ancien au plus récent :</p><div style="display:flex; flex-direction:column; gap:10px; margin:15px 0;">`;
+        chronosData.forEach((item, idx) => {
+            html += `<div style="background:#334155; padding:12px; border-radius:8px;">${idx+1}. ${item.event}</div>`;
+        });
+        html += `</div><button class="action-btn" onclick="this.nextElementSibling.style.display='block';">Afficher la correction</button>
+                 <div style="display:none; margin-top:15px; color:var(--success); font-weight:bold;">1903 ➔ 1969 ➔ 2007</div>`;
+        document.getElementById('chrono-board').innerHTML = html;
+    }
+</script>
+
+</body>
+</html>
