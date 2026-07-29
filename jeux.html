@@ -403,7 +403,9 @@
     <div id="game-alchimie" class="game-view">
         <h2>🧪 Alchimiste Express</h2>
         <div class="rules-box"><strong>Règle :</strong> Explorez les cartes ingrédients pour deviner la potion choisie par le chaudron.</div>
-        <div id="alchimie-board"><button class="action-btn" onclick="initAlchimie()">Distribuer les ingrédients</button></div>
+        <div id="alchimie-board">
+            <button class="action-btn" onclick="initAlchimie()">Distribuer les ingrédients</button>
+        </div>
         <div class="game-scoreboard">
             <h3>🏆 Scoreboard (touchez un nom pour +1 point) :</h3>
             <div class="score-chips-grid" id="score-alchimie"></div>
@@ -496,7 +498,6 @@
         document.getElementById('game-setup-view').classList.add('active');
         document.getElementById('home-btn').style.display = 'block';
 
-        // Champs vides avec placeholder (plus besoin d'effacer du texte)
         const container = document.getElementById('setup-inputs-container');
         container.innerHTML = '';
         for(let i = 1; i <= 3; i++) {
@@ -521,10 +522,10 @@
     function launchGameFromSetup() {
         const inputs = document.querySelectorAll('#setup-inputs-container input');
         currentPlayers = [];
-        inputs.forEach((input, idx) => {
+        inputs.forEach((input) => {
             let name = input.value.trim();
             if(name === '') {
-                name = input.placeholder; // Utilise le placeholder par défaut si laissé vide
+                name = input.placeholder;
             }
             currentPlayers.push({ name: name, score: 0 });
         });
@@ -534,14 +535,11 @@
             return;
         }
 
-        // Basculer vers la vue du jeu sélectionné
         document.getElementById('game-setup-view').classList.remove('active');
         document.getElementById('game-' + currentGameKey).classList.add('active');
         
-        // Initialiser les tableaux de score pour ce jeu spécifique
         renderScoreboard(currentGameKey);
 
-        // Lancer les initialisations spécifiques du jeu
         if(currentGameKey === 'labyrinth') nextLabRound();
         if(currentGameKey === 'chrono') { document.getElementById('chrono-category').textContent = "Prêt ?"; document.getElementById('chrono-timer').textContent = "5"; }
         if(currentGameKey === 'alchimie') initAlchimie();
@@ -555,7 +553,7 @@
         const grid = document.getElementById('score-' + gameKey);
         if(!grid) return;
         grid.innerHTML = '';
-        currentPlayers.forEach((p, index) => {
+        currentPlayers.forEach((p) => {
             const chip = document.createElement('div');
             chip.className = 'score-chip';
             chip.onclick = () => {
@@ -596,15 +594,27 @@
         }, 1000);
     }
 
-    // --- 3. Alchimie ---
+    // --- 3. Alchimie (Corrigé & avec Réponse affichée) ---
     const ingredients = ["Poussière d'étoile", "Cristal de givre", "Racine de mandragore", "Écaille de dragon", "Larme de phénix"];
     function initAlchimie() {
+        // Choix aléatoire de la potion gagnante secrète
+        const secretPotion = ingredients[Math.floor(Math.random() * ingredients.length)];
+
         let html = `<p>Explorez les pistes cachées :</p><div class="card-grid">`;
         ingredients.forEach((ing, i) => {
-            // Correction de l'index pour que l'ingrédient 1 (i=0) s'affiche correctement au clic
-            html += `<div class="secret-card" onclick="this.classList.toggle('revealed'); this.innerHTML='${ing}';">Ingrédient #${i+1}</div>`;
+            // Indice corrigé avec dataset pour éviter les bugs d'affichage
+            html += `<div class="secret-card" data-name="${ing}" onclick="this.classList.add('revealed'); this.textContent=this.getAttribute('data-name');">Ingrédient #${i+1}</div>`;
         });
-        html += `</div><button class="action-btn" onclick="initAlchimie()" style="margin-top:15px;">Nouvelle combinaison</button>`;
+        html += `</div>`;
+        
+        // Zone de réponse et bouton de relance
+        html += `
+            <div style="margin-top: 20px; text-align: center;">
+                <button class="action-btn" style="background: #334155; color: var(--accent); margin-bottom: 10px;" onclick="this.nextElementSibling.style.display='block'; this.style.display='none';">🧪 Afficher la potion secrète du chaudron</button>
+                <div style="display:none; font-size: 1.1rem; color: var(--warning); font-weight: bold; margin-bottom: 15px;">Réponse : ${secretPotion}</div>
+                <button class="action-btn" onclick="initAlchimie()">Nouvelle combinaison</button>
+            </div>
+        `;
         document.getElementById('alchimie-board').innerHTML = html;
     }
 
