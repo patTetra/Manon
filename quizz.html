@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CinéSéries Quiz</title>
+    <!-- Tailwind CSS pour un design moderne et responsive -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap');
+        body { font-family: 'Outfit', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between p-4 sm:p-6">
+
+    <!-- En-tête -->
+    <header class="w-full max-w-xl mx-auto flex justify-between items-center py-4 border-b border-slate-800">
+        <h1 class="text-xl font-bold tracking-wider text-amber-400 flex items-center gap-2">
+            🎬 CinéSéries Quiz
+        </h1>
+        <div id="score-container" class="text-sm font-semibold bg-slate-900 px-3 py-1.5 rounded-full border border-slate-800">
+            Score : <span id="current-score" class="text-amber-400">0</span> / <span id="total-questions">0</span>
+        </div>
+    </header>
+
+    <!-- Contenu Principal -->
+    <main class="w-full max-w-xl mx-auto my-auto py-6">
+        
+        <!-- Écran de Quiz -->
+        <div id="quiz-card" class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+            <!-- Numéro de la question -->
+            <div class="flex justify-between items-center mb-4">
+                <span id="question-number" class="text-xs font-bold uppercase tracking-widest bg-amber-500/10 text-amber-400 px-2.5 py-1 rounded-md">
+                    Question 1
+                </span>
+                <span id="question-type" class="text-xs text-slate-400 italic">Citation</span>
+            </div>
+
+            <!-- Énoncé / Indice -->
+            <div class="my-6">
+                <p id="question-prompt" class="text-lg sm:text-xl font-medium text-center text-slate-200 leading-relaxed">
+                    Chargement de la question...
+                </p>
+                <p id="target-category" class="text-center text-xs text-amber-500/80 font-semibold mt-2 uppercase tracking-wide"></p>
+            </div>
+
+            <!-- Formulaire de réponse -->
+            <form id="answer-form" onsubmit="checkAnswer(event)" class="space-y-4">
+                <div class="relative">
+                    <input type="text" id="user-answer" autocomplete="off" placeholder="Votre réponse..." 
+                        class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3.5 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors">
+                </div>
+                <button type="submit" id="submit-btn" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-amber-500/10">
+                    Valider la réponse
+                </button>
+            </form>
+
+            <!-- Feedback de validation -->
+            <div id="feedback" class="hidden mt-4 p-3 rounded-xl text-center text-sm font-medium"></div>
+        </div>
+
+        <!-- Écran de Fin (Caché par défaut) -->
+        <div id="end-screen" class="hidden bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center space-y-6 shadow-xl">
+            <h2 class="text-2xl font-bold text-amber-400">Quiz terminé ! 🎉</h2>
+            <p class="text-slate-300">Vous avez terminé l'ensemble des questions de cette session.</p>
+            <div class="text-4xl font-black text-amber-400 my-4">
+                <span id="final-score">0</span> / <span id="final-total">0</span>
+            </div>
+            <button onclick="restartQuiz()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-3.5 rounded-xl transition-all">
+                Recommencer le quiz
+            </button>
+        </div>
+
+    </main>
+
+    <!-- Pied de page -->
+    <footer class="w-full max-w-xl mx-auto text-center text-xs text-slate-600 py-4">
+        Webapp Quiz Cinéma & Séries &bull; Conçu pour mobile
+    </footer>
+
+    <script>
+        // Exemple de base de données de questions (À étendre jusqu'à 100)
+        const questionsDatabase = [
+            {
+                id: 1,
+                type: "Citation",
+                category: "Film",
+                prompt: "« May the Force be with you. » (Que la Force soit avec vous.)",
+                answer: "Star Wars"
+            },
+            {
+                id: 2,
+                type: "Rébus / Emojis",
+                category: "Série",
+                prompt: "🧪 👨‍🏫 🚐 💰 (Un prof de chimie se lance dans le trafic)",
+                answer: "Breaking Bad"
+            },
+            {
+                id: 3,
+                type: "Citation",
+                category: "Film",
+                prompt: "« On ne met pas Bébé dans un coin. »",
+                answer: "Dirty Dancing"
+            },
+            {
+                id: 4,
+                type: "Rébus / Emojis",
+                category: "Série",
+                prompt: "🚲 🧇 👾 🔦 (Des enfants dans les années 80 face à un monde parallèle)",
+                answer: "Stranger Things"
+            },
+            {
+                id: 5,
+                type: "Description",
+                category: "Film",
+                prompt: "Un voleur s'introduit dans les rêves des gens pour y planter ou subtiliser des idées.",
+                answer: "Inception"
+            }
+        ];
+
+        let currentIndex = 0;
+        let score = 0;
+        let answeredCurrent = false;
+
+        const totalQuestionsEl = document.getElementById('total-questions');
+        const currentScoreEl = document.getElementById('current-score');
+        const questionNumberEl = document.getElementById('question-number');
+        const questionTypeEl = document.getElementById('question-type');
+        const questionPromptEl = document.getElementById('question-prompt');
+        const targetCategoryEl = document.getElementById('target-category');
+        const userAnswerInput = document.getElementById('user-answer');
+        const feedbackEl = document.getElementById('feedback');
+        const quizCard = document.getElementById('quiz-card');
+        const endScreen = document.getElementById('end-screen');
+        const finalScoreEl = document.getElementById('final-score');
+        const finalTotalEl = document.getElementById('final-total');
+
+        totalQuestionsEl.textContent = questionsDatabase.length;
+
+        function loadQuestion() {
+            if (currentIndex >= questionsDatabase.length) {
+                showEndScreen();
+                return;
+            }
+
+            answeredCurrent = false;
+            const q = questionsDatabase[currentIndex];
+
+            questionNumberEl.textContent = `Question ${currentIndex + 1} / ${questionsDatabase.length}`;
+            questionTypeEl.textContent = q.type;
+            questionPromptEl.textContent = q.prompt;
+            targetCategoryEl.textContent = `Cherché : ${q.category}`;
+            
+            userAnswerInput.value = '';
+            userAnswerInput.disabled = false;
+            userAnswerInput.focus();
+            feedbackEl.classList.add('hidden');
+            document.getElementById('submit-btn').textContent = "Valider la réponse";
+        }
+
+        // Fonction pour normaliser le texte (ignorer majuscules, accents, espaces superflus)
+        function normalizeString(str) {
+            return str
+                .toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .trim();
+        }
+
+        function checkAnswer(event) {
+            event.preventDefault();
+            if (answeredCurrent) {
+                // Passage à la question suivante
+                currentIndex++;
+                loadQuestion();
+                return;
+            }
+
+            const userVal = userAnswerInput.value;
+            if (!userVal.trim()) return;
+
+            const currentQ = questionsDatabase[currentIndex];
+            const isCorrect = normalizeString(userVal) === normalizeString(currentQ.answer);
+
+            answeredCurrent = true;
+            userAnswerInput.disabled = true;
+
+            feedback.classList.remove('hidden');
+            if (isCorrect) {
+                score++;
+                currentScoreEl.textContent = score;
+                feedback.className = "mt-4 p-3 rounded-xl text-center text-sm font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+                feedback.textContent = "✅ Bonne réponse !";
+            } else {
+                feedback.className = "mt-4 p-3 rounded-xl text-center text-sm font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20";
+                feedback.textContent = `❌ C'était : ${currentQ.answer}`;
+            }
+
+            document.getElementById('submit-btn').textContent = currentIndex + 1 >= questionsDatabase.length ? "Voir mon score final" : "Question suivante ➔";
+        }
+
+        function showEndScreen() {
+            quizCard.classList.add('hidden');
+            endScreen.classList.remove('hidden');
+            finalScoreEl.textContent = score;
+            finalTotalEl.textContent = questionsDatabase.length;
+        }
+
+        function restartQuiz() {
+            currentIndex = 0;
+            score = 0;
+            currentScoreEl.textContent = score;
+            endScreen.classList.add('hidden');
+            quizCard.classList.remove('hidden');
+            loadQuestion();
+        }
+
+        // Lancement initial
+        loadQuestion();
+    </script>
+</body>
+</html>
