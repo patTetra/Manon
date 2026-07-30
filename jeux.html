@@ -29,6 +29,12 @@
             min-height: 100vh;
             -webkit-user-select: none;
             user-select: none;
+            transition: background-color 0.2s;
+        }
+
+        /* Animation d'explosion / flash écran */
+        body.exploded {
+            background-color: #7f1d1d !important;
         }
 
         .container {
@@ -183,11 +189,30 @@
         }
 
         .timer-display {
-            font-size: 3rem;
+            font-size: 3.5rem;
             font-weight: 800;
             text-align: center;
             margin: 15px 0;
             color: var(--warning);
+        }
+
+        /* Animation de tremblement pour l'explosion */
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(1px, 2px) rotate(0deg); }
+            100% { transform: translate(0, 0) rotate(0deg); }
+        }
+
+        .shake {
+            animation: shake 0.5s;
         }
 
         .dice-container {
@@ -497,6 +522,7 @@
         document.getElementById('game-hub').style.display = 'grid';
         document.querySelectorAll('.game-view').forEach(v => v.classList.remove('active'));
         document.getElementById('home-btn').style.display = 'none';
+        document.body.classList.remove('exploded');
         if(activeTimer) clearInterval(activeTimer);
     }
 
@@ -553,6 +579,7 @@
         if(currentGameKey === 'chrono') { 
             document.getElementById('chrono-category').textContent = "Prêt ?"; 
             document.getElementById('chrono-timer').textContent = document.getElementById('chrono-duration').value; 
+            document.body.classList.remove('exploded');
         }
         if(currentGameKey === 'alchimie') initAlchimie();
         if(currentGameKey === 'dices') rollDices();
@@ -595,39 +622,22 @@
     // --- 2. Chrono (Alerte Rouge) ---
     const chronoCategories = ["Animal aquatique", "Marque de voiture", "Objet de cuisine", "Ville en M", "Film SF"];
     
-    function triggerExplosionEffects() {
-        // 1. Vibration (vibre 500ms, pause 100ms, vibre 500ms si supporté)
-        if ("vibrate" in navigator) {
-            navigator.vibrate([500, 100, 500]);
-        }
-
-        // 2. Synthèse sonore d'explosion / alarme via Web Audio API
-        try {
-            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            
-            // Son grave d'impact sourd
-            const osc = audioCtx.createOscillator();
-            const gainNode = audioCtx.createGain();
-            
-            osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(150, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.6);
-            
-            gainNode.gain.setValueAtTime(1, audioCtx.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.6);
-            
-            osc.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-            
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.6);
-        } catch(e) {
-            console.log("Audio non pris en charge ou bloqué par le navigateur");
-        }
+    function triggerVisualExplosion() {
+        // Flash rouge de fond d'écran global
+        document.body.classList.add('exploded');
+        
+        // Effet de tremblement sur l'afficheur de temps
+        const timerEl = document.getElementById('chrono-timer');
+        timerEl.classList.add('shake');
+        setTimeout(() => {
+            timerEl.classList.remove('shake');
+        }, 500);
     }
 
     function startChronoTurn() {
         if(activeTimer) clearInterval(activeTimer);
+        document.body.classList.remove('exploded');
+        
         const cat = chronoCategories[Math.floor(Math.random() * chronoCategories.length)];
         document.getElementById('chrono-category').textContent = `Catégorie : ${cat}`;
         
@@ -641,7 +651,7 @@
             if(timeLeft <= 0) { 
                 clearInterval(activeTimer); 
                 document.getElementById('chrono-timer').textContent = "BOOM ! 💥"; 
-                triggerExplosionEffects();
+                triggerVisualExplosion();
             }
         }, 1000);
     }
