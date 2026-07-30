@@ -32,7 +32,6 @@
             transition: background-color 0.2s;
         }
 
-        /* Animation d'explosion / flash écran */
         body.exploded {
             background-color: #7f1d1d !important;
         }
@@ -158,6 +157,33 @@
             border-left: 4px solid var(--accent);
         }
 
+        /* Sélecteur de catégorie intégré */
+        .category-selector {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .cat-btn {
+            background: #334155;
+            color: var(--text-color);
+            border: 2px solid transparent;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .cat-btn.active {
+            background: rgba(56, 189, 248, 0.15);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
         .card-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -196,7 +222,6 @@
             color: var(--warning);
         }
 
-        /* Animation de tremblement pour l'explosion */
         @keyframes shake {
             0% { transform: translate(1px, 1px) rotate(0deg); }
             10% { transform: translate(-1px, -2px) rotate(-1deg); }
@@ -235,7 +260,6 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.2);
         }
 
-        /* Gestion des scores intégrée aux jeux */
         .game-scoreboard {
             margin-top: 25px;
             padding-top: 20px;
@@ -291,7 +315,6 @@
             color: #0f172a;
         }
 
-        /* Setup initial des joueurs par jeu */
         .setup-screen {
             text-align: center;
             padding: 20px 0;
@@ -385,7 +408,7 @@
         </div>
     </div>
 
-    <!-- ÉCRAN DE CONFIGURATION DES JOUEURS POUR UN JEU -->
+    <!-- ÉCRAN DE CONFIGURATION DES JOUEURS -->
     <div id="game-setup-view" class="game-view">
         <h2 id="setup-title">Configuration des joueurs</h2>
         <div class="setup-screen">
@@ -404,6 +427,13 @@
     <div id="game-labyrinth" class="game-view">
         <h2>🔮 Labyrinthe des Murmures</h2>
         <div class="rules-box"><strong>Règle :</strong> Le Maître lit le mot secret, puis donne un indice d'un seul mot. Les autres devinent !</div>
+        
+        <div class="category-selector">
+            <button class="cat-btn active" onclick="setLabCategory('enfants', this)">👶 Enfants</button>
+            <button class="cat-btn" onclick="setLabCategory('facile', this)">🟢 Facile</button>
+            <button class="cat-btn" onclick="setLabCategory('difficile', this)">🔴 Difficile</button>
+        </div>
+
         <div id="lab-content"><button class="action-btn" onclick="nextLabRound()">Lancer une manche</button></div>
         <div class="game-scoreboard">
             <h3>🏆 Scoreboard (touchez un nom pour +1 point) :</h3>
@@ -414,6 +444,13 @@
     <div id="game-chrono" class="game-view">
         <h2>⏱️ Alerte Rouge !</h2>
         <div class="rules-box"><strong>Règle :</strong> Donnez un mot de la catégorie et passez l'appareil avant la fin du temps.</div>
+        
+        <div class="category-selector">
+            <button class="cat-btn active" onclick="setChronoCategory('enfants', this)">👶 Enfants</button>
+            <button class="cat-btn" onclick="setChronoCategory('facile', this)">🟢 Facile</button>
+            <button class="cat-btn" onclick="setChronoCategory('difficile', this)">🔴 Difficile</button>
+        </div>
+
         <div style="text-align: center;">
             <div style="margin-bottom: 15px;">
                 <label style="color: #94a3b8; font-size: 0.9rem; margin-right: 10px;">Temps par tour :</label>
@@ -437,6 +474,13 @@
     <div id="game-alchimie" class="game-view">
         <h2>🧪 Alchimiste Express</h2>
         <div class="rules-box"><strong>Règle :</strong> Explorez les cartes ingrédients pour deviner la potion choisie par le chaudron.</div>
+        
+        <div class="category-selector">
+            <button class="cat-btn active" onclick="setAlchimieCategory('enfants', this)">👶 Enfants</button>
+            <button class="cat-btn" onclick="setAlchimieCategory('facile', this)">🟢 Facile</button>
+            <button class="cat-btn" onclick="setAlchimieCategory('difficile', this)">🔴 Difficile</button>
+        </div>
+
         <div id="alchimie-board">
             <button class="action-btn" onclick="initAlchimie()">Distribuer les ingrédients</button>
         </div>
@@ -479,6 +523,13 @@
     <div id="game-imposteur" class="game-view">
         <h2>🕵️ L'Intrus du Salon</h2>
         <div class="rules-box"><strong>Règle :</strong> Passez l'appareil à tour de rôle. Un joueur découvrira qu'il est l'Intrus, les autres verront le mot secret.</div>
+        
+        <div class="category-selector">
+            <button class="cat-btn active" onclick="setImposteurCategory('enfants', this)">👶 Enfants</button>
+            <button class="cat-btn" onclick="setImposteurCategory('facile', this)">🟢 Facile</button>
+            <button class="cat-btn" onclick="setImposteurCategory('difficile', this)">🔴 Difficile</button>
+        </div>
+
         <div id="imposteur-content" style="text-align:center;">
             <button class="action-btn" onclick="initImposteur()">Commencer la distribution</button>
         </div>
@@ -502,7 +553,14 @@
 
     <div id="game-ordonnance" class="game-view">
         <h2>📜 L'Ordre des Chronos</h2>
-        <div class="rules-box"><strong>Règle :</strong> Remettez les 3 cartes événements dans l'ordre chronologique de leur invention ou apparition.</div>
+        <div class="rules-box"><strong>Règle :</strong> Remettez les cartes événements dans le bon ordre chronologique.</div>
+        
+        <div class="category-selector">
+            <button class="cat-btn active" onclick="setOrdonnanceCategory('enfants', this)">👶 Enfants</button>
+            <button class="cat-btn" onclick="setOrdonnanceCategory('facile', this)">🟢 Facile</button>
+            <button class="cat-btn" onclick="setOrdonnanceCategory('difficile', this)">🔴 Difficile</button>
+        </div>
+
         <div id="chrono-board" style="text-align:center;">
             <button class="action-btn" onclick="initOrdonnance()">Affirmer le défi</button>
         </div>
@@ -517,6 +575,96 @@
     let currentGameKey = '';
     let currentPlayers = [];
     let activeTimer = null;
+
+    // Banques de données par catégorie
+    const dataLab = {
+        enfants: ["Chat", "Banane", "Chapeau", "Vélo", "Ballon", "Maison", "Arbre", "Poisson"],
+        facile: ["Chocolat", "Astronaute", "Canapé", "Montgolfière", "Volcan", "Pyramide", "Pirate"],
+        difficile: ["Photosynthèse", "Sérénité", "Cryptographie", "Métaphore", "Insolation", "Anachronisme"]
+    };
+    let currentLabCat = 'enfants';
+
+    const dataChrono = {
+        enfants: ["Un animal rouge", "Un fruit", "Un dessin animé", "Un vêtement", "Un jeu de cour d'école"],
+        facile: ["Animal aquatique", "Marque de voiture", "Objet de cuisine", "Ville en M", "Film SF"],
+        difficile: ["Un pays en 'A'", "Un Nobel de littérature", "Une formule chimique", "Un compositeur classique", "Une ville hôte des JO"]
+    };
+    let currentChronoCat = 'enfants';
+
+    const dataAlchimie = {
+        enfants: ["Fraise", "Chocolat", "Miel", "Lait vanillé", "Caramel"],
+        facile: ["Poussière d'étoile", "Cristal de givre", "Racine de mandragore", "Écaille de dragon", "Larme de phénix"],
+        difficile: ["Isotope d'uranium", "Extrait de belladone", "Essence de nébuleuse", "Poudre de basalte", "Acide sulfurique pur"]
+    };
+    let currentAlchimieCat = 'enfants';
+
+    const dataImposteur = {
+        enfants: [
+            { secret: "Chien / Chat", impostor: "C'est l'INTRUS (Animal sauvage)" },
+            { secret: "École / Récré", impostor: "C'est l'INTRUS (Vacances)" },
+            { secret: "Vélo / Trottinette", impostor: "C'est l'INTRUS (Voiture)" }
+        ],
+        facile: [
+            { secret: "Glace / Vanille", impostor: "🕵️ TU ES L'INTRUS !" },
+            { secret: "Plage / Serviette", impostor: "🕵️ TU ES L'INTRUS !" }
+        ],
+        difficile: [
+            { secret: "Démocratie / Vote", impostor: "🕵️ TU ES L'INTRUS (Dictature)" },
+            { secret: "Inflation / Monnaie", impostor: "🕵️ TU ES L'INTRUS (Troc)" }
+        ]
+    };
+    let currentImposteurCat = 'enfants';
+
+    const dataOrdonnance = {
+        enfants: [
+            { event: "Apparition des premiers Pokémon", year: 1996 },
+            { event: "Sortie du premier film Toy Story", year: 1995 },
+            { event: "Création de Minecraft", year: 2009 }
+        ],
+        facile: [
+            { event: "Premier vol des Frères Wright", year: 1903 },
+            { event: "Premiers pas sur la Lune", year: 1969 },
+            { event: "Sortie du premier iPhone", year: 2007 }
+        ],
+        difficile: [
+            { event: "Invention de l'imprimerie par Gutenberg", year: 1450 },
+            { event: "Chute de l'Empire romain d'Occident", year: 476 },
+            { event: "Publication de la théorie de la relativité", year: 1915 }
+        ]
+    };
+    let currentOrdonnanceCat = 'enfants';
+
+    // Fonctions de changement de catégorie
+    function setLabCategory(cat, btn) {
+        currentLabCat = cat;
+        updateActiveBtn(btn);
+        nextLabRound();
+    }
+    function setChronoCategory(cat, btn) {
+        currentChronoCat = cat;
+        updateActiveBtn(btn);
+    }
+    function setAlchimieCategory(cat, btn) {
+        currentAlchimieCat = cat;
+        updateActiveBtn(btn);
+        initAlchimie();
+    }
+    function setImposteurCategory(cat, btn) {
+        currentImposteurCat = cat;
+        updateActiveBtn(btn);
+        initImposteur();
+    }
+    function setOrdonnanceCategory(cat, btn) {
+        currentOrdonnanceCat = cat;
+        updateActiveBtn(btn);
+        initOrdonnance();
+    }
+
+    function updateActiveBtn(btn) {
+        const parent = btn.parentElement;
+        parent.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+    }
 
     function showHub() {
         document.getElementById('game-hub').style.display = 'grid';
@@ -608,9 +756,9 @@
     }
 
     // --- 1. Labyrinth ---
-    const labWords = ["Chocolat", "Astronaute", "Canapé", "Montgolfière", "Bibliothèque", "Volcan", "Pyramide", "Pirate"];
     function nextLabRound() {
-        const word = labWords[Math.floor(Math.random() * labWords.length)];
+        const wordsList = dataLab[currentLabCat];
+        const word = wordsList[Math.floor(Math.random() * wordsList.length)];
         document.getElementById('lab-content').innerHTML = `
             <p>Passez l'appareil au <strong>Maître du Secret</strong>.</p>
             <button class="action-btn" onclick="this.nextElementSibling.style.display='block'; this.style.display='none';">Afficher le mot</button>
@@ -619,26 +767,20 @@
         `;
     }
 
-    // --- 2. Chrono (Alerte Rouge) ---
-    const chronoCategories = ["Animal aquatique", "Marque de voiture", "Objet de cuisine", "Ville en M", "Film SF"];
-    
+    // --- 2. Chrono ---
     function triggerVisualExplosion() {
-        // Flash rouge de fond d'écran global
         document.body.classList.add('exploded');
-        
-        // Effet de tremblement sur l'afficheur de temps
         const timerEl = document.getElementById('chrono-timer');
         timerEl.classList.add('shake');
-        setTimeout(() => {
-            timerEl.classList.remove('shake');
-        }, 500);
+        setTimeout(() => { timerEl.classList.remove('shake'); }, 500);
     }
 
     function startChronoTurn() {
         if(activeTimer) clearInterval(activeTimer);
         document.body.classList.remove('exploded');
         
-        const cat = chronoCategories[Math.floor(Math.random() * chronoCategories.length)];
+        const catList = dataChrono[currentChronoCat];
+        const cat = catList[Math.floor(Math.random() * catList.length)];
         document.getElementById('chrono-category').textContent = `Catégorie : ${cat}`;
         
         let selectedTime = parseInt(document.getElementById('chrono-duration').value) || 10;
@@ -657,12 +799,12 @@
     }
 
     // --- 3. Alchimie ---
-    const ingredients = ["Poussière d'étoile", "Cristal de givre", "Racine de mandragore", "Écaille de dragon", "Larme de phénix"];
     function initAlchimie() {
-        const secretPotion = ingredients[Math.floor(Math.random() * ingredients.length)];
+        const currentIngs = dataAlchimie[currentAlchimieCat];
+        const secretPotion = currentIngs[Math.floor(Math.random() * currentIngs.length)];
 
         let html = `<p>Explorez les pistes cachées :</p><div class="card-grid">`;
-        ingredients.forEach((ing, i) => {
+        currentIngs.forEach((ing, i) => {
             html += `<div class="secret-card" data-name="${ing}" onclick="this.classList.add('revealed'); this.textContent=this.getAttribute('data-name');">Ingrédient #${i+1}</div>`;
         });
         html += `</div>`;
@@ -707,7 +849,15 @@
 
     // --- 6. L'Intrus du Salon ---
     let impostorStep = 0;
-    function initImposteur() { impostorStep = 1; renderImposteur(); }
+    let chosenImpostorItem = {};
+
+    function initImposteur() {
+        impostorStep = 1;
+        const list = dataImposteur[currentImposteurCat];
+        chosenImpostorItem = list[Math.floor(Math.random() * list.length)];
+        renderImposteur();
+    }
+
     function renderImposteur() {
         const box = document.getElementById('imposteur-content');
         if(impostorStep > currentPlayers.length) {
@@ -715,10 +865,14 @@
             return;
         }
         const currentPlayerName = currentPlayers[impostorStep - 1].name;
+        // On attribue l'intrus au 2e joueur par défaut pour l'exemple tournant
+        const isImpostor = (impostorStep === 2); 
+        const secretText = isImpostor ? chosenImpostorItem.impostor : `Mot secret : ${chosenImpostorItem.secret}`;
+
         box.innerHTML = `
             <p>Passez l'appareil à <strong>${currentPlayerName}</strong> (les autres ne regardent pas).</p>
             <button class="action-btn" onclick="this.nextElementSibling.style.display='block'; this.style.display='none';">Voir mon rôle secret</button>
-            <div style="display:none; font-size:1.5rem; color:var(--accent); font-weight:bold; margin:20px 0;">${impostorStep === 2 ? '🕵️ TU ES L\'INTRUS !' : 'Mot : Glace / Vanille'}</div>
+            <div style="display:none; font-size:1.4rem; color: ${isImpostor ? 'var(--danger)' : 'var(--accent)'}; font-weight:bold; margin:20px 0;">${secretText}</div>
             <button class="action-btn" style="background:#334155; color:var(--text-color); margin-top:15px;" onclick="impostorStep++; renderImposteur();">Joueur suivant ➔</button>
         `;
     }
@@ -736,18 +890,14 @@
     }
 
     // --- 8. L'Ordre des Chronos ---
-    const chronosData = [
-        { event: "Premier vol des Frères Wright", year: 1903 },
-        { event: "Premiers pas sur la Lune", year: 1969 },
-        { event: "Sortie du premier iPhone", year: 2007 }
-    ];
     function initOrdonnance() {
-        let html = `<p>Remettez ces 3 événements du plus ancien au plus récent :</p><div style="display:flex; flex-direction:column; gap:10px; margin:15px 0;">`;
+        const chronosData = dataOrdonnance[currentOrdonnanceCat];
+        let html = `<p>Remettez ces événements du plus ancien au plus récent :</p><div style="display:flex; flex-direction:column; gap:10px; margin:15px 0;">`;
         chronosData.forEach((item, idx) => {
-            html += `<div style="background:#334155; padding:12px; border-radius:8px;">${idx+1}. ${item.event}</div>`;
+            html += `<div style="background:#334155; padding:12px; border-radius:8px;">• ${item.event}</div>`;
         });
         html += `</div><button class="action-btn" onclick="this.nextElementSibling.style.display='block';">Afficher la correction</button>
-                 <div style="display:none; margin-top:15px; color:var(--success); font-weight:bold;">1903 ➔ 1969 ➔ 2007</div>`;
+                 <div style="display:none; margin-top:15px; color:var(--success); font-weight:bold;">Ordre : ` + chronosData.map(c => c.year).join(' ➔ ') + `</div>`;
         document.getElementById('chrono-board').innerHTML = html;
     }
 </script>
