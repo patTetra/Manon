@@ -388,7 +388,7 @@
 
     <div id="game-chrono" class="game-view">
         <h2>⏱️ Alerte Rouge !</h2>
-        <div class="rules-box"><strong>Règle :</strong> Donnez un mot de la catégorie et passez l'iPad avant la fin du temps.</div>
+        <div class="rules-box"><strong>Règle :</strong> Donnez un mot de la catégorie et passez l'appareil avant la fin du temps.</div>
         <div style="text-align: center;">
             <div style="margin-bottom: 15px;">
                 <label style="color: #94a3b8; font-size: 0.9rem; margin-right: 10px;">Temps par tour :</label>
@@ -453,7 +453,7 @@
 
     <div id="game-imposteur" class="game-view">
         <h2>🕵️ L'Intrus du Salon</h2>
-        <div class="rules-box"><strong>Règle :</strong> Passez l'iPad à tour de rôle. Un joueur découvrira qu'il est l'Intrus, les autres verront le mot secret.</div>
+        <div class="rules-box"><strong>Règle :</strong> Passez l'appareil à tour de rôle. Un joueur découvrira qu'il est l'Intrus, les autres verront le mot secret.</div>
         <div id="imposteur-content" style="text-align:center;">
             <button class="action-btn" onclick="initImposteur()">Commencer la distribution</button>
         </div>
@@ -465,7 +465,7 @@
 
     <div id="game-duel" class="game-view">
         <h2>⚡ Duel Réflexe Tactile</h2>
-        <div class="rules-box"><strong>Règle :</strong> Posez un doigt chacun autour de l'iPad. Quand l'écran change de couleur, le plus rapide gagne !</div>
+        <div class="rules-box"><strong>Règle :</strong> Posez un doigt chacun autour de l'appareil. Quand l'écran change de couleur, le plus rapide gagne !</div>
         <div id="duel-box" style="background:#334155; height:200px; border-radius:12px; display:flex; justify-content:center; align-items:center; font-size:1.5rem; font-weight:bold; cursor:pointer;" onclick="triggerDuel()">
             Touchez ici pour lancer le signal
         </div>
@@ -585,15 +585,47 @@
     function nextLabRound() {
         const word = labWords[Math.floor(Math.random() * labWords.length)];
         document.getElementById('lab-content').innerHTML = `
-            <p>Passez l'iPad au <strong>Maître du Secret</strong>.</p>
+            <p>Passez l'appareil au <strong>Maître du Secret</strong>.</p>
             <button class="action-btn" onclick="this.nextElementSibling.style.display='block'; this.style.display='none';">Afficher le mot</button>
             <div style="display:none; font-size:1.8rem; color:var(--success); font-weight:bold; margin:15px 0;">Mot : ${word}</div>
             <button class="action-btn" style="background:#334155; color:var(--text-color); margin-top:15px;" onclick="nextLabRound()">Manche suivante ➔</button>
         `;
     }
 
-    // --- 2. Chrono ---
+    // --- 2. Chrono (Alerte Rouge) ---
     const chronoCategories = ["Animal aquatique", "Marque de voiture", "Objet de cuisine", "Ville en M", "Film SF"];
+    
+    function triggerExplosionEffects() {
+        // 1. Vibration (vibre 500ms, pause 100ms, vibre 500ms si supporté)
+        if ("vibrate" in navigator) {
+            navigator.vibrate([500, 100, 500]);
+        }
+
+        // 2. Synthèse sonore d'explosion / alarme via Web Audio API
+        try {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Son grave d'impact sourd
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.6);
+            
+            gainNode.gain.setValueAtTime(1, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.6);
+            
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.6);
+        } catch(e) {
+            console.log("Audio non pris en charge ou bloqué par le navigateur");
+        }
+    }
+
     function startChronoTurn() {
         if(activeTimer) clearInterval(activeTimer);
         const cat = chronoCategories[Math.floor(Math.random() * chronoCategories.length)];
@@ -606,7 +638,11 @@
         activeTimer = setInterval(() => {
             timeLeft--;
             document.getElementById('chrono-timer').textContent = timeLeft;
-            if(timeLeft <= 0) { clearInterval(activeTimer); document.getElementById('chrono-timer').textContent = "BOOM ! 💥"; }
+            if(timeLeft <= 0) { 
+                clearInterval(activeTimer); 
+                document.getElementById('chrono-timer').textContent = "BOOM ! 💥"; 
+                triggerExplosionEffects();
+            }
         }, 1000);
     }
 
@@ -670,7 +706,7 @@
         }
         const currentPlayerName = currentPlayers[impostorStep - 1].name;
         box.innerHTML = `
-            <p>Passez l'iPad à <strong>${currentPlayerName}</strong> (les autres ne regardent pas).</p>
+            <p>Passez l'appareil à <strong>${currentPlayerName}</strong> (les autres ne regardent pas).</p>
             <button class="action-btn" onclick="this.nextElementSibling.style.display='block'; this.style.display='none';">Voir mon rôle secret</button>
             <div style="display:none; font-size:1.5rem; color:var(--accent); font-weight:bold; margin:20px 0;">${impostorStep === 2 ? '🕵️ TU ES L\'INTRUS !' : 'Mot : Glace / Vanille'}</div>
             <button class="action-btn" style="background:#334155; color:var(--text-color); margin-top:15px;" onclick="impostorStep++; renderImposteur();">Joueur suivant ➔</button>
