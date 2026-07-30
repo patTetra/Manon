@@ -186,7 +186,7 @@
             font-size: 3rem;
             font-weight: 800;
             text-align: center;
-            margin: 20px 0;
+            margin: 15px 0;
             color: var(--warning);
         }
 
@@ -390,8 +390,17 @@
         <h2>⏱️ Alerte Rouge !</h2>
         <div class="rules-box"><strong>Règle :</strong> Donnez un mot de la catégorie et passez l'iPad avant la fin du temps.</div>
         <div style="text-align: center;">
-            <div id="chrono-category" style="font-size: 1.2rem; margin-bottom: 15px; color: var(--accent); font-weight: bold;">Prêt ?</div>
-            <div class="timer-display" id="chrono-timer">5</div>
+            <div style="margin-bottom: 15px;">
+                <label style="color: #94a3b8; font-size: 0.9rem; margin-right: 10px;">Temps par tour :</label>
+                <select id="chrono-duration" style="background: #0f172a; color: var(--text-color); border: 1px solid #475569; padding: 8px 12px; border-radius: 8px; font-size: 1rem;">
+                    <option value="5">5 secondes</option>
+                    <option value="10" selected>10 secondes</option>
+                    <option value="15">15 secondes</option>
+                    <option value="20">20 secondes</option>
+                </select>
+            </div>
+            <div id="chrono-category" style="font-size: 1.2rem; margin-bottom: 10px; color: var(--accent); font-weight: bold;">Prêt ?</div>
+            <div class="timer-display" id="chrono-timer">10</div>
             <button class="action-btn" onclick="startChronoTurn()">C'est parti ! (Tour suivant)</button>
         </div>
         <div class="game-scoreboard">
@@ -541,7 +550,10 @@
         renderScoreboard(currentGameKey);
 
         if(currentGameKey === 'labyrinth') nextLabRound();
-        if(currentGameKey === 'chrono') { document.getElementById('chrono-category').textContent = "Prêt ?"; document.getElementById('chrono-timer').textContent = "5"; }
+        if(currentGameKey === 'chrono') { 
+            document.getElementById('chrono-category').textContent = "Prêt ?"; 
+            document.getElementById('chrono-timer').textContent = document.getElementById('chrono-duration').value; 
+        }
         if(currentGameKey === 'alchimie') initAlchimie();
         if(currentGameKey === 'dices') rollDices();
         if(currentGameKey === 'chest') initChest();
@@ -586,7 +598,11 @@
         if(activeTimer) clearInterval(activeTimer);
         const cat = chronoCategories[Math.floor(Math.random() * chronoCategories.length)];
         document.getElementById('chrono-category').textContent = `Catégorie : ${cat}`;
-        let timeLeft = 6;
+        
+        let selectedTime = parseInt(document.getElementById('chrono-duration').value) || 10;
+        let timeLeft = selectedTime;
+        document.getElementById('chrono-timer').textContent = timeLeft;
+
         activeTimer = setInterval(() => {
             timeLeft--;
             document.getElementById('chrono-timer').textContent = timeLeft;
@@ -594,20 +610,17 @@
         }, 1000);
     }
 
-    // --- 3. Alchimie (Corrigé & avec Réponse affichée) ---
+    // --- 3. Alchimie ---
     const ingredients = ["Poussière d'étoile", "Cristal de givre", "Racine de mandragore", "Écaille de dragon", "Larme de phénix"];
     function initAlchimie() {
-        // Choix aléatoire de la potion gagnante secrète
         const secretPotion = ingredients[Math.floor(Math.random() * ingredients.length)];
 
         let html = `<p>Explorez les pistes cachées :</p><div class="card-grid">`;
         ingredients.forEach((ing, i) => {
-            // Indice corrigé avec dataset pour éviter les bugs d'affichage
             html += `<div class="secret-card" data-name="${ing}" onclick="this.classList.add('revealed'); this.textContent=this.getAttribute('data-name');">Ingrédient #${i+1}</div>`;
         });
         html += `</div>`;
         
-        // Zone de réponse et bouton de relance
         html += `
             <div style="margin-top: 20px; text-align: center;">
                 <button class="action-btn" style="background: #334155; color: var(--accent); margin-bottom: 10px;" onclick="this.nextElementSibling.style.display='block'; this.style.display='none';">🧪 Afficher la potion secrète du chaudron</button>
