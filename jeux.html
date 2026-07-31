@@ -331,7 +331,6 @@
             max-width: 300px;
         }
 
-        /* Style spécifique pour le gage en cas d'explosion */
         .penalty-box {
             margin-top: 15px;
             background: rgba(15, 23, 42, 0.7);
@@ -472,7 +471,6 @@
             <div class="timer-display" id="chrono-timer">10</div>
             <button class="action-btn" onclick="startChronoTurn()">C'est parti ! (Tour suivant)</button>
             
-            <!-- Boîte de gage aléatoire en cas d'explosion -->
             <div id="penalty-box" class="penalty-box">
                 💥 <strong>Gage pour le perdant :</strong> <span id="penalty-text"></span>
             </div>
@@ -582,7 +580,7 @@
     let currentPlayers = [];
     let activeTimer = null;
 
-    // Banques de données par catégorie
+    // Banques de données générales
     const dataLab = {
         enfants: ["Chat", "Banane", "Chapeau", "Vélo", "Ballon", "Maison", "Arbre", "Poisson"],
         facile: ["Chocolat", "Astronaute", "Canapé", "Montgolfière", "Volcan", "Pyramide", "Pirate"],
@@ -590,14 +588,49 @@
     };
     let currentLabCat = 'enfants';
 
+    // -- BANQUE ÉTENDUE DE CATÉGORIES POUR ALERTE ROUGE (Plus de 100 entrées) --
     const dataChrono = {
-        enfants: ["Un animal à poils", "Un fruit rouge", "Un dessin animé", "Un vêtement d'hiver", "Une chose qu'on trouve dans la trousse"],
-        facile: ["Animal aquatique", "Marque de voiture", "Objet de cuisine", "Ville en M", "Film SF"],
-        difficile: ["Un pays en 'A'", "Un Nobel de littérature", "Une formule chimique", "Un compositeur classique", "Une ville hôte des JO"]
+        enfants: [
+            "Un animal à poils", "Un fruit rouge", "Un dessin animé", "Un vêtement d'hiver", "Une chose qu'on trouve dans la trousse",
+            "Un animal qui vole", "Un légume vert", "Un jeu de société", "Une couleur primaire", "Un métier rigolo",
+            "Un jouet en plastique", "Un aliment sucré", "Un personnage de Disney", "Un moyen de transport", "Une matière apprise à l'école",
+            "Un animal de la ferme", "Un sport avec un ballon", "Une chose qu'on trouve dans la salle de bain", "Un vêtement d'été", "Un instrument de musique",
+            "Un fruit jaune", "Un animal marin", "Un ustensile de cuisine", "Un super-héros", "Un antilope ou félin",
+            "Un meuble de la chambre", "Un accessoire de plage", "Un bonbon ou une friandise", "Un félin", "Une fleur du jardin",
+            "Un oiseau commun", "Un vêtement de sport", "Une boisson fraîche", "Un personnage de conte", "Un ustensile de bain",
+            "Un animal qui fait du bruit", "Un type de pain", "Une partie du visage", "Un outil de bricolage", "Un habit de princesse"
+        ],
+        facile: [
+            "Animal aquatique", "Marque de voiture", "Objet de cuisine", "Ville en M", "Film SF",
+            "Une race de chien", "Une marque de chocolat", "Un pays d'Europe", "Un acteur américain", "Une série télévisée",
+            "Un plat de pâtes", "Une boisson alcoolisée", "Un fleuve célèbre", "Un groupe de rock", "Un animal sauvage d'Afrique",
+            "Un jeu vidéo populaire", "Une marque de smartphone", "Un vêtement classe", "Un métier stressant", "Une matière scolaire au lycée",
+            "Un outil de jardinage", "Un type de fromage", "Un monument parisien", "Une île paradisiaque", "Une marque de chaussures",
+            "Un sport olympique", "Une célébrité française", "Un roman classique", "Un accessoire de mode", "Un type de véhicule à moteur",
+            "Une ville côtière", "Un parfum de glace", "Une fête traditionnelle", "Un type d'arbre", "Un ustensile de coiffure",
+            "Un outil informatique", "Un meuble de salon", "Une marque de soda", "Un type de chaussure", "Un instrument à cordes"
+        ],
+        difficile: [
+            "Un pays en 'A'", "Un Nobel de littérature", "Une formule chimique", "Un compositeur classique", "Une ville hôte des JO",
+            "Un élément du tableau périodique", "Un philosophe grec", "Une galaxie ou nébuleuse", "Un terme technique en architecture", "Un prix Nobel de la paix",
+            "Un empereur romain", "Un isonite ou minéral rare", "Une œuvre de Shakespeare", "Un théorème mathématique", "Un pays sans littoral",
+            "Une invention du XIXe siècle", "Un auteur de tragédies", "Un fleuve d'Asie", "Une constellation visible en hiver", "Un terme d'astrophysique",
+            "Une langue morte", "Un traité historique célèbre", "Un peintre impressionniste", "Un royaume disparu", "Une unité de mesure physique",
+            "Un site archéologique mondial", "Un oiseau endémique d'Océanie", "Un acide aminé", "Une particule élémentaire", "Un stratège militaire historique",
+            "Une étape du cycle de l'eau", "Un opéra de Mozart", "Une république fédérale", "Un satellite naturel du système solaire", "Un auteur de science-fiction classique",
+            "Une invention médicale majeure", "Un pont célèbre dans le monde", "Un désert aride", "Un archipel volcanique", "Un ordre d'architecture antique"
+        ]
     };
     let currentChronoCat = 'enfants';
 
-    // Liste de mini-gages décalés pour l'alerte rouge
+    // Suivi des catégories déjà jouées pour éviter les doublons au sein d'une même session
+    let usedChronoCategories = {
+        enfants: [],
+        facile: [],
+        difficile: []
+    };
+
+    // Liste de mini-gages décalés
     const penaltyList = [
         "Fais le cri d'un animal de ton choix pendant 5 secondes !",
         "Cite 3 excuses absurdes pour ne pas faire la vaisselle.",
@@ -652,7 +685,12 @@
 
     // Fonctions de changement de catégorie
     function setLabCategory(cat, btn) { currentLabCat = cat; updateActiveBtn(btn); nextLabRound(); }
-    function setChronoCategory(cat, btn) { currentChronoCat = cat; updateActiveBtn(btn); }
+    function setChronoCategory(cat, btn) { 
+        currentChronoCat = cat; 
+        updateActiveBtn(btn); 
+        // Réinitialise l'historique de cette catégorie si l'on change de niveau
+        usedChronoCategories[cat] = [];
+    }
     function setAlchimieCategory(cat, btn) { currentAlchimieCat = cat; updateActiveBtn(btn); initAlchimie(); }
     function setImposteurCategory(cat, btn) { currentImposteurCat = cat; updateActiveBtn(btn); initImposteur(); }
     function setOrdonnanceCategory(cat, btn) { currentOrdonnanceCat = cat; updateActiveBtn(btn); initOrdonnance(); }
@@ -725,6 +763,8 @@
             document.getElementById('chrono-timer').textContent = document.getElementById('chrono-duration').value; 
             document.body.classList.remove('exploded');
             document.getElementById('penalty-box').style.display = 'none';
+            // Remise à zéro des catégories jouées pour une nouvelle partie fraîche
+            usedChronoCategories = { enfants: [], facile: [], difficile: [] };
         }
         if(currentGameKey === 'alchimie') initAlchimie();
         if(currentGameKey === 'dices') rollDices();
@@ -764,14 +804,13 @@
         `;
     }
 
-    // --- 2. Chrono ---
+    // --- 2. Chrono (Anti-répétition intégré) ---
     function triggerVisualExplosion() {
         document.body.classList.add('exploded');
         const timerEl = document.getElementById('chrono-timer');
         timerEl.classList.add('shake');
         setTimeout(() => { timerEl.classList.remove('shake'); }, 500);
 
-        // Afficher un gage aléatoire
         const randomPenalty = penaltyList[Math.floor(Math.random() * penaltyList.length)];
         document.getElementById('penalty-text').textContent = randomPenalty;
         document.getElementById('penalty-box').style.display = 'block';
@@ -782,8 +821,18 @@
         document.body.classList.remove('exploded');
         document.getElementById('penalty-box').style.display = 'none';
         
-        const catList = dataChrono[currentChronoCat];
-        const cat = catList[Math.floor(Math.random() * catList.length)];
+        const fullList = dataChrono[currentChronoCat];
+        let available = fullList.filter(item => !usedChronoCategories[currentChronoCat].includes(item));
+        
+        // Si toutes les catégories ont été jouées, on réinitialise l'historique pour boucler proprement
+        if(available.length === 0) {
+            usedChronoCategories[currentChronoCat] = [];
+            available = fullList;
+        }
+
+        const cat = available[Math.floor(Math.random() * available.length)];
+        usedChronoCategories[currentChronoCat].push(cat);
+
         document.getElementById('chrono-category').textContent = `Catégorie : ${cat}`;
         
         let selectedTime = parseInt(document.getElementById('chrono-duration').value) || 10;
@@ -895,7 +944,7 @@
     function initOrdonnance() {
         const chronosData = dataOrdonnance[currentOrdonnanceCat];
         let html = `<p>Remettez ces événements du plus ancien au plus récent :</p><div style="display:flex; flex-direction:column; gap:10px; margin:15px 0;">`;
-        chronosData.forEach((item, idx) => {
+        chronosData.eval = chronosData.forEach((item, idx) => {
             html += `<div style="background:#334155; padding:12px; border-radius:8px;">• ${item.event}</div>`;
         });
         html += `</div><button class="action-btn" onclick="this.nextElementSibling.style.display='block';">Afficher la correction</button>
