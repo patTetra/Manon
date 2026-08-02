@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Budget Manon</title>
+    <title>Mon Budget Connected</title>
     
     <!-- Icône pour l'écran d'accueil iOS (iPhone / iPad) -->
     <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/TON_PSEUDO_GITHUB/NOM_DU_REPO/main/nom-de-ton-image.png">
@@ -54,11 +54,12 @@
         .solde-actions { display: flex; gap: 10px; margin-top: 15px; }
         .solde-actions button { flex: 1; background: rgba(255,255,255,0.25); border: 1.5px solid white; font-size: 0.9em; }
         .action-input { display: flex; gap: 8px; margin-top: 8px; }
-        input { flex: 1; padding: 11px; border-radius: 12px; border: 2px solid #cbd5e1; font-size: 1em; outline: none; box-sizing: border-box; }
-        input:focus { border-color: var(--text-main); }
+        input, select { flex: 1; padding: 11px; border-radius: 12px; border: 2px solid #cbd5e1; font-size: 1em; outline: none; box-sizing: border-box; background: white; }
+        input:focus, select:focus { border-color: var(--text-main); }
         .liste-historique { max-height: 280px; overflow-y: auto; }
         .hist-mois-titre { font-size: 0.8em; font-weight: 700; color: #3498db; text-transform: uppercase; margin: 12px 0 4px 0; letter-spacing: 0.5px; border-bottom: 1.5px solid #edf2f7; padding-bottom: 2px; }
-        .hist-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(0,0,0,0.04); }
+        .hist-item { display: flex; justify-content: space-between; align-items: center; padding: 9px 8px; border-bottom: 1px solid rgba(0,0,0,0.04); border-radius: 8px; cursor: pointer; transition: background 0.2s; }
+        .hist-item:hover { background: #f1f5f9; }
         .hist-desc { font-weight: 600; font-size: 0.9em; }
         .hist-date { font-size: 0.75em; color: #7f8c8d; }
         .hist-montant { font-weight: 700; font-size: 0.95em; }
@@ -70,7 +71,7 @@
         .modal-content h2 { margin-top: 0; font-size: 1.3em; margin-bottom: 15px; }
         .form-group { margin-bottom: 12px; }
         .form-group label { display: block; margin-bottom: 4px; font-weight: 600; font-size: 0.85em; }
-        .form-group input { width: 100%; }
+        .form-group input, .form-group select { width: 100%; }
         .modal-actions { display: flex; gap: 10px; margin-top: 18px; }
         .modal-actions button { flex: 1; }
         .btn-secondary { background: #bdc3c7; color: #2d3436; }
@@ -131,7 +132,11 @@
         </div>
 
         <!-- HISTORIQUE -->
-        <div class="card"><h3>📊 Mon Historique</h3><div class="liste-historique" id="liste-historique"></div></div>
+        <div class="card">
+            <h3>📊 Mon Historique</h3>
+            <div style="font-size: 0.75em; color: #7f8c8d; margin-bottom: 8px;">💡 Astuce : Clique sur une ligne pour la modifier ou la supprimer.</div>
+            <div class="liste-historique" id="liste-historique"></div>
+        </div>
     </div>
 
     <!-- MODAL RECEVOIR -->
@@ -160,6 +165,29 @@
             <div class="form-group"><label>Qu'as-tu acheté ?</label><input type="text" id="depense-desc"></div>
             <div class="form-group"><label>Date</label><input type="date" id="depense-date"></div>
             <div class="modal-actions"><button class="btn-secondary" onclick="fermerDepense()">Annuler</button><button style="background: var(--red);" onclick="enregistrerDepense()">Valider</button></div>
+        </div>
+    </div>
+
+    <!-- MODAL MODIFIER ENTRÉE HISTORIQUE -->
+    <div class="modal" id="modal-edit-hist">
+        <div class="modal-content">
+            <h2>✏️ Modifier l'opération</h2>
+            <input type="hidden" id="edit-hist-index">
+            <div class="form-group">
+                <label>Type d'opération</label>
+                <select id="edit-hist-type">
+                    <option value="gain">Gain / Entrée (+)</option>
+                    <option value="depense">Achat / Sortie (-)</option>
+                </select>
+            </div>
+            <div class="form-group"><label>Description</label><input type="text" id="edit-hist-desc"></div>
+            <div class="form-group"><label>Montant (€)</label><input type="number" inputmode="decimal" id="edit-hist-montant"></div>
+            <div class="form-group"><label>Date</label><input type="date" id="edit-hist-date"></div>
+            <div class="modal-actions">
+                <button class="btn-secondary" onclick="fermerModalEditHist()">Annuler</button>
+                <button style="background: var(--red);" onclick="supprimerEntreeHist()">Supprimer</button>
+                <button style="background: var(--primary);" onclick="validerModificationHist()">Enregistrer</button>
+            </div>
         </div>
     </div>
 
@@ -386,15 +414,17 @@
             if (currentHistory.length === 0) {
                 listeHistorique.innerHTML = "<div class='vide'>Aucune opération enregistrée.</div>";
             } else {
-                // 1. Trier tous les éléments du plus récent au plus ancien par date
-                const historiqueTrie = [...currentHistory].sort((a, b) => new Date(b.date) - new Date(a.date));
+                // Associer chaque item à son index d'origine avant le tri pour pouvoir le modifier/supprimer facilement
+                const historiqueAvecIndex = currentHistory.map((item, originalIndex) => ({ ...item, originalIndex }));
+                
+                // Trier du plus récent au plus ancien par date
+                historiqueWithSorted = historiqueAvecIndex.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-                // 2. Grouper par mois/année (ex: "juin 2026")
+                // Grouper par mois/année
                 const groupesMois = {};
-                historiqueTrie.forEach(item => {
+                historiqueWithSorted.forEach(item => {
                     const dateObj = new Date(item.date);
                     const moisAnneeNom = dateObj.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
-                    // Capitaliser la première lettre du mois
                     const cleMois = moisAnneeNom.charAt(0).toUpperCase() + moisAnneeNom.slice(1);
                     
                     if (!groupesMois[cleMois]) {
@@ -403,7 +433,7 @@
                     groupesMois[cleMois].push(item);
                 });
 
-                // 3. Générer le HTML par groupe de mois
+                // Générer le HTML
                 for (const [mois, items] of Object.entries(groupesMois)) {
                     const titreMois = document.createElement('div');
                     titreMois.className = 'hist-mois-titre';
@@ -413,6 +443,8 @@
                     items.forEach(item => {
                         const div = document.createElement('div');
                         div.className = 'hist-item';
+                        div.onclick = () => ouvrirModalEditHist(item.originalIndex);
+                        
                         const estGain = item.type === 'gain';
                         const dateFr = item.date.split('-').reverse().join('/');
                         div.innerHTML = `<div><div class="hist-desc">${item.desc}</div><div class="hist-date">${dateFr}</div></div>
@@ -420,6 +452,57 @@
                         listeHistorique.appendChild(div);
                     });
                 }
+            }
+        }
+
+        // --- GESTION MODIFICATION / SUPPRESSION HISTORIQUE ---
+        function ouvrirModalEditHist(index) {
+            const item = currentHistory[index];
+            if (!item) return;
+
+            document.getElementById('edit-hist-index').value = index;
+            document.getElementById('edit-hist-type').value = item.type;
+            document.getElementById('edit-hist-desc').value = item.desc;
+            document.getElementById('edit-hist-montant').value = item.montant;
+            document.getElementById('edit-hist-date').value = item.date;
+
+            document.getElementById('modal-edit-hist').style.display = 'flex';
+        }
+
+        function fermerModalEditHist() {
+            document.getElementById('modal-edit-hist').style.display = 'none';
+        }
+
+        async function validerModificationHist() {
+            const index = parseInt(document.getElementById('edit-hist-index').value);
+            const nvType = document.getElementById('edit-hist-type').value;
+            const nvDesc = document.getElementById('edit-hist-desc').value.trim();
+            const nvMontant = parseFloat(document.getElementById('edit-hist-montant').value);
+            const nvDate = document.getElementById('edit-hist-date').value;
+
+            if (!nvDesc || isNaN(nvMontant) || nvMontant <= 0 || !nvDate) {
+                alert("Merci de remplir correctement tous les champs.");
+                return;
+            }
+
+            // Mettre à jour l'élément dans le tableau d'historique
+            currentHistory[index] = {
+                date: nvDate,
+                type: nvType,
+                desc: nvDesc,
+                montant: nvMontant
+            };
+
+            fermerModalEditHist();
+            await pushToGitHub(`Modification opération: ${nvDesc}`);
+        }
+
+        async function supprimerEntreeHist() {
+            const index = parseInt(document.getElementById('edit-hist-index').value);
+            if (confirm("⚠️ Veux-tu vraiment supprimer cette opération de l'historique ? (Attention, cela ne modifie pas automatiquement ton solde en espèces si tu t'étais trompé au départ, ajuste ton solde dans les réglages si nécessaire).")) {
+                currentHistory.splice(index, 1);
+                fermerModalEditHist();
+                await pushToGitHub("Suppression d'une opération de l'historique");
             }
         }
 
