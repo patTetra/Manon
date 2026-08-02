@@ -1,5 +1,5 @@
 {
-  "solde": 50,
+  "solde": 42.5,
   "tirelire": 15,
   "objectifActuel": 0,
   "objectifCible": 50,
@@ -28,6 +28,12 @@
       "type": "depense",
       "desc": "Collier mammouth",
       "montant": 7
+    },
+    {
+      "date": "2026-07-17",
+      "type": "depense",
+      "desc": "Collier coeur",
+      "montant": 7.5
     }
   ]
 }
