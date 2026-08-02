@@ -1,5 +1,5 @@
 {
-  "solde": 18,
+  "solde": 9.05,
   "tirelire": 15,
   "objectifActuel": 0,
   "objectifCible": 50,
@@ -16,6 +16,12 @@
       "type": "gain",
       "desc": "Papa",
       "montant": 5
+    },
+    {
+      "date": "2026-07-21",
+      "type": "depense",
+      "desc": "Fnac support sac",
+      "montant": 8.95
     }
   ]
 }
