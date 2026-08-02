@@ -1,5 +1,5 @@
 {
-  "solde": 42.5,
+  "solde": 32.5,
   "tirelire": 15,
   "objectifActuel": 0,
   "objectifCible": 50,
@@ -34,6 +34,12 @@
       "type": "depense",
       "desc": "Collier coeur",
       "montant": 7.5
+    },
+    {
+      "date": "2026-07-14",
+      "type": "depense",
+      "desc": "Miroirs",
+      "montant": 10
     }
   ]
 }
