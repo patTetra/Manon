@@ -1,5 +1,5 @@
 {
-  "solde": 13,
+  "solde": 18,
   "tirelire": 15,
   "objectifActuel": 0,
   "objectifCible": 50,
@@ -10,6 +10,12 @@
       "type": "depense",
       "desc": "🐷 Vers Tirelire",
       "montant": 15
+    },
+    {
+      "date": "2026-07-30",
+      "type": "gain",
+      "desc": "Papa",
+      "montant": 5
     }
   ]
 }
