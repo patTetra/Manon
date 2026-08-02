@@ -1,5 +1,5 @@
 {
-  "solde": 32.5,
+  "solde": 42.5,
   "tirelire": 15,
   "objectifActuel": 0,
   "objectifCible": 50,
@@ -39,6 +39,12 @@
       "date": "2026-07-14",
       "type": "depense",
       "desc": "Miroirs",
+      "montant": 10
+    },
+    {
+      "date": "2026-07-13",
+      "type": "gain",
+      "desc": "Papa",
       "montant": 10
     }
   ]
