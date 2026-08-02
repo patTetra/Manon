@@ -2,412 +2,781 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Budget de Manon</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Budget Manon</title>
+    
+    <!-- Icône pour l'écran d'accueil iOS (iPhone / iPad) -->
+    <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/patTetra/Manon/main/sac-dargent.png">
+    
+    <!-- Mode "vraie app" plein écran sur iOS -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
     <style>
-        :root {
-            --primary-color: #ff6b81;
-            --bg-color: #f7f9fc;
-            --card-bg: #ffffff;
-            --text-color: #333333;
-            --text-light: #777777;
-            --success-color: #2ed573;
-            --danger-color: #ff4757;
+        :root { 
+            --bg-color: #f7f9fa; 
+            --card-bg: #ffffff; 
+            --text-main: #2d3436; 
+            --primary: #2ecc71; 
+            --orange: #e67e22; 
+            --blue: #3498db; 
+            --red: #e74c3c; 
         }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            margin: 0;
-            padding: 16px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
+            background: var(--bg-color); 
+            padding: 15px; 
+            margin: 0; 
+            color: var(--text-main); 
         }
-
-        .container {
-            width: 100%;
-            max-width: 400px;
-        }
-
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        h1 {
-            font-size: 1.5rem;
-            margin: 0;
-            color: var(--primary-color);
-        }
-
-        .secret-btn {
-            background: none;
-            border: none;
-            font-size: 1.2rem;
-            cursor: pointer;
-            padding: 8px;
-            border-radius: 50%;
-            background-color: #eee;
-        }
-
-        .card {
-            background-color: var(--card-bg);
-            border-radius: 16px;
-            padding: 20px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        .balance-title {
-            font-size: 0.9rem;
-            color: var(--text-light);
-            margin-bottom: 8px;
-        }
-
-        .balance-amount {
-            font-size: 2.2rem;
-            font-weight: bold;
-            color: var(--text-color);
-            margin: 0;
-        }
-
-        .actions {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-bottom: 24px;
-        }
-
-        button.action-btn {
-            background-color: var(--primary-color);
-            color: white;
-            border: none;
-            border-radius: 12px;
-            padding: 14px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            box-shadow: 0 4px 8px rgba(255, 107, 129, 0.3);
-        }
-
-        button.action-btn.expense {
-            background-color: #ffa502;
-            box-shadow: 0 4px 8px rgba(255, 165, 2, 0.3);
-        }
-
-        .history-title {
-            font-size: 1.1rem;
-            font-weight: 600;
-            margin-bottom: 12px;
-        }
-
-        .transaction-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            max-height: 250px;
-            overflow-y: auto;
-        }
-
-        .transaction-item {
-            background-color: var(--card-bg);
-            border-radius: 10px;
-            padding: 12px 16px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-        }
-
-        .trans-info {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-        }
-
-        .trans-label {
-            font-weight: 500;
-            font-size: 0.95rem;
-        }
-
-        .trans-date {
-            font-size: 0.75rem;
-            color: var(--text-light);
-            margin-top: 2px;
-        }
-
-        .trans-amount {
-            font-weight: 600;
-            font-size: 1rem;
-        }
-
-        .trans-amount.credit {
-            color: var(--success-color);
-        }
-
-        .trans-amount.expense {
-            color: var(--danger-color);
-        }
-
-        /* Modal simple pour ajouter une transaction */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(0,0,0,0.5);
-            justify-content: center;
-            align-items: center;
-        }
-
-        .modal-content {
-            background-color: white;
-            padding: 24px;
-            border-radius: 16px;
-            width: 85%;
-            max-width: 320px;
-        }
-
-        .modal-content h3 {
-            margin-top: 0;
-        }
-
-        .modal-content input {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 12px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            box-sizing: border-box;
-            font-size: 1rem;
-        }
-
-        .modal-buttons {
-            display: flex;
-            gap: 10px;
-        }
-
-        .modal-buttons button {
-            flex: 1;
-            padding: 10px;
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-
-        .btn-cancel { background-color: #eee; color: #555; }
-        .btn-confirm { background-color: var(--primary-color); color: white; }
+        .container { max-width: 450px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+        .header h1 { font-size: 1.4em; margin: 0; }
+        .synchro-box { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 15px; }
+        .synchro-status { font-size: 0.8em; color: #7f8c8d; font-weight: 600;}
+        .btn-sync-force { background: #e2e8f0; color: #475569; padding: 4px 8px; border-radius: 8px; font-size: 0.75em; border: none; font-weight: bold; cursor: pointer; }
+        .btn-param { background: none; border: none; font-size: 1.6em; cursor: pointer; color: #7f8c8d; }
+        .card { background: var(--card-bg); padding: 20px; border-radius: 24px; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); }
+        .solde-card { background: linear-gradient(135deg, #1abc9c, #2ecc71); color: white; text-align: center; }
+        .solde-card .montant { color: white; }
+        .badge { display: inline-block; padding: 5px 12px; border-radius: 20px; font-size: 0.8em; font-weight: bold; color: white; margin-top: 5px; }
+        .tirelire-card { background-color: #ffe6d9; }
+        .objectif-card { background-color: #dbeaff; }
+        .montant { font-size: 2.2em; font-weight: 800; text-align: center; margin: 10px 0; }
+        h3 { margin-top: 0; margin-bottom: 5px; font-size: 1.15em; }
+        .progress-container { background: rgba(0, 0, 0, 0.08); border-radius: 10px; height: 12px; width: 100%; margin: 10px 0 5px 0; overflow: hidden; }
+        .progress-bar { height: 100%; width: 0%; transition: width 0.4s ease-out, background-color 0.4s; }
+        .progress-info { display: flex; justify-content: space-between; font-size: 0.85em; color: #5d6a6b; margin-bottom: 12px; }
+        .btn-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; }
+        button { border: none; padding: 12px; border-radius: 12px; font-weight: bold; color: white; cursor: pointer; font-size: 0.95em; }
+        button:active { transform: scale(0.96); }
+        button.btn-retrait { background: var(--red); width: 100%; margin-top: 10px; padding: 10px;}
+        .solde-actions { display: flex; gap: 10px; margin-top: 15px; }
+        .solde-actions button { flex: 1; background: rgba(255,255,255,0.25); border: 1.5px solid white; font-size: 0.9em; }
+        .action-input { display: flex; gap: 8px; margin-top: 8px; }
+        input, select { flex: 1; padding: 11px; border-radius: 12px; border: 2px solid #cbd5e1; font-size: 1em; outline: none; box-sizing: border-box; background: white; }
+        input:focus, select:focus { border-color: var(--text-main); }
+        .liste-historique { max-height: 280px; overflow-y: auto; }
+        .hist-mois-titre { font-size: 0.8em; font-weight: 700; color: #3498db; text-transform: uppercase; margin: 12px 0 4px 0; letter-spacing: 0.5px; border-bottom: 1.5px solid #edf2f7; padding-bottom: 2px; }
+        .hist-item { display: flex; justify-content: space-between; align-items: center; padding: 9px 8px; border-bottom: 1px solid rgba(0,0,0,0.04); border-radius: 8px; cursor: pointer; transition: background 0.2s; }
+        .hist-item:hover { background: #f1f5f9; }
+        .hist-desc { font-weight: 600; font-size: 0.9em; }
+        .hist-date { font-size: 0.75em; color: #7f8c8d; }
+        .hist-montant { font-weight: 700; font-size: 0.95em; }
+        .montant-plus { color: #27ae60; }
+        .montant-moins { color: var(--red); }
+        .vide { text-align: center; color: #95a5a6; padding: 15px 0; font-size: 0.9em; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; padding: 15px; box-sizing: border-box; }
+        .modal-content { background: white; padding: 22px; border-radius: 24px; width: 100%; max-width: 400px; max-height: 85vh; overflow-y: auto; color: var(--text-main); }
+        .modal-content h2 { margin-top: 0; font-size: 1.3em; margin-bottom: 15px; }
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; margin-bottom: 4px; font-weight: 600; font-size: 0.85em; }
+        .form-group input, .form-group select { width: 100%; }
+        .modal-actions { display: flex; gap: 10px; margin-top: 18px; }
+        .modal-actions button { flex: 1; }
+        .btn-secondary { background: #bdc3c7; color: #2d3436; }
+        .param-section { border-top: 2px dashed #eee; margin-top: 15px; padding-top: 15px; }
     </style>
 </head>
 <body>
+    <div class="container">
+        <div class="header">
+            <h1>Mon budget 💸</h1>
+            <button class="btn-param" onclick="demanderCodePIN()">⚙️</button>
+        </div>
+        <div class="synchro-box">
+            <div class="synchro-status" id="statut-synchro">🔌 Mode Local (Hors ligne)</div>
+            <button class="btn-sync-force" onclick="chargerDonneesGitHub()">🔄 Forcer Synchro</button>
+        </div>
 
-<div class="container">
-    <header>
-        <h1>Le Budget de Manon</h1>
-        <button class="secret-btn" id="secretToggle" onclick="toggleSecretMode()">👁️</button>
-    </header>
+        <!-- SOLDE -->
+        <div class="card solde-card">
+            <div style="font-weight: 600; opacity: 0.9;">Argent de poche disponible</div>
+            <div class="montant" id="solde">0.00 €</div>
+            <div class="badge" id="badge-statut">🌱 Écureuil Débutant</div>
+            <div class="solde-actions"><button onclick="ouvrirGain()">➕ Recevoir</button><button onclick="abrirDepense()">🛒 Un Achat</button></div>
+        </div>
+        
+        <!-- TIRELIRE -->
+        <div class="card tirelire-card">
+            <h3>🐷 Tirelire (Épargne)</h3>
+            <div class="montant" id="tirelire">0.00 €</div>
+            <div class="btn-grid">
+                <button style="background:var(--orange)" onclick="transfererVersEpargne('tirelire', 1)">+ 1 €</button>
+                <button style="background:var(--orange)" onclick="transfererVersEpargne('tirelire', 5)">+ 5 €</button>
+                <button style="background:var(--orange)" onclick="transfererVersEpargne('tirelire', 10)">+ 10 €</button>
+            </div>
+            <div class="action-input">
+                <input type="number" inputmode="decimal" id="input-tirelire" placeholder="Autre montant...">
+                <button style="background:var(--orange);" onclick="actionEpargnePerso('tirelire', 'input-tirelire')">OK</button>
+            </div>
+            <button class="btn-retrait" style="background: var(--orange)" onclick="ouvrirRetrait('tirelire')">Récupérer de l'argent ↩</button>
+        </div>
 
-    <div class="card">
-        <div class="balance-title">Solde actuel</div>
-        <div class="balance-amount" id="balanceDisplay">0,00 €</div>
-    </div>
+        <!-- OBJECTIF -->
+        <div class="card objectif-card">
+            <h3 id="titre-objectif">🎯 Mon Objectif</h3>
+            <div class="montant" id="obj-val">0.00 €</div>
+            <div class="progress-container"><div class="progress-bar" id="barre-progression"></div></div>
+            <div class="progress-info"><span id="pourcentage-text">0%</span><span id="obj-cible-text">sur 50.00 €</span></div>
+            <div class="btn-grid">
+                <button style="background:var(--blue)" onclick="transfererVersEpargne('objectif', 1)">+ 1 €</button>
+                <button style="background:var(--blue)" onclick="transfererVersEpargne('objectif', 5)">+ 5 €</button>
+                <button style="background:var(--blue)" onclick="transfererVersEpargne('objectif', 10)">+ 10 €</button>
+            </div>
+            <div class="action-input">
+                <input type="number" inputmode="decimal" id="input-objectif" placeholder="Autre montant...">
+                <button style="background:var(--blue);" onclick="actionEpargnePerso('objectif', 'input-objectif')">OK</button>
+            </div>
+            <button class="btn-retrait" style="background: var(--blue)" onclick="ouvrirRetrait('objectif')">Récupérer pour acheter ↩</button>
+        </div>
 
-    <div class="actions">
-        <button class="action-btn" onclick="openModal('credit')">+ Ajouter</button>
-        <button class="action-btn expense" onclick="openModal('expense')">- Dépenser</button>
-    </div>
-
-    <div class="history-title">Historique</div>
-    <ul class="transaction-list" id="transactionList">
-        <!-- Rempli dynamiquement -->
-    </ul>
-</div>
-
-<!-- Modal -->
-<div class="modal" id="txModal">
-    <div class="modal-content">
-        <h3 id="modalTitle">Ajouter de l'argent</h3>
-        <input type="text" id="txLabel" placeholder="Motif (ex: Anniversaire...)">
-        <input type="number" id="txAmount" placeholder="Montant en €" step="0.01">
-        <div class="modal-buttons">
-            <button class="btn-cancel" onclick="closeModal()">Annuler</button>
-            <button class="btn-confirm" onclick="saveTransaction()">Valider</button>
+        <!-- HISTORIQUE -->
+        <div class="card">
+            <h3>📊 Mon Historique</h3>
+            <div style="font-size: 0.75em; color: #7f8c8d; margin-bottom: 8px;">💡 Astuce : Clique sur une ligne pour la modifier ou la supprimer.</div>
+            <div class="liste-historique" id="liste-historique"></div>
         </div>
     </div>
-</div>
 
-<script>
-    let appData = {
-        balance: 0,
-        transactions: [],
-        lastAllowanceDate: null,
-        secretMode: false
-    };
+    <!-- MODAL RECEVOIR -->
+    <div class="modal" id="modal-gain">
+        <div class="modal-content">
+            <h2>➕ Recevoir</h2>
+            <div class="form-group"><label>Montant (€)</label><input type="number" inputmode="decimal" id="gain-montant"></div>
+            <div class="form-group">
+                <label>Provenance</label>
+                <div style="display: flex; gap: 10px; margin-bottom: 10px; margin-top: 5px;">
+                    <button type="button" style="background-color: #e2e8f0; color: #475569; flex: 1; padding: 10px; border-radius: 12px; font-size: 0.9em; font-weight: 600;" onclick="document.getElementById('gain-desc').value='Grands-parents'">👴👵 Grands-parents</button>
+                    <button type="button" style="background-color: #e2e8f0; color: #475569; flex: 1; padding: 10px; border-radius: 12px; font-size: 0.9em; font-weight: 600;" onclick="document.getElementById('gain-desc').value='Papa'">👨 Papa</button>
+                </div>
+                <input type="text" id="gain-desc" placeholder="Ou saisis une autre provenance...">
+            </div>
+            <div class="form-group"><label>Date</label><input type="date" id="gain-date"></div>
+            <div class="modal-actions"><button class="btn-secondary" onclick="fermerGain()">Annuler</button><button style="background: var(--primary);" onclick="enregistrerGain()">Ajouter</button></div>
+        </div>
+    </div>
 
-    let currentType = 'credit';
+    <!-- MODAL ACHAT -->
+    <div class="modal" id="modal-depense">
+        <div class="modal-content">
+            <h2>🛒 Un Achat</h2>
+            <div class="form-group"><label>Montant (€)</label><input type="number" inputmode="decimal" id="depense-montant"></div>
+            <div class="form-group"><label>Qu'as-tu acheté ?</label><input type="text" id="depense-desc"></div>
+            <div class="form-group"><label>Date</label><input type="date" id="depense-date"></div>
+            <div class="modal-actions"><button class="btn-secondary" onclick="fermerDepense()">Annuler</button><button style="background: var(--red);" onclick="enregistrerDepense()">Valider</button></div>
+        </div>
+    </div>
 
-    function loadData() {
-        const saved = localStorage.getItem('budget_manon');
-        if (saved) {
-            appData = JSON.parse(saved);
+    <!-- MODAL MODIFIER ENTRÉE HISTORIQUE -->
+    <div class="modal" id="modal-edit-hist">
+        <div class="modal-content">
+            <h2>✏️ Modifier l'opération</h2>
+            <input type="hidden" id="edit-hist-index">
+            <div class="form-group">
+                <label>Type d'opération</label>
+                <select id="edit-hist-type">
+                    <option value="gain">Gain / Entrée (+)</option>
+                    <option value="depense">Achat / Sortie (-)</option>
+                </select>
+            </div>
+            <div class="form-group"><label>Description</label><input type="text" id="edit-hist-desc"></div>
+            <div class="form-group"><label>Montant (€)</label><input type="number" inputmode="decimal" id="edit-hist-montant"></div>
+            <div class="form-group"><label>Date</label><input type="date" id="edit-hist-date"></div>
+            <div class="modal-actions">
+                <button class="btn-secondary" onclick="fermerModalEditHist()">Annuler</button>
+                <button style="background: var(--red);" onclick="supprimerEntreeHist()">Supprimer</button>
+                <button style="background: var(--primary);" onclick="validerModificationHist()">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL RETRAIT -->
+    <div class="modal" id="modal-retrait">
+        <div class="modal-content">
+            <h2 id="retrait-titre">↩ Récupérer</h2>
+            <div id="retrait-max" style="font-size: 0.9em; color: #7f8c8d; margin-bottom: 12px;"></div>
+            <div class="form-group"><label>Montant (€)</label><input type="number" inputmode="decimal" id="retrait-montant"></div>
+            <div class="modal-actions"><button class="btn-secondary" onclick="fermerRetrait()">Annuler</button><button style="background: var(--primary);" onclick="validerRetrait()">Confirmer</button></div>
+        </div>
+    </div>
+
+    <!-- SÉCURITÉ PIN -->
+    <div class="modal" id="modal-securite">
+        <div class="modal-content">
+            <h2 style="text-align: center;">🔒 Code PIN Requis</h2>
+            <div class="form-group">
+                <input type="password" inputmode="numeric" id="code-pincode" maxlength="4" style="text-align: center; font-size: 1.6em; letter-spacing: 10px;" placeholder="****">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" onclick="fermerSecurite()">Annuler</button>
+                <button style="background: var(--primary);" onclick="validerCodePIN()">Valider</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- REGLAGES -->
+    <div class="modal" id="modal-parametres">
+        <div class="modal-content">
+            <h2>⚙️ Réglages & Synchro GitHub</h2>
+            <div class="form-group"><label>Modifier Solde (€)</label><input type="number" inputmode="decimal" id="param-solde"></div>
+            <div class="form-group"><label>Nom de l'objectif</label><input type="text" id="param-nom-obj"></div>
+            <div class="form-group"><label>Cible objectif (€)</label><input type="number" inputmode="decimal" id="param-cible-obj"></div>
+            
+            <div class="param-section">
+                <label style="font-weight: bold; display:block; margin-bottom: 8px; color: var(--blue);">☁️ Connexion GitHub</label>
+                <div class="form-group"><label>Pseudo GitHub</label><input type="text" id="param-gh-user" placeholder="ex: mon-pseudo"></div>
+                <div class="form-group"><label>Nom du Dépôt</label><input type="text" id="param-gh-repo" placeholder="ex: budget-manon"></div>
+                <div class="form-group"><label>Personal Access Token</label><input type="password" id="param-gh-token" placeholder="ghp_xxxxxxxxxxxx"></div>
+            </div>
+
+            <!-- SECTION SAUVEGARDE / RESTAURATION LOCALE -->
+            <div class="param-section">
+                <label style="font-weight: bold; display:block; margin-bottom: 8px; color: var(--orange);">💾 Sauvegarde / Secours JSON</label>
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <button type="button" style="background: var(--blue); flex: 1; font-size: 0.85em; padding: 10px;" onclick="exporterJSON()">📤 Exporter JSON</button>
+                    <button type="button" style="background: var(--orange); flex: 1; font-size: 0.85em; padding: 10px;" onclick="document.getElementById('file-input-json').click()">📥 Importer JSON</button>
+                    <input type="file" id="file-input-json" accept=".json" style="display: none;" onchange="importerJSON(event)">
+                </div>
+            </div>
+
+            <div class="param-section" style="border: none; padding-top: 5px;">
+                <button style="background: var(--red); width: 100%; font-size: 0.9em; padding: 10px;" onclick="reinitialiserDonneesLocal()">⚠️ Remettre à zéro</button>
+            </div>
+            
+            <div class="modal-actions" style="margin-top: 20px;"><button class="btn-secondary" onclick="fermerParametres()">Fermer</button><button style="background: var(--primary);" onclick="enregistrerParametres()">Enregistrer</button></div>
+        </div>
+    </div>
+
+    <script>
+        let currentSolde = 0;
+        let currentTirelire = 0;
+        let currentObjectifActuel = 0;
+        let currentObjectifCible = 50;
+        let currentNomObjectif = "Mon Objectif";
+        let currentHistory = [];
+        let lastAllowanceDate = null; // Suivi du dernier versement d'argent de poche
+        
+        let cibleRetraitEnCours = "";
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const savedUser = localStorage.getItem("manon_gh_user");
+            const savedRepo = localStorage.getItem("manon_gh_repo");
+            const savedToken = localStorage.getItem("manon_gh_token");
+            if (savedUser && savedRepo && savedToken) {
+                chargerDonneesGitHub();
+            } else {
+                document.getElementById('statut-synchro').innerText = "🔌 Mode Local (Hors ligne)";
+                // Chargement local si présent
+                chargerDonneesLocales();
+                checkMonthlyAllowance();
+                afficher();
+            }
+        });
+
+        function getGitHubConfig() {
+            return {
+                user: localStorage.getItem("manon_gh_user"),
+                repo: localStorage.getItem("manon_gh_repo"),
+                token: localStorage.getItem("manon_gh_token")
+            };
         }
-    }
 
-    function saveData() {
-        localStorage.setItem('budget_manon', JSON.stringify(appData));
-    }
-
-    // Gestion automatique de l'argent de poche (15€ le 1er du mois avec rattrapage)
-    function checkMonthlyAllowance() {
-        const now = new Date();
-        const currentYear = now.getFullYear();
-        const currentMonth = now.getMonth(); // 0 à 11
-
-        if (!appData.lastAllowanceDate) {
-            // Initialisation à la date courante si premier lancement
-            appData.lastAllowanceDate = { year: currentYear, month: currentMonth };
-            // Si on souhaite verser immédiatement pour le mois en cours au premier lancement :
-            appData.balance += 15;
-            appData.transactions.unshift({
-                date: now.toISOString().split('T')[0],
-                label: "Argent de poche",
-                amount: 15,
-                type: "credit"
-            });
-        } else {
-            let lastDate = new Date(appData.lastAllowanceDate.year, appData.lastAllowanceDate.month, 1);
-            let currentDate = new Date(currentYear, currentMonth, 1);
-
-            let monthsPassed = (currentDate.getFullYear() - lastDate.getFullYear()) * 12 + (currentDate.getMonth() - lastDate.getMonth());
-
-            if (monthsPassed > 0) {
-                for (let i = 1; i <= monthsPassed; i++) {
-                    let targetDate = new Date(lastDate.getFullYear(), lastDate.getMonth() + i, 1);
-                    
-                    appData.balance += 15;
-                    appData.transactions.unshift({
-                        date: targetDate.toISOString().split('T')[0],
-                        label: "Argent de poche",
-                        amount: 15,
-                        type: "credit"
-                    });
-                }
-                appData.lastAllowanceDate = { year: currentYear, month: currentMonth };
+        function chargerDonneesLocales() {
+            const savedLocal = localStorage.getItem("manon_data_local");
+            if (savedLocal) {
+                try {
+                    const parsed = JSON.parse(savedLocal);
+                    currentSolde = parsed.solde ?? 0;
+                    currentTirelire = parsed.tirelire ?? 0;
+                    currentObjectifActuel = parsed.objectifActuel ?? 0;
+                    currentObjectifCible = parsed.objectifCible ?? 50;
+                    currentNomObjectif = parsed.nomObjectif ?? "Mon Objectif";
+                    currentHistory = parsed.history ?? [];
+                    lastAllowanceDate = parsed.lastAllowanceDate ?? null;
+                } catch(e) { console.error(e); }
             }
         }
-        saveData();
-    }
 
-    function render() {
-        // Affichage du solde avec gestion du mode secret
-        const balanceDisplay = document.getElementById('balanceDisplay');
-        if (appData.secretMode) {
-            balanceDisplay.textContent = "*** €";
-        } else {
-            balanceDisplay.textContent = appData.balance.toFixed(2).replace('.', ',') + " €";
+        function sauvegarderDonneesLocales() {
+            const dataPayload = {
+                solde: currentSolde,
+                tirelire: currentTirelire,
+                objectifActuel: currentObjectifActuel,
+                objectifCible: currentObjectifCible,
+                nomObjectif: currentNomObjectif,
+                history: currentHistory,
+                lastAllowanceDate: lastAllowanceDate
+            };
+            localStorage.setItem("manon_data_local", JSON.stringify(dataPayload));
         }
 
-        // Affichage de la liste
-        const listEl = document.getElementById('transactionList');
-        listEl.innerHTML = '';
+        // --- GESTION AUTOMATIQUE DE L'ARGENT DE POCHE (15€ LE 1er DU MOIS AVEC RATTRAPAGE) ---
+        function checkMonthlyAllowance() {
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth(); // 0 à 11
 
-        if (appData.transactions.length === 0) {
-            listEl.innerHTML = '<li style="text-align:center; color:#777; padding: 12px;">Aucune transaction</li>';
-            return;
+            if (!lastAllowanceDate) {
+                // Initialisation au mois en cours lors du premier lancement
+                lastAllowanceDate = { year: currentYear, month: currentMonth };
+                // Optionnel : on crédite le mois en cours dès l'initialisation si l'on souhaite que ça commence tout de suite
+                currentSolde += 15;
+                empilerHistorique('gain', 'Argent de poche', 15, now.toISOString().split('T')[0]);
+            } else {
+                let lastDate = new Date(lastAllowanceDate.year, lastAllowanceDate.month, 1);
+                let currentDate = new Date(currentYear, currentMonth, 1);
+
+                let monthsPassed = (currentDate.getFullYear() - lastDate.getFullYear()) * 12 + (currentDate.getMonth() - lastDate.getMonth());
+
+                if (monthsPassed > 0) {
+                    for (let i = 1; i <= monthsPassed; i++) {
+                        let targetDate = new Date(lastDate.getFullYear(), lastDate.getMonth() + i, 1);
+                        // Format de date YYYY-MM-DD propre
+                        let dateStr = targetDate.toISOString().split('T')[0];
+                        
+                        currentSolde += 15;
+                        empilerHistorique('gain', 'Argent de poche', 15, dateStr);
+                    }
+                    lastAllowanceDate = { year: currentYear, month: currentMonth };
+                }
+            }
+            sauvegarderDonneesLocales();
         }
 
-        appData.transactions.forEach(tx => {
-            const li = document.createElement('li');
-            li.className = 'transaction-item';
+        async function chargerDonneesGitHub() {
+            const { user, repo, token } = getGitHubConfig();
+            if (!user || !repo || !token) return;
 
-            const formattedAmount = appData.secretMode ? "*** €" : (tx.amount.toFixed(2).replace('.', ',') + " €");
-            const amountClass = tx.type === 'credit' ? 'credit' : 'expense';
-            const sign = tx.type === 'credit' ? '+' : '-';
+            document.getElementById('statut-synchro').innerText = "🔄 Synchronisation...";
 
-            li.innerHTML = `
-                <div class="trans-info">
-                    <span class="trans-label">${escapeHtml(tx.label)}</span>
-                    <span class="trans-date">${formatDate(tx.date)}</span>
-                </div>
-                <div class="trans-amount ${amountClass}">${sign} ${formattedAmount}</div>
-            `;
-            listEl.appendChild(li);
-        });
+            try {
+                const url = `https://api.github.com/repos/${user}/${repo}/contents/budget_manon.json?timestamp=${Date.now()}`;
+                const response = await fetch(url, {
+                    headers: { 'Authorization': `token ${token}` }
+                });
 
-        // Icône du bouton secret
-        document.getElementById('secretToggle').textContent = appData.secretMode ? "🙈" : "👁️";
-    }
+                if (!response.ok) throw new Error("Fichier introuvable ou erreur d'accès");
+                
+                const fileData = await response.json();
+                const contentDecoded = JSON.parse(decodeURIComponent(escape(atob(fileData.content))));
 
-    function toggleSecretMode() {
-        appData.secretMode = !appData.secretMode;
-        saveData();
-        render();
-    }
+                currentSolde = contentDecoded.solde ?? 0;
+                currentTirelire = contentDecoded.tirelire ?? 0;
+                currentObjectifActuel = contentDecoded.objectifActuel ?? 0;
+                currentObjectifCible = contentDecoded.objectifCible ?? 50;
+                currentNomObjectif = contentDecoded.nomObjectif ?? "Mon Objectif";
+                currentHistory = contentDecoded.history ?? [];
+                lastAllowanceDate = contentDecoded.lastAllowanceDate ?? null;
 
-    function openModal(type) {
-        currentType = type;
-        document.getElementById('modalTitle').textContent = type === 'credit' ? "Ajouter de l'argent" : "Enregistrer une dépense";
-        document.getElementById('txLabel').value = '';
-        document.getElementById('txAmount').value = '';
-        document.getElementById('txModal').style.display = 'flex';
-        document.getElementById('txLabel').focus();
-    }
+                // Vérifier l'argent de poche après chargement distant
+                checkMonthlyAllowance();
 
-    function closeModal() {
-        document.getElementById('txModal').style.display = 'none';
-    }
+                document.getElementById('statut-synchro').innerText = "☁️ Synchronisé avec GitHub";
+            } catch (error) {
+                console.error(error);
+                document.getElementById('statut-synchro').innerText = "❌ Erreur de liaison GitHub";
+                chargerDonneesLocales();
+                checkMonthlyAllowance();
+            }
 
-    function saveTransaction() {
-        const labelInput = document.getElementById('txLabel').value.trim();
-        const amountInput = parseFloat(document.getElementById('txAmount').value);
-
-        if (!labelInput || isNaN(amountInput) || amountInput <= 0) {
-            alert("Veuillez entrer un libellé valide et un montant positif.");
-            return;
+            afficher();
         }
 
-        if (currentType === 'expense' && amountInput > appData.balance) {
-            alert("Solde insuffisant pour cette dépense !");
-            return;
+        async function pushToGitHub(commitMessage) {
+            sauvegarderDonneesLocales();
+
+            const { user, repo, token } = getGitHubConfig();
+            if (!user || !repo || !token) {
+                afficher();
+                return;
+            }
+
+            document.getElementById('statut-synchro').innerText = "⏳ Envoi vers GitHub...";
+            const apiUrl = `https://api.github.com/repos/${user}/${repo}/contents/budget_manon.json`;
+
+            try {
+                const getRes = await fetch(apiUrl, {
+                    headers: { 'Authorization': `token ${token}` }
+                });
+                
+                let sha = null;
+                if (getRes.ok) {
+                    const fileInfo = await getRes.json();
+                    sha = fileInfo.sha;
+                }
+
+                const dataPayload = {
+                    solde: currentSolde,
+                    tirelire: currentTirelire,
+                    objectifActuel: currentObjectifActuel,
+                    objectifCible: currentObjectifCible,
+                    nomObjectif: currentNomObjectif,
+                    history: currentHistory,
+                    lastAllowanceDate: lastAllowanceDate
+                };
+
+                const contentBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(dataPayload, null, 2))));
+
+                const putRes = await fetch(apiUrl, {
+                    method: 'PUT',
+                    headers: { 
+                        'Authorization': `token ${token}`, 
+                        'Content-Type': 'application/json' 
+                    },
+                    body: JSON.stringify({
+                        message: commitMessage,
+                        content: contentBase64,
+                        sha: sha
+                    })
+                });
+
+                if (putRes.ok) {
+                    document.getElementById('statut-synchro').innerText = "☁️ Synchronisé avec GitHub";
+                } else {
+                    document.getElementById('statut-synchro').innerText = "❌ Erreur d'écriture GitHub";
+                }
+            } catch (e) {
+                console.error(e);
+                document.getElementById('statut-synchro').innerText = "❌ Erreur réseau GitHub";
+            }
+
+            afficher();
         }
 
-        appData.balance = currentType === 'credit' ? appData.balance + amountInput : appData.balance - amountInput;
+        function obtenirBadge(total) {
+            if (total < 20) return { nom: "🌱 Écureuil Débutant", couleur: "#7f8c8d" };
+            if (total < 70) return { nom: "🎯 Apprenti Épargnant", couleur: "#3498db" };
+            if (total < 150) return { nom: "🐷 Pro de la Tirelire", couleur: "#e67e22" };
+            if (total < 300) return { nom: "🏆 As du Trésor", couleur: "#9b59b6" };
+            return { nom: "👑 Maître du Budget", couleur: "#27ae60" };
+        }
 
-        const today = new Date().toISOString().split('T')[0];
-        appData.transactions.unshift({
-            date: today,
-            label: labelInput,
-            amount: amountInput,
-            type: currentType
-        });
+        function afficher() {
+            const fortuneTotale = currentSolde + currentTirelire + currentObjectifActuel;
+            document.getElementById('solde').innerText = currentSolde.toFixed(2) + " €";
+            document.getElementById('tirelire').innerText = currentTirelire.toFixed(2) + " €";
+            document.getElementById('obj-val').innerText = currentObjectifActuel.toFixed(2) + " €";
+            document.getElementById('titre-objectif').innerText = "🎯 " + currentNomObjectif;
+            document.getElementById('obj-cible-text').innerText = "sur " + currentObjectifCible.toFixed(2) + " €";
 
-        saveData();
-        closeModal();
-        render();
-    }
+            let pourcentage = currentObjectifCible > 0 ? (currentObjectifActuel / currentObjectifCible) * 100 : 0;
+            if (pourcentage > 100) pourcentage = 100;
+            const barre = document.getElementById('barre-progression');
+            barre.style.width = pourcentage + "%";
+            barre.style.background = pourcentage < 40 ? "var(--orange)" : (pourcentage < 80 ? "var(--blue)" : "var(--primary)");
+            document.getElementById('pourcentage-text').innerText = Math.round(pourcentage) + "%";
 
-    function formatDate(dateString) {
-        const parts = dateString.split('-');
-        if (parts.length !== 3) return dateString;
-        return `${parts[2]}/${parts[1]}/${parts[0]}`;
-    }
+            const badge = obtenirBadge(fortuneTotale);
+            const badgeEl = document.getElementById('badge-statut');
+            badgeEl.innerText = badge.nom; badgeEl.style.backgroundColor = badge.couleur;
 
-    function escapeHtml(text) {
-        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-        return text.replace(/[&<>"']/g, function(m) { return map[m]; });
-    }
+            document.getElementById('param-solde').value = currentSolde;
+            document.getElementById('param-nom-obj').value = currentNomObjectif;
+            document.getElementById('param-cible-obj').value = currentObjectifCible;
+            document.getElementById('param-gh-user').value = localStorage.getItem("manon_gh_user") || "";
+            document.getElementById('param-gh-repo').value = localStorage.getItem("manon_gh_repo") || "";
+            document.getElementById('param-gh-token').value = localStorage.getItem("manon_gh_token") || "";
 
-    // Initialisation au chargement
-    loadData();
-    checkMonthlyAllowance();
-    render();
-</script>
+            const aujourdhuiIso = new Date().toISOString().split('T')[0];
+            document.getElementById('depense-date').value = aujourdhuiIso;
+            document.getElementById('gain-date').value = aujourdhuiIso;
 
+            // --- AFFICHAGE HISTORIQUE CLASSÉ PAR MOIS (DU PLUS RÉCENT AU PLUS ANCIEN) ---
+            const listeHistorique = document.getElementById('liste-historique');
+            listeHistorique.innerHTML = "";
+            
+            if (currentHistory.length === 0) {
+                listeHistorique.innerHTML = "<div class='vide'>Aucune opération enregistrée.</div>";
+            } else {
+                // Associer chaque item à son index d'origine avant le tri pour pouvoir le modifier/supprimer facilement
+                const historiqueAvecIndex = currentHistory.map((item, originalIndex) => ({ ...item, originalIndex }));
+                
+                // Trier du plus récent au plus ancien par date
+                const historiqueWithSorted = historiqueAvecIndex.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                // Grouper par mois/année
+                const groupesMois = {};
+                historiqueWithSorted.forEach(item => {
+                    const dateObj = new Date(item.date);
+                    const moisAnneeNom = dateObj.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+                    const cleMois = moisAnneeNom.charAt(0).toUpperCase() + moisAnneeNom.slice(1);
+                    
+                    if (!groupesMois[cleMois]) {
+                        groupesMois[cleMois] = [];
+                    }
+                    groupesMois[cleMois].push(item);
+                });
+
+                // Générer le HTML
+                for (const [mois, items] of Object.entries(groupesMois)) {
+                    const titreMois = document.createElement('div');
+                    titreMois.className = 'hist-mois-titre';
+                    titreMois.innerText = mois;
+                    listeHistorique.appendChild(titreMois);
+
+                    items.forEach(item => {
+                        const div = document.createElement('div');
+                        div.className = 'hist-item';
+                        div.onclick = () => ouvrirModalEditHist(item.originalIndex);
+                        
+                        const estGain = item.type === 'gain';
+                        const dateFr = item.date.split('-').reverse().join('/');
+                        div.innerHTML = `<div><div class="hist-desc">${item.desc}</div><div class="hist-date">${dateFr}</div></div>
+                                        <div class="hist-montant ${estGain ? 'montant-plus' : 'montant-moins'}">${estGain ? '+' : '-'} ${item.montant.toFixed(2)} €</div>`;
+                        listeHistorique.appendChild(div);
+                    });
+                }
+            }
+        }
+
+        // --- GESTION MODIFICATION / SUPPRESSION HISTORIQUE ---
+        function ouvrirModalEditHist(index) {
+            const item = currentHistory[index];
+            if (!item) return;
+
+            document.getElementById('edit-hist-index').value = index;
+            document.getElementById('edit-hist-type').value = item.type;
+            document.getElementById('edit-hist-desc').value = item.desc;
+            document.getElementById('edit-hist-montant').value = item.montant;
+            document.getElementById('edit-hist-date').value = item.date;
+
+            document.getElementById('modal-edit-hist').style.display = 'flex';
+        }
+
+        function fermerModalEditHist() {
+            document.getElementById('modal-edit-hist').style.display = 'none';
+        }
+
+        async function validerModificationHist() {
+            const index = parseInt(document.getElementById('edit-hist-index').value);
+            const nvType = document.getElementById('edit-hist-type').value;
+            const nvDesc = document.getElementById('edit-hist-desc').value.trim();
+            const nvMontant = parseFloat(document.getElementById('edit-hist-montant').value);
+            const nvDate = document.getElementById('edit-hist-date').value;
+
+            if (!nvDesc || isNaN(nvMontant) || nvMontant <= 0 || !nvDate) {
+                alert("Merci de remplir correctement tous les champs.");
+                return;
+            }
+
+            // Mettre à jour l'élément dans le tableau d'historique
+            currentHistory[index] = {
+                date: nvDate,
+                type: nvType,
+                desc: nvDesc,
+                montant: nvMontant
+            };
+
+            fermerModalEditHist();
+            await pushToGitHub(`Modification opération: ${nvDesc}`);
+        }
+
+        async function supprimerEntreeHist() {
+            const index = parseInt(document.getElementById('edit-hist-index').value);
+            if (confirm("⚠️ Veux-tu vraiment supprimer cette opération de l'historique ? (Attention, cela ne modifie pas automatiquement ton solde en espèces si tu t'étais trompé au départ, ajuste ton solde dans les réglages si nécessaire).")) {
+                currentHistory.splice(index, 1);
+                fermerModalEditHist();
+                await pushToGitHub("Suppression d'une opération de l'historique");
+            }
+        }
+
+        function empilerHistorique(type, desc, montant, date) {
+            const nouveauLog = { date: date, type: type, desc: desc, montant: parseFloat(montant) };
+            currentHistory.push(nouveauLog);
+            if (currentHistory.length > 50) currentHistory.shift(); 
+        }
+
+        function demanderCodePIN() {
+            document.getElementById('code-pincode').value = '';
+            document.getElementById('modal-securite').style.display = 'flex';
+        }
+        function fermerSecurite() { document.getElementById('modal-securite').style.display = 'none'; }
+        function validerCodePIN() {
+            const code = document.getElementById('code-pincode').value;
+            if (code === "1607") {
+                fermerSecurite(); ouvrirParametres();
+            } else {
+                alert("Code PIN incorrect ! 🔐");
+                document.getElementById('code-pincode').value = '';
+            }
+        }
+
+        function ouvrirParametres() { document.getElementById('modal-parametres').style.display = 'flex'; }
+        function fermerParametres() { document.getElementById('modal-parametres').style.display = 'none'; }
+        
+        async function reinitialiserDonneesLocal() {
+            if (confirm("⚠️ Es-tu sûr de vouloir réinitialiser TOUS tes montants ?")) {
+                currentSolde = 0; currentTirelire = 0; currentObjectifActuel = 0; currentObjectifCible = 50; currentNomObjectif = "Mon Objectif"; currentHistory = []; lastAllowanceDate = null;
+                fermerParametres();
+                await pushToGitHub("Remise à zéro des données");
+                alert("✅ Données remises à zéro !");
+            }
+        }
+
+        async function enregistrerParametres() {
+            const nvSolde = parseFloat(document.getElementById('param-solde').value);
+            const nvNom = document.getElementById('param-nom-obj').value.trim();
+            const nvCible = parseFloat(document.getElementById('param-cible-obj').value);
+            
+            const ghUser = document.getElementById('param-gh-user').value.trim();
+            const ghRepo = document.getElementById('param-gh-repo').value.trim();
+            const ghToken = document.getElementById('param-gh-token').value.trim();
+
+            localStorage.setItem("manon_gh_user", ghUser);
+            localStorage.setItem("manon_gh_repo", ghRepo);
+            localStorage.setItem("manon_gh_token", ghToken);
+
+            if (!isNaN(nvSolde)) currentSolde = nvSolde;
+            if (nvNom) currentNomObjectif = nvNom;
+            if (!isNaN(nvCible) && nvCible >= 0) currentObjectifCible = nvCible;
+
+            fermerParametres();
+            await pushToGitHub("Mise à jour des paramètres");
+        }
+
+        // --- FONCTIONS EXPORT / IMPORT JSON DE SECOURS ---
+        function exporterJSON() {
+            const dataPayload = {
+                solde: currentSolde,
+                tirelire: currentTirelire,
+                objectifActuel: currentObjectifActuel,
+                objectifCible: currentObjectifCible,
+                nomObjectif: currentNomObjectif,
+                history: currentHistory,
+                lastAllowanceDate: lastAllowanceDate
+            };
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dataPayload, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", "budget_manon_backup.json");
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        async function importerJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const contentDecoded = JSON.parse(e.target.result);
+                    
+                    currentSolde = contentDecoded.solde ?? 0;
+                    currentTirelire = contentDecoded.tirelire ?? 0;
+                    currentObjectifActuel = contentDecoded.objectifActuel ?? 0;
+                    currentObjectifCible = contentDecoded.objectifCible ?? 50;
+                    currentNomObjectif = contentDecoded.nomObjectif ?? "Mon Objectif";
+                    currentHistory = contentDecoded.history ?? [];
+                    lastAllowanceDate = contentDecoded.lastAllowanceDate ?? null;
+
+                    afficher();
+                    fermerParametres();
+
+                    await pushToGitHub("Restauration via import JSON local");
+                    alert("✅ Données importées et synchronisées avec succès !");
+                } catch (err) {
+                    console.error(err);
+                    alert("❌ Erreur : Le fichier JSON sélectionné est invalide ou corrompu.");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function ouvrirGain() { document.getElementById('modal-gain').style.display = 'flex'; }
+        function fermerGain() { document.getElementById('modal-gain').style.display = 'none'; }
+        async function enregistrerGain() {
+            const m = parseFloat(document.getElementById('gain-montant').value);
+            const d = document.getElementById('gain-desc').value.trim();
+            const dt = document.getElementById('gain-date').value;
+            if (!m || m <= 0 || !d || !dt) { alert("Remplis toutes les cases !"); return; }
+            
+            currentSolde += m;
+            empilerHistorique('gain', d, m, dt);
+            fermerGain();
+            
+            document.getElementById('gain-montant').value = ''; 
+            document.getElementById('gain-desc').value = '';
+            await pushToGitHub(`Gain: ${d} (+${m}€)`);
+        }
+
+        function abrirDepense() { document.getElementById('modal-depense').style.display = 'flex'; }
+        function fermerDepense() { document.getElementById('modal-depense').style.display = 'none'; }
+        async function enregistrerDepense() {
+            const m = parseFloat(document.getElementById('depense-montant').value);
+            const d = document.getElementById('depense-desc').value.trim();
+            const dt = document.getElementById('depense-date').value;
+            if (!m || m <= 0 || !d || !dt) { alert("Remplis toutes les cases !"); return; }
+            
+            if (currentSolde >= m) {
+                currentSolde -= m;
+                empilerHistorique('depense', d, m, dt);
+                fermerDepense();
+                
+                document.getElementById('depense-montant').value = ''; 
+                document.getElementById('depense-desc').value = '';
+                await pushToGitHub(`Achat: ${d} (-${m}€)`);
+            } else { alert("Solde insuffisant !"); }
+        }
+
+        async function transfererVersEpargne(cible, montant) {
+            const m = parseFloat(montant);
+            if (!m || m <= 0) return;
+            if (currentSolde >= m) {
+                currentSolde -= m;
+                const aujourdhuiIso = new Date().toISOString().split('T')[0];
+                
+                if (cible === 'tirelire') {
+                    currentTirelire += m;
+                    empilerHistorique('depense', `🐷 Vers Tirelire`, m, aujourdhuiIso);
+                    await pushToGitHub(`Transfert vers Tirelire (+${m}€)`);
+                } else if (cible === 'objectif') {
+                    currentObjectifActuel += m;
+                    empilerHistorique('depense', `🎯 Vers Objectif`, m, aujourdhuiIso);
+                    await pushToGitHub(`Transfert vers Objectif (+${m}€)`);
+                }
+            } else { alert("Solde insuffisant !"); }
+        }
+
+        function actionEpargnePerso(cible, inputId) {
+            const input = document.getElementById(inputId); 
+            transfererVersEpargne(cible, input.value); 
+            input.value = '';
+        }
+
+        function ouvrirRetrait(cible) {
+            cibleRetraitEnCours = cible;
+            const maxVal = cible === 'tirelire' ? currentTirelire : currentObjectifActuel;
+            document.getElementById('retrait-titre').innerText = `↩ Récupérer de ` + (cible === 'tirelire' ? "la Tirelire" : "l'Objectif");
+            document.getElementById('retrait-max').innerText = `Maximum disponible : ${maxVal.toFixed(2)} €`;
+            document.getElementById('retrait-montant').value = ''; 
+            document.getElementById('modal-retrait').style.display = 'flex';
+        }
+        function fermerRetrait() { document.getElementById('modal-retrait').style.display = 'none'; }
+        async function validerRetrait() {
+            const m = parseFloat(document.getElementById('retrait-montant').value);
+            if (!m || m <= 0) return;
+            
+            const maxVal = cibleRetraitEnCours === 'tirelire' ? currentTirelire : currentObjectifActuel;
+            if (m <= maxVal) {
+                currentSolde += m;
+                const aujourdhuiIso = new Date().toISOString().split('T')[0];
+                
+                if (cibleRetraitEnCours === 'tirelire') {
+                    currentTirelire -= m;
+                    empilerHistorique('gain', `↩ Retrait Tirelire`, m, aujourdhuiIso);
+                    fermerRetrait();
+                    await pushToGitHub(`Retrait de la Tirelire (+${m}€)`);
+                } else {
+                    currentObjectifActuel -= m;
+                    empilerHistorique('gain', `↩ Retrait Objectif`, m, aujourdhuiIso);
+                    fermerRetrait();
+                    await pushToGitHub(`Retrait de l'Objectif (+${m}€)`);
+                }
+            } else { alert("Montant indisponible !"); }
+        }
+    </script>
 </body>
 </html>
