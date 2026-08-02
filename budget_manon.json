@@ -1,5 +1,5 @@
 {
-  "solde": 24.55,
+  "solde": 49.55,
   "tirelire": 15,
   "objectifActuel": 0,
   "objectifCible": 50,
@@ -52,6 +52,12 @@
       "type": "depense",
       "desc": "Gourde",
       "montant": 17.95
+    },
+    {
+      "date": "2026-07-07",
+      "type": "gain",
+      "desc": "Grands-parents",
+      "montant": 25
     }
   ]
 }
