@@ -1,8 +1,81 @@
 {
-  "solde": 0,
-  "tirelire": 0,
+  "solde": 13,
+  "tirelire": 15,
   "objectifActuel": 0,
   "objectifCible": 50,
   "nomObjectif": "Mon Objectif",
-  "history": []
+  "history": [
+    {
+      "date": "2026-06-27",
+      "type": "depense",
+      "desc": "🐷 Vers Tirelire",
+      "montant": 15
+    },
+    {
+      "date": "2026-07-30",
+      "type": "gain",
+      "desc": "Papa",
+      "montant": 5
+    },
+    {
+      "date": "2026-07-21",
+      "type": "depense",
+      "desc": "Fnac support sac",
+      "montant": 8.95
+    },
+    {
+      "date": "2026-07-17",
+      "type": "depense",
+      "desc": "Collier mammouth",
+      "montant": 7
+    },
+    {
+      "date": "2026-07-17",
+      "type": "depense",
+      "desc": "Collier coeur",
+      "montant": 7.5
+    },
+    {
+      "date": "2026-07-14",
+      "type": "depense",
+      "desc": "Miroirs",
+      "montant": 10
+    },
+    {
+      "date": "2026-07-13",
+      "type": "gain",
+      "desc": "Papa",
+      "montant": 10
+    },
+    {
+      "date": "2026-07-13",
+      "type": "depense",
+      "desc": "Gourde",
+      "montant": 17.95
+    },
+    {
+      "date": "2026-07-07",
+      "type": "gain",
+      "desc": "Grands-parents",
+      "montant": 25
+    },
+    {
+      "date": "2026-07-01",
+      "type": "gain",
+      "desc": "Papa",
+      "montant": 15
+    },
+    {
+      "date": "2026-06-08",
+      "type": "gain",
+      "desc": "Grands-parents",
+      "montant": 10
+    },
+    {
+      "date": "2026-06-01",
+      "type": "gain",
+      "desc": "Papa",
+      "montant": 15
+    }
+  ]
 }
