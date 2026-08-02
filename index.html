@@ -4,6 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mon Budget Connected</title>
+    
+    <!-- Icône pour l'écran d'accueil iOS (iPhone / iPad) -->
+    <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/TON_PSEUDO_GITHUB/NOM_DU_REPO/main/nom-de-ton-image.png">
+    
+    <!-- Mode "vraie app" plein écran sur iOS -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
     <style>
         :root { 
             --bg-color: #f7f9fa; 
@@ -48,11 +56,12 @@
         .action-input { display: flex; gap: 8px; margin-top: 8px; }
         input { flex: 1; padding: 11px; border-radius: 12px; border: 2px solid #cbd5e1; font-size: 1em; outline: none; box-sizing: border-box; }
         input:focus { border-color: var(--text-main); }
-        .liste-historique { max-height: 250px; overflow-y: auto; }
-        .hist-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(0,0,0,0.06); }
-        .hist-desc { font-weight: 600; font-size: 0.95em; }
-        .hist-date { font-size: 0.8em; color: #7f8c8d; }
-        .hist-montant { font-weight: 700; }
+        .liste-historique { max-height: 280px; overflow-y: auto; }
+        .hist-mois-titre { font-size: 0.8em; font-weight: 700; color: #3498db; text-transform: uppercase; margin: 12px 0 4px 0; letter-spacing: 0.5px; border-bottom: 1.5px solid #edf2f7; padding-bottom: 2px; }
+        .hist-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(0,0,0,0.04); }
+        .hist-desc { font-weight: 600; font-size: 0.9em; }
+        .hist-date { font-size: 0.75em; color: #7f8c8d; }
+        .hist-montant { font-weight: 700; font-size: 0.95em; }
         .montant-plus { color: #27ae60; }
         .montant-moins { color: var(--red); }
         .vide { text-align: center; color: #95a5a6; padding: 15px 0; font-size: 0.9em; }
@@ -191,9 +200,20 @@
                 <div class="form-group"><label>Pseudo GitHub</label><input type="text" id="param-gh-user" placeholder="ex: mon-pseudo"></div>
                 <div class="form-group"><label>Nom du Dépôt</label><input type="text" id="param-gh-repo" placeholder="ex: budget-manon"></div>
                 <div class="form-group"><label>Personal Access Token</label><input type="password" id="param-gh-token" placeholder="ghp_xxxxxxxxxxxx"></div>
-                <div style="margin-top: 15px; padding-top: 5px;">
-                    <button style="background: var(--red); width: 100%; font-size: 0.9em; padding: 10px;" onclick="reinitialiserDonneesLocal()">⚠️ Remettre à zéro</button>
+            </div>
+
+            <!-- SECTION SAUVEGARDE / RESTAURATION LOCALE -->
+            <div class="param-section">
+                <label style="font-weight: bold; display:block; margin-bottom: 8px; color: var(--orange);">💾 Sauvegarde / Secours JSON</label>
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <button type="button" style="background: var(--blue); flex: 1; font-size: 0.85em; padding: 10px;" onclick="exporterJSON()">📤 Exporter JSON</button>
+                    <button type="button" style="background: var(--orange); flex: 1; font-size: 0.85em; padding: 10px;" onclick="document.getElementById('file-input-json').click()">📥 Importer JSON</button>
+                    <input type="file" id="file-input-json" accept=".json" style="display: none;" onchange="importerJSON(event)">
                 </div>
+            </div>
+
+            <div class="param-section" style="border: none; padding-top: 5px;">
+                <button style="background: var(--red); width: 100%; font-size: 0.9em; padding: 10px;" onclick="reinitialiserDonneesLocal()">⚠️ Remettre à zéro</button>
             </div>
             
             <div class="modal-actions" style="margin-top: 20px;"><button class="btn-secondary" onclick="fermerParametres()">Fermer</button><button style="background: var(--primary);" onclick="enregistrerParametres()">Enregistrer</button></div>
@@ -274,7 +294,6 @@
             const apiUrl = `https://api.github.com/repos/${user}/${repo}/contents/budget_manon.json`;
 
             try {
-                // Récupérer le SHA actuel du fichier (requis par l'API GitHub pour écraser)
                 const getRes = await fetch(apiUrl, {
                     headers: { 'Authorization': `token ${token}` }
                 });
@@ -360,20 +379,47 @@
             document.getElementById('depense-date').value = aujourdhuiIso;
             document.getElementById('gain-date').value = aujourdhuiIso;
 
+            // --- AFFICHAGE HISTORIQUE CLASSÉ PAR MOIS (DU PLUS RÉCENT AU PLUS ANCIEN) ---
             const listeHistorique = document.getElementById('liste-historique');
             listeHistorique.innerHTML = "";
+            
             if (currentHistory.length === 0) {
                 listeHistorique.innerHTML = "<div class='vide'>Aucune opération enregistrée.</div>";
             } else {
-                [...currentHistory].reverse().forEach(item => {
-                    const div = document.createElement('div');
-                    div.className = 'hist-item';
-                    const estGain = item.type === 'gain';
-                    const dateFr = item.date.split('-').reverse().join('/');
-                    div.innerHTML = `<div><div class="hist-desc">${item.desc}</div><div class="hist-date">${dateFr}</div></div>
-                                    <div class="hist-montant ${estGain ? 'montant-plus' : 'montant-moins'}">${estGain ? '+' : '-'} ${item.montant.toFixed(2)} €</div>`;
-                    listeHistorique.appendChild(div);
+                // 1. Trier tous les éléments du plus récent au plus ancien par date
+                const historiqueTrie = [...currentHistory].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                // 2. Grouper par mois/année (ex: "juin 2026")
+                const groupesMois = {};
+                historiqueTrie.forEach(item => {
+                    const dateObj = new Date(item.date);
+                    const moisAnneeNom = dateObj.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+                    // Capitaliser la première lettre du mois
+                    const cleMois = moisAnneeNom.charAt(0).toUpperCase() + moisAnneeNom.slice(1);
+                    
+                    if (!groupesMois[cleMois]) {
+                        groupesMois[cleMois] = [];
+                    }
+                    groupesMois[cleMois].push(item);
                 });
+
+                // 3. Générer le HTML par groupe de mois
+                for (const [mois, items] of Object.entries(groupesMois)) {
+                    const titreMois = document.createElement('div');
+                    titreMois.className = 'hist-mois-titre';
+                    titreMois.innerText = mois;
+                    listeHistorique.appendChild(titreMois);
+
+                    items.forEach(item => {
+                        const div = document.createElement('div');
+                        div.className = 'hist-item';
+                        const estGain = item.type === 'gain';
+                        const dateFr = item.date.split('-').reverse().join('/');
+                        div.innerHTML = `<div><div class="hist-desc">${item.desc}</div><div class="hist-date">${dateFr}</div></div>
+                                        <div class="hist-montant ${estGain ? 'montant-plus' : 'montant-moins'}">${estGain ? '+' : '-'} ${item.montant.toFixed(2)} €</div>`;
+                        listeHistorique.appendChild(div);
+                    });
+                }
             }
         }
 
@@ -429,6 +475,54 @@
 
             fermerParametres();
             await pushToGitHub("Mise à jour des paramètres");
+        }
+
+        // --- FONCTIONS EXPORT / IMPORT JSON DE SECOURS ---
+        function exporterJSON() {
+            const dataPayload = {
+                solde: currentSolde,
+                tirelire: currentTirelire,
+                objectifActuel: currentObjectifActuel,
+                objectifCible: currentObjectifCible,
+                nomObjectif: currentNomObjectif,
+                history: currentHistory
+            };
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dataPayload, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", "budget_manon_backup.json");
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        async function importerJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const contentDecoded = JSON.parse(e.target.result);
+                    
+                    currentSolde = contentDecoded.solde ?? 0;
+                    currentTirelire = contentDecoded.tirelire ?? 0;
+                    currentObjectifActuel = contentDecoded.objectifActuel ?? 0;
+                    currentObjectifCible = contentDecoded.objectifCible ?? 50;
+                    currentNomObjectif = contentDecoded.nomObjectif ?? "Mon Objectif";
+                    currentHistory = contentDecoded.history ?? [];
+
+                    afficher();
+                    fermerParametres();
+
+                    await pushToGitHub("Restauration via import JSON local");
+                    alert("✅ Données importées et synchronisées avec succès !");
+                } catch (err) {
+                    console.error(err);
+                    alert("❌ Erreur : Le fichier JSON sélectionné est invalide ou corrompu.");
+                }
+            };
+            reader.readAsText(file);
         }
 
         function ouvrirGain() { document.getElementById('modal-gain').style.display = 'flex'; }
