@@ -1,7 +1,7 @@
 {
-  "solde": 58,
+  "solde": 57,
   "tirelire": 15,
-  "objectifActuel": 0,
+  "objectifActuel": 1,
   "objectifCible": 50,
   "nomObjectif": "Mon Objectif",
   "history": [
@@ -88,6 +88,12 @@
       "type": "gain",
       "desc": "Grands-parents",
       "montant": 30
+    },
+    {
+      "date": "2026-08-15",
+      "type": "depense",
+      "desc": "🎯 Vers Objectif",
+      "montant": 1
     }
   ],
   "lastAllowanceDate": {
