@@ -1,6 +1,6 @@
 {
-  "solde": 58,
-  "tirelire": 15,
+  "solde": 53,
+  "tirelire": 20,
   "objectifActuel": 0,
   "objectifCible": 50,
   "nomObjectif": "Mon Objectif",
@@ -100,6 +100,12 @@
       "type": "gain",
       "desc": "↩ Retrait Objectif",
       "montant": 1
+    },
+    {
+      "date": "2026-08-15",
+      "type": "depense",
+      "desc": "🐷 Vers Tirelire",
+      "montant": 5
     }
   ],
   "lastAllowanceDate": {
