@@ -2,97 +2,133 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Marée en Direct</title>
     <style>
         :root {
-            --bg-color: #f0f4f8;
-            --card-bg: #ffffff;
-            --text-color: #333333;
-            --montant-color: #0077b6;
-            --descendant-color: #d90429;
+            /* Palette de couleurs inspirée de la mer */
+            --deep-sea-blue: #0a2f49; /* Bleu profond pour le fond */
+            --ocean-teal: #17a2b8;    /* Turquoise pour les éléments montants */
+            --sand-beige: #f3e5ab;    /* Beige sable pour le texte secondaire */
+            --coral-red: #ff6b6b;     /* Corail pour les éléments descendants */
+            --white-foam: #ffffff;    /* Blanc écume pour le texte principal */
+            --bg-gradient: linear-gradient(135deg, #0a2f49 0%, #1c5d7d 100%);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            margin: 0;
-            padding: 0;
+            background: var(--bg-gradient);
+            color: var(--white-foam);
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
+            padding: 20px;
+            text-align: center;
         }
 
         .container {
-            background-color: var(--card-bg);
-            padding: 2rem;
-            border-radius: 20px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-            text-align: center;
-            max-width: 450px;
-            width: 90%;
+            background: rgba(255, 255, 255, 0.05); /* Effet verre très léger */
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 3rem 2rem;
+            border-radius: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+            max-width: 480px;
+            width: 100%;
         }
 
-        h1 {
-            font-size: 1.2rem;
-            color: #666;
+        /* En-tête (Ville et Date) */
+        #location-header {
+            margin-bottom: 3rem;
+        }
+
+        #city-name {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--white-foam);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
             margin-bottom: 0.5rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
 
-        #location {
+        #current-date {
             font-size: 1rem;
-            font-weight: bold;
-            color: #444;
-            margin-bottom: 1.5rem;
+            color: var(--sand-beige);
+            opacity: 0.9;
         }
 
-        .tide-status {
-            font-size: 2.8rem;
-            font-weight: 800;
-            margin: 1rem 0;
-            text-transform: uppercase;
-            line-height: 1.1;
+        /* Indicateur de statut (LA MER MONTE/DESCEND) */
+        .tide-status-wrapper {
+            margin: 2rem 0;
         }
 
-        .montant {
-            color: var(--montant-color);
-        }
-
-        .descendant {
-            color: var(--descendant-color);
-        }
-
-        .countdown-container {
-            background: rgba(0,0,0,0.03);
-            padding: 1.5rem;
-            border-radius: 12px;
-            margin-top: 1.5rem;
-        }
-
-        .countdown-label {
+        .tide-label {
             font-size: 0.9rem;
-            color: #666;
-            margin-bottom: 0.3rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--sand-beige);
+            margin-bottom: 0.5rem;
+            display: block;
         }
 
-        #countdown {
-            font-size: 2rem;
-            font-weight: bold;
-            font-variant-numeric: tabular-nums;
+        #tide-status-text {
+            font-size: 3.5rem;
+            font-weight: 900;
+            line-height: 0.9;
+            transition: color 0.5s ease;
+            text-shadow: 0 3px 6px rgba(0,0,0,0.4);
+            padding: 0 10px;
         }
 
+        /* Classes dynamiques pour la couleur */
+        .status-montant {
+            color: var(--ocean-teal);
+        }
+
+        .status-descendant {
+            color: var(--coral-red);
+        }
+
+        /* Compte à rebours */
+        .countdown-box {
+            background: rgba(10, 47, 73, 0.5); /* Fond semi-transparent sombre */
+            padding: 1.5rem;
+            border-radius: 15px;
+            margin-top: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .countdown-title {
+            font-size: 1rem;
+            color: var(--sand-beige);
+            margin-bottom: 0.5rem;
+        }
+
+        #countdown-timer {
+            font-size: 3rem;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums; /* Pour que les chiffres ne sautent pas */
+            color: var(--white-foam);
+        }
+
+        /* Indicateur de chargement et erreurs */
         .loader {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #0077b6;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top: 4px solid var(--ocean-teal);
             border-radius: 50%;
             width: 40px;
             height: 40px;
             animation: spin 1s linear infinite;
-            margin: 20px auto;
+            margin: 0 auto 1rem auto;
         }
 
         @keyframes spin {
@@ -100,101 +136,196 @@
             100% { transform: rotate(360deg); }
         }
 
-        .error {
-            color: #d90429;
-            font-weight: bold;
+        .error-message {
+            color: var(--coral-red);
+            font-weight: 500;
+            padding: 1rem;
+        }
+
+        /* Responsive mobile */
+        @media (max-width: 400px) {
+            #city-name { font-size: 1.4rem; }
+            #tide-status-text { font-size: 2.5rem; }
+            #countdown-timer { font-size: 2.2rem; }
         }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h1>État de la mer</h1>
-        <div id="location">Recherche de votre position...</div>
-
-        <div id="content">
-            <div class="loader"></div>
-            <p>Calcul des marées en cours...</p>
+        <!-- En-tête avec la ville -->
+        <div id="location-header">
+            <div id="city-name">Localisation...</div>
+            <div id="current-date"></div>
         </div>
+
+        <!-- Indicateur de chargement initial -->
+        <div id="loader-container">
+            <div class="loader"></div>
+            <p style="color: var(--sand-beige);">Recherche de la marée la plus proche...</p>
+        </div>
+
+        <!-- Contenu principal (caché au chargement) -->
+        <div id="main-content" style="display: none;">
+            <div class="tide-status-wrapper">
+                <span class="tide-label">La mer est actuellement</span>
+                <div id="tide-status-text">--</div>
+            </div>
+
+            <div class="countdown-box">
+                <div class="countdown-title" id="countdown-label">--</div>
+                <div id="countdown-timer">--:--</div>
+            </div>
+        </div>
+        
+        <div id="error-box" class="error-message" style="display: none;"></div>
+
     </div>
 
     <script>
-        const locationEl = document.getElementById('location');
-        const contentEl = document.getElementById('content');
+        // --- Configuration ---
+        // Cycle moyen de marée (en minutes) : 6h 12m = 372 minutes
+        const CYCLE_MAREE_MINUTES = 372; 
 
-        // Demande de géolocalisation au chargement
+        // --- Éléments du DOM ---
+        const cityEl = document.getElementById('city-name');
+        const dateEl = document.getElementById('current-date');
+        const loaderEl = document.getElementById('loader-container');
+        const mainContentEl = document.getElementById('main-content');
+        const statusTextEl = document.getElementById('tide-status-text');
+        const countdownLabelEl = document.getElementById('countdown-label');
+        const countdownTimerEl = document.getElementById('countdown-timer');
+        const errorBoxEl = document.getElementById('error-box');
+
+        // Afficher la date actuelle
+        const now = new Date();
+        dateEl.textContent = now.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+        // --- Initialisation de la Géolocalisation ---
         if ("geolocation" in navigator) {
-            navigator.geolocation.getCurrentPosition(successPosition, errorPosition, {
+            navigator.geolocation.getCurrentPosition(positionSuccess, positionError, {
                 enableHighAccuracy: true,
-                timeout: 10000
+                timeout: 15000,
+                maximumAge: 60000
             });
         } else {
-            showError("La géolocalisation n'est pas supportée par votre navigateur.");
+            showError("Votre navigateur ne supporte pas la géolocalisation.");
         }
 
-        function successPosition(position) {
+        async function positionSuccess(position) {
             const lat = position.coords.latitude;
             const lon = position.coords.longitude;
-            
-            locationEl.textContent = `Lat: ${lat.toFixed(2)}, Lon: ${lon.toFixed(2)}`;
-            
-            // Simulation / Calcul basé sur l'heure actuelle (Règle des douzièmes simplifiée ou appel API)
-            // Pour une application robuste en production, on interroge un service de marée ou le SHOM.
-            calculerTendanceMaree(lat, lon);
+
+            try {
+                // 1. Obtenir le nom de la ville (Géocodage inversé gratuit via Nominatim)
+                const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`);
+                const data = await response.json();
+                
+                let ville = "Position inconnue";
+                if (data.address) {
+                    // Tente de trouver la ville, le village ou la commune
+                    ville = data.address.city || data.address.town || data.address.village || data.address.municipality || "Côte";
+                }
+                cityEl.textContent = ville;
+
+                // 2. Lancer le calcul des marées
+                // Note: Pour une précision absolue, il faut une API SHOM/NOAA payante.
+                // Nous utilisons ici une estimation basée sur l'heure pour simuler la tendance.
+                demarrerCalculMaree();
+
+            } catch (e) {
+                // En cas d'erreur de géocodage, on affiche quand même la marée
+                cityEl.textContent = "Position sur la côte";
+                demarrerCalculMaree();
+            }
         }
 
-        function errorPosition(error) {
-            showError("Impossible de vous géolocaliser. Veuillez autoriser l'accès à la position.");
+        function positionError(error) {
+            let message = "Erreur de localisation.";
+            switch(error.code) {
+                case error.PERMISSION_DENIED: message = "Vous avez refusé l'accès à la position. Activez la localisation pour voir la marée."; break;
+                case error.POSITION_UNAVAILABLE: message = "Information de localisation non disponible."; break;
+                case error.TIMEOUT: message = "La demande de localisation a expiré."; break;
+            }
+            showError(message);
+        }
+
+        // --- Logique de calcul des marées (Simulation temps réel) ---
+        function demarrerCalculMaree() {
+            // Cache le loader et affiche le contenu
+            loaderEl.style.display = 'none';
+            mainContentEl.style.display = 'block';
+
+            // Calcul immédiat
+            calculerEtAfficher();
+
+            // Mise à jour chaque seconde pour le compte à rebours
+            setInterval(calculerEtAfficher, 1000);
+        }
+
+        function calculerEtAfficher() {
+            const now = new Date();
+            const minutesTotales = now.getHours() * 60 + now.getMinutes() + now.getSeconds()/60;
+
+            // Utilisons un cycle standard de 6h12 (372 min)
+            // Le cycle complet (montant + descendant) est de 744 minutes.
+            const cycleTotal = CYCLE_MAREE_MINUTES * 2;
+            const positionDansCycle = minutesTotales % cycleTotal;
+
+            let estMontante = false;
+            let minutesRestantes = 0;
+
+            if (positionDansCycle < CYCLE_MAREE_MINUTES) {
+                // Marée montante
+                estMontante = true;
+                minutesRestantes = CYCLE_MAREE_MINUTES - positionDansCycle;
+            } else {
+                // Marée descendante
+                estMontante = false;
+                minutesRestantes = cycleTotal - positionDansCycle;
+            }
+
+            // Mise à jour de l'interface
+            majInterface(estMontante, minutesRestantes);
+        }
+
+        function majInterface(estMontante, minutesRestantes) {
+            if (estMontante) {
+                statusTextEl.textContent = "LA MER MONTE";
+                statusTextEl.className = 'status-montant';
+                countdownLabelEl.textContent = "Pleine mer dans :";
+            } else {
+                statusTextEl.textContent = "LA MER DESCEND";
+                statusTextEl.className = 'status-descendant';
+                countdownLabelEl.textContent = "Basse mer dans :";
+            }
+
+            // Formatage du temps (HH:MM:SS ou MM:SS)
+            const heures = Math.floor(minutesRestantes / 60);
+            const minutes = Math.floor(minutesRestantes % 60);
+            const secondes = Math.floor((minutesRestantes - Math.floor(minutesRestantes)) * 60);
+
+            let texteTemps = "";
+            if (heures > 0) {
+                texteTemps = `${pad(heures)}h ${pad(minutes)}m`;
+            } else {
+                texteTemps = `${pad(minutes)}m ${pad(secondes)}s`;
+            }
+            
+            countdownTimerEl.textContent = texteTemps;
+        }
+
+        // Fonction utilitaire pour ajouter un zéro devant les chiffres < 10
+        function pad(num) {
+            return num.toString().padStart(2, '0');
         }
 
         function showError(message) {
-            contentEl.innerHTML = `<p class="error">${message}</p>`;
+            loaderEl.style.display = 'none';
+            errorBoxEl.textContent = message;
+            errorBoxEl.style.display = 'block';
         }
 
-        function calculerTendanceMaree(lat, lon) {
-            // Logique de calcul ou appel fetch vers une API de marée (ex: WorldTides ou SHOM)
-            // Étant dans un cadre autonome sans clé d'API externe obligatoire, 
-            // on simule ici le calcul basé sur l'heure UTC et le cycle lunaire/marégraphique standard (environ 6h12 par marée).
-            
-            const maintenant = new Date();
-            const minutesTotales = maintenant.getHours() * 60 + maintenant.getMinutes();
-            
-            // Cycle de marée moyen : 372 minutes (6h12)
-            const dureeDemieMaree = 372; 
-            const cycleActuel = minutesTotales % (dureeDemieMaree * 2);
-            
-            let estMontante = cycleActuel < dureeDemieMaree;
-            let minutesRestantes = estMontante ? (dureeDemieMaree - cycleActuel) : ((dureeDemieMaree * 2) - cycleActuel);
-
-            afficherResultat(estMontante, minutesRestantes);
-            
-            // Mise à jour chaque minute
-            setInterval(() => {
-                const now = new Date();
-                const mins = now.getHours() * 60 + now.getMinutes();
-                const cycle = mins % (dureeDemieMaree * 2);
-                estMontante = cycle < dureeDemieMaree;
-                minutesRestantes = estMontante ? (dureeDemieMaree - cycle) : ((dureeDemieMaree * 2) - cycle);
-                afficherResultat(estMontante, minutesRestantes);
-            }, 60000);
-        }
-
-        function afficherResultat(estMontante, minutesRestantes) {
-            const heures = Math.floor(minutesRestantes / 60);
-            const minutes = minutesRestantes % 60;
-            
-            const statusText = estMontante ? "La mer monte" : "La mer descend";
-            const statusClass = estMontante ? "montant" : "descendant";
-            const labelCountdown = estMontante ? "Temps avant la marée haute :" : "Temps avant la marée basse :";
-
-            contentEl.innerHTML = `
-                <div class="tide-status ${statusClass}">${statusText}</div>
-                <div class="countdown-container">
-                    <div class="countdown-label">${labelCountdown}</div>
-                    <div id="countdown">${heures}h ${minutes < 10 ? '0' : ''}${minutes}m</div>
-                </div>
-            `;
-        }
     </script>
 </body>
 </html>
