@@ -1,5 +1,5 @@
 {
-  "solde": 28,
+  "solde": 58,
   "tirelire": 15,
   "objectifActuel": 0,
   "objectifCible": 50,
@@ -82,6 +82,12 @@
       "type": "gain",
       "desc": "Argent de poche",
       "montant": 15
+    },
+    {
+      "date": "2026-08-15",
+      "type": "gain",
+      "desc": "Grands-parents",
+      "montant": 30
     }
   ],
   "lastAllowanceDate": {
