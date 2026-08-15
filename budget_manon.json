@@ -1,7 +1,7 @@
 {
-  "solde": 57,
+  "solde": 58,
   "tirelire": 15,
-  "objectifActuel": 1,
+  "objectifActuel": 0,
   "objectifCible": 50,
   "nomObjectif": "Mon Objectif",
   "history": [
@@ -93,6 +93,12 @@
       "date": "2026-08-15",
       "type": "depense",
       "desc": "🎯 Vers Objectif",
+      "montant": 1
+    },
+    {
+      "date": "2026-08-15",
+      "type": "gain",
+      "desc": "↩ Retrait Objectif",
       "montant": 1
     }
   ],
