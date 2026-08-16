@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Marée en Direct</title>
+    <title>Marée en Direct - Universel</title>
     <style>
         :root {
             --deep-sea-blue: #0a2f49;
@@ -61,31 +61,23 @@
 
         #location-header { margin-bottom: 1.5rem; padding-right: 40px; }
 
-        #city-name {
-            font-size: 1.6rem;
-            font-weight: 700;
-            color: var(--white-foam);
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-            margin-bottom: 0.2rem;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        }
-
-        /* Sélecteur de ville stylisé */
         .city-select-wrapper {
-            margin-bottom: 0.5rem;
+            margin-top: 0.3rem;
         }
 
         #port-selector {
             background: rgba(255, 255, 255, 0.15);
             border: 1px solid var(--sand-beige);
             color: var(--sand-beige);
-            padding: 5px 12px;
+            padding: 6px 14px;
             border-radius: 20px;
-            font-size: 0.85rem;
+            font-size: 0.95rem;
+            font-weight: 600;
             outline: none;
             cursor: pointer;
             transition: background 0.3s;
+            max-width: 100%;
+            text-overflow: ellipsis;
         }
 
         #port-selector option {
@@ -94,9 +86,10 @@
         }
 
         #current-date {
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             color: var(--sand-beige);
             opacity: 0.9;
+            margin-top: 0.5rem;
         }
 
         .tide-status-wrapper { margin: 1.5rem 0; }
@@ -168,25 +161,20 @@
         <div id="coeff-badge" class="coeff-badge">--</div>
 
         <div id="location-header">
-            <div id="city-name">Roscoff</div>
             <div class="city-select-wrapper">
-                <select id="port-selector" onchange="changerDePort(this.value)">
-                    <option value="roscoff" selected>Changer de port...</option>
-                    <option value="roscoff">Roscoff</option>
-                    <option value="st-malo">Saint-Malo</option>
-                    <option value="brest">Brest</option>
-                    <option value="cherbourg">Cherbourg</option>
+                <select id="port-selector" onchange="changerDePortManette(this.value)">
+                    <!-- Options injectées dynamiquement -->
                 </select>
             </div>
             <div id="current-date"></div>
         </div>
 
-        <div id="loader-container" style="display: none;">
+        <div id="loader-container">
             <div class="loader"></div>
-            <p style="color: var(--sand-beige);">Mise à jour...</p>
+            <p style="color: var(--sand-beige);">Recherche de votre position...</p>
         </div>
 
-        <div id="main-content">
+        <div id="main-content" style="display: none;">
             <div class="tide-status-wrapper">
                 <span class="tide-label">La mer est actuellement</span>
                 <div id="tide-status-text">--</div>
@@ -201,8 +189,9 @@
     </div>
 
     <script>
-        const cityEl = document.getElementById('city-name');
         const dateEl = document.getElementById('current-date');
+        const loaderEl = document.getElementById('loader-container');
+        const mainContentEl = document.getElementById('main-content');
         const statusTextEl = document.getElementById('tide-status-text');
         const countdownLabelEl = document.getElementById('countdown-label');
         const nextTideTimeEl = document.getElementById('next-tide-time');
@@ -213,59 +202,84 @@
         const now = new Date();
         dateEl.textContent = now.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-        // Base de données par port (avec les horaires exacts du jour par exemple)
-        const BasesPorts = {
-            "roscoff": {
-                nom: "Roscoff",
-                marees: [
-                    { type: 'BM', h: 3, m: 31, coeff: 95 },
-                    { type: 'PM', h: 9, m: 25, coeff: 95 },
-                    { type: 'BM', h: 15, m: 45, coeff: 90 },
-                    { type: 'PM', h: 21, m: 35, coeff: 90 }
-                ]
-            },
-            "st-malo": {
-                nom: "Saint-Malo",
-                marees: [
-                    { type: 'BM', h: 4, m: 5, coeff: 96 },
-                    { type: 'PM', h: 9, m: 58, coeff: 96 },
-                    { type: 'BM', h: 16, m: 20, coeff: 91 },
-                    { type: 'PM', h: 22, m: 10, coeff: 91 }
-                ]
-            },
-            "brest": {
-                nom: "Brest",
-                marees: [
-                    { type: 'BM', h: 3, m: 45, coeff: 94 },
-                    { type: 'PM', h: 9, m: 38, coeff: 94 },
-                    { type: 'BM', h: 16, m: 0, coeff: 89 },
-                    { type: 'PM', h: 21, m: 50, coeff: 89 }
-                ]
-            },
-            "cherbourg": {
-                nom: "Cherbourg",
-                marees: [
-                    { type: 'BM', h: 5, m: 10, coeff: 85 },
-                    { type: 'PM', h: 11, m: 15, coeff: 85 },
-                    { type: 'BM', h: 17, m: 30, coeff: 80 },
-                    { type: 'PM', h: 23, m: 25, coeff: 80 }
-                ]
-            }
-        };
+        // Base de référence des principaux ports de France métropolitaine (avec coordonnées GPS et horaires type du jour)
+        const PortsFrance = [
+            { id: "roscoff", nom: "Roscoff", lat: 48.72, lon: -3.98, marees: [{t:'BM',h:3,m:31,c:95},{t:'PM',h:9,m:25,c:95},{t:'BM',h:15,m:45,c:90},{t:'PM',h:21,m:35,c:90}] },
+            { id: "st-malo", nom: "Saint-Malo", lat: 48.64, lon: -2.02, marees: [{t:'BM',h:4,m:5,c:96},{t:'PM',h:9,m:58,c:96},{t:'BM',h:16,m:20,c:91},{t:'PM',h:22,m:10,c:91}] },
+            { id: "brest", nom: "Brest", lat: 48.39, lon: -4.48, marees: [{t:'BM',h:3,m:45,c:94},{t:'PM',h:9,m:38,c:94},{t:'BM',h:16,m:0,c:89},{t:'PM',h:21,m:50,c:89}] },
+            { id: "cherbourg", nom: "Cherbourg", lat: 49.63, lon: -1.62, marees: [{t:'BM',h:5,m:10,c:85},{t:'PM',h:11,m:15,c:85},{t:'BM',h:17,m:30,c:80},{t:'PM',h:23,m:25,c:80}] },
+            { id: "le-havre", nom: "Le Havre", lat: 49.49, lon: 0.10, marees: [{t:'BM',h:5,m:30,c:88},{t:'PM',h:11,m:40,c:88},{t:'BM',h:17,m:50,c:83},{t:'PM',h:23,m:55,c:83}] },
+            { id: "bordeaux", nom: "Bordeaux", lat: 44.83, lon: -0.57, marees: [{t:'BM',h:6,m:15,c:75},{t:'PM',h:12,m:30,c:75},{t:'BM',h:18,m:40,c:72},{t:'PM',h:23,m:50,c:72}] },
+            { id: "marseille", nom: "Marseille (Méditerranée)", lat: 43.29, lon: 5.36, marees: [{t:'BM',h:6,m:0,c:20},{t:'PM',h:12,m:0,c:20},{t:'BM',h:18,m:0,c:20},{t:'PM',h:23,m:59,c:20}] },
+            { id: "la-rochelle", nom: "La Rochelle", lat: 46.16, lon: -1.15, marees: [{t:'BM',h:4,m:20,c:90},{t:'PM',h:10,m:10,c:90},{t:'BM',h:16,m:45,c:86},{t:'PM',h:22,m:30,c:86}] }
+        ];
 
-        let portActuel = "roscoff";
+        let portActuel = PortsFrance[0];
+        let intervalId = null;
 
-        function changerDePort(valeur) {
-            if (BasesPorts[valeur]) {
-                portActuel = valeur;
-                cityEl.textContent = BasesPorts[valeur].nom;
-                calculerMareeTempsReel();
+        function initialiserSelecteur(portSelectionneId) {
+            portSelector.innerHTML = "";
+            PortsFrance.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.textContent = p.nom;
+                if (p.id === portSelectionneId) opt.selected = true;
+                portSelector.appendChild(opt);
+            });
+        }
+
+        // Étape 1 : Géolocalisation automatique au démarrage
+        if ("geolocation" in navigator) {
+            navigator.geolocation.getCurrentPosition(positionSuccess, () => fixerPortDefaut(PortsFrance[0]), { enableHighAccuracy: true });
+        } else {
+            fixerPortDefaut(PortsFrance[0]);
+        }
+
+        function positionSuccess(position) {
+            const userLat = position.coords.latitude;
+            const userLon = position.coords.longitude;
+
+            // Trouver le port le plus proche via un calcul de distance GPS simple
+            let portProche = PortsFrance[0];
+            let minDistance = Infinity;
+
+            PortsFrance.forEach(p => {
+                const dist = Math.sqrt(Math.pow(p.lat - userLat, 2) + Math.pow(p.lon - userLon, 2));
+                if (dist < minDistance) {
+                    minDistance = dist;
+                    portProche = p;
+                }
+            });
+
+            fixerPortDefaut(portProche);
+        }
+
+        function fixerPortDefaut(portObj) {
+            portActuel = portObj;
+            initialiserSelecteur(portObj.id);
+            loaderEl.style.display = 'none';
+            mainContentEl.style.display = 'block';
+
+            lancerBoucleMarée();
+        }
+
+        function changerDePortManette(idPort) {
+            const trouve = PortsFrance.find(p => p.id === idPort);
+            if (trouve) {
+                portActuel = trouve;
+                lancerBoucleMarée();
             }
+        }
+
+        function lancerBoucleMarée() {
+            if (intervalId) clearInterval(intervalId);
+            calculerMareeTempsReel();
+            intervalId = setInterval(calculerMareeTempsReel, 1000);
         }
 
         function calculerMareeTempsReel() {
             const dateActuelle = new Date();
-            const mareesDuJour = BasesPorts[portActuel].marees;
+            const mareesDuJour = portActuel.marees;
             const secondesActuelles = dateActuelle.getHours() * 3600 + dateActuelle.getMinutes() * 60 + dateActuelle.getSeconds();
 
             let prochaine = null;
@@ -280,17 +294,15 @@
                 }
             }
 
-            // Si la dernière marée de la journée est passée, on prend la première du lendemain
             if (!prochaine) {
-                prochaine = { type: 'BM', h: 4, m: 0, coeff: 85, eventSec: 24 * 3600 + 4 * 3600 };
+                prochaine = { t: 'BM', h: 4, m: 0, c: portActuel.marees[0].c, eventSec: 24 * 3600 + 4 * 3600 };
             }
 
-            estMontante = (prochaine.type === 'PM');
+            estMontante = (prochaine.t === 'PM');
             let secondesRestantes = prochaine.eventSec - secondesActuelles;
             if (secondesRestantes < 0) secondesRestantes = 0;
 
-            // Mise à jour visuelle
-            coeffBadgeEl.textContent = prochaine.coeff;
+            coeffBadgeEl.textContent = prochaine.c;
 
             if (estMontante) {
                 statusTextEl.textContent = "LA MER MONTE";
@@ -302,8 +314,7 @@
                 countdownLabelEl.textContent = "Basse mer prévue :";
             }
 
-            const heureFormatee = `${pad(prochaine.h)}h${pad(prochaine.m)}`;
-            nextTideTimeEl.textContent = `à ${heureFormatee}`;
+            nextTideTimeEl.textContent = `à ${pad(prochaine.h)}h${pad(prochaine.m)}`;
 
             const th = Math.floor(secondesRestantes / 3600);
             const tm = Math.floor((secondesRestantes % 3600) / 60);
@@ -311,10 +322,6 @@
 
             countdownTimerEl.textContent = `${pad(th)}h ${pad(tm)}m ${pad(ts)}s`;
         }
-
-        // Lancement initial et rafraîchissement chaque seconde
-        calculerMareeTempsReel();
-        setInterval(calculerMareeTempsReel, 1000);
 
         function pad(num) { return String(num).padStart(2, '0'); }
     </script>
