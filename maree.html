@@ -67,8 +67,30 @@
             color: var(--white-foam);
             text-transform: uppercase;
             letter-spacing: 1.5px;
-            margin-bottom: 0.3rem;
+            margin-bottom: 0.2rem;
             text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        /* Sélecteur de ville stylisé */
+        .city-select-wrapper {
+            margin-bottom: 0.5rem;
+        }
+
+        #port-selector {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid var(--sand-beige);
+            color: var(--sand-beige);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            outline: none;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        #port-selector option {
+            background: var(--deep-sea-blue);
+            color: var(--white-foam);
         }
 
         #current-date {
@@ -146,16 +168,25 @@
         <div id="coeff-badge" class="coeff-badge">--</div>
 
         <div id="location-header">
-            <div id="city-name">Localisation...</div>
+            <div id="city-name">Roscoff</div>
+            <div class="city-select-wrapper">
+                <select id="port-selector" onchange="changerDePort(this.value)">
+                    <option value="roscoff" selected>Changer de port...</option>
+                    <option value="roscoff">Roscoff</option>
+                    <option value="st-malo">Saint-Malo</option>
+                    <option value="brest">Brest</option>
+                    <option value="cherbourg">Cherbourg</option>
+                </select>
+            </div>
             <div id="current-date"></div>
         </div>
 
-        <div id="loader-container">
+        <div id="loader-container" style="display: none;">
             <div class="loader"></div>
-            <p style="color: var(--sand-beige);">Chargement des données officielles...</p>
+            <p style="color: var(--sand-beige);">Mise à jour...</p>
         </div>
 
-        <div id="main-content" style="display: none;">
+        <div id="main-content">
             <div class="tide-status-wrapper">
                 <span class="tide-label">La mer est actuellement</span>
                 <div id="tide-status-text">--</div>
@@ -172,81 +203,69 @@
     <script>
         const cityEl = document.getElementById('city-name');
         const dateEl = document.getElementById('current-date');
-        const loaderEl = document.getElementById('loader-container');
-        const mainContentEl = document.getElementById('main-content');
         const statusTextEl = document.getElementById('tide-status-text');
         const countdownLabelEl = document.getElementById('countdown-label');
         const nextTideTimeEl = document.getElementById('next-tide-time');
         const countdownTimerEl = document.getElementById('countdown-timer');
         const coeffBadgeEl = document.getElementById('coeff-badge');
-
-        // Annuaire des marées officielles (Format : YYYY-MM-DD)
-        const BaseDeDonneesMarees = {
-            "2026-08-15": [
-                { type: 'BM', h: 2, m: 53, coeff: 101 },
-                { type: 'PM', h: 8, m: 50, coeff: 101 },
-                { type: 'BM', h: 15, m: 8, coeff: 98 },
-                { type: 'PM', h: 21, m: 1, coeff: 98 }
-            ],
-            "2026-08-16": [
-                { type: 'BM', h: 3, m: 31, coeff: 95 },
-                { type: 'PM', h: 9, m: 25, coeff: 95 },
-                { type: 'BM', h: 15, m: 45, coeff: 90 },
-                { type: 'PM', h: 21, m: 35, coeff: 90 }
-            ],
-            "2026-08-17": [
-                { type: 'BM', h: 4, m: 5, coeff: 84 },
-                { type: 'PM', h: 9, m: 56, coeff: 84 },
-                { type: 'BM', h: 16, m: 18, coeff: 78 },
-                { type: 'PM', h: 22, m: 7, coeff: 78 }
-            ]
-        };
+        const portSelector = document.getElementById('port-selector');
 
         const now = new Date();
         dateEl.textContent = now.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-        if ("geolocation" in navigator) {
-            navigator.geolocation.getCurrentPosition(positionSuccess, () => lancerApplication("Roscoff"), { enableHighAccuracy: true });
-        } else {
-            lancerApplication("Roscoff");
-        }
-
-        async function positionSuccess(position) {
-            const lat = position.coords.latitude;
-            const lon = position.coords.longitude;
-            try {
-                const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`);
-                const data = await response.json();
-                let ville = data.address?.city || data.address?.town || data.address?.village || data.address?.municipality || "Roscoff";
-                lancerApplication(ville);
-            } catch (e) {
-                lancerApplication("Roscoff");
+        // Base de données par port (avec les horaires exacts du jour par exemple)
+        const BasesPorts = {
+            "roscoff": {
+                nom: "Roscoff",
+                marees: [
+                    { type: 'BM', h: 3, m: 31, coeff: 95 },
+                    { type: 'PM', h: 9, m: 25, coeff: 95 },
+                    { type: 'BM', h: 15, m: 45, coeff: 90 },
+                    { type: 'PM', h: 21, m: 35, coeff: 90 }
+                ]
+            },
+            "st-malo": {
+                nom: "Saint-Malo",
+                marees: [
+                    { type: 'BM', h: 4, m: 5, coeff: 96 },
+                    { type: 'PM', h: 9, m: 58, coeff: 96 },
+                    { type: 'BM', h: 16, m: 20, coeff: 91 },
+                    { type: 'PM', h: 22, m: 10, coeff: 91 }
+                ]
+            },
+            "brest": {
+                nom: "Brest",
+                marees: [
+                    { type: 'BM', h: 3, m: 45, coeff: 94 },
+                    { type: 'PM', h: 9, m: 38, coeff: 94 },
+                    { type: 'BM', h: 16, m: 0, coeff: 89 },
+                    { type: 'PM', h: 21, m: 50, coeff: 89 }
+                ]
+            },
+            "cherbourg": {
+                nom: "Cherbourg",
+                marees: [
+                    { type: 'BM', h: 5, m: 10, coeff: 85 },
+                    { type: 'PM', h: 11, m: 15, coeff: 85 },
+                    { type: 'BM', h: 17, m: 30, coeff: 80 },
+                    { type: 'PM', h: 23, m: 25, coeff: 80 }
+                ]
             }
-        }
+        };
 
-        function lancerApplication(ville) {
-            cityEl.textContent = ville;
-            loaderEl.style.display = 'none';
-            mainContentEl.style.display = 'block';
+        let portActuel = "roscoff";
 
-            calculerMareeTempsReel();
-            setInterval(calculerMareeTempsReel, 1000);
+        function changerDePort(valeur) {
+            if (BasesPorts[valeur]) {
+                portActuel = valeur;
+                cityEl.textContent = BasesPorts[valeur].nom;
+                calculerMareeTempsReel();
+            }
         }
 
         function calculerMareeTempsReel() {
             const dateActuelle = new Date();
-            const annee = dateActuelle.getFullYear();
-            const mois = String(dateActuelle.getMonth() + 1).padStart(2, '0');
-            const jour = String(dateActuelle.getDate()).padStart(2, '0');
-            const clefDate = `${annee}-${mois}-${jour}`;
-
-            let mareesDuJour = BaseDeDonneesMarees[clefDate];
-
-            // Sécurité si date hors de la base de données de démonstration
-            if (!mareesDuJour) {
-                mareesDuJour = BaseDeDonneesMarees["2026-08-16"];
-            }
-
+            const mareesDuJour = BasesPorts[portActuel].marees;
             const secondesActuelles = dateActuelle.getHours() * 3600 + dateActuelle.getMinutes() * 60 + dateActuelle.getSeconds();
 
             let prochaine = null;
@@ -257,20 +276,20 @@
                 if (secondesActuelles < eventSec) {
                     prochaine = mareesDuJour[i];
                     prochaine.eventSec = eventSec;
-                    estMontante = (prochaine.type === 'PM');
                     break;
                 }
             }
 
-            // Si toutes les marées du jour sont passées, prendre la première de demain
+            // Si la dernière marée de la journée est passée, on prend la première du lendemain
             if (!prochaine) {
-                prochaine = { type: 'BM', h: 4, m: 37, coeff: 70, eventSec: 24 * 3600 + 4 * 3600 + 37 * 60 };
-                estMontante = false;
+                prochaine = { type: 'BM', h: 4, m: 0, coeff: 85, eventSec: 24 * 3600 + 4 * 3600 };
             }
 
-            const secondesRestantes = prochaine.eventSec - secondesActuelles;
+            estMontante = (prochaine.type === 'PM');
+            let secondesRestantes = prochaine.eventSec - secondesActuelles;
+            if (secondesRestantes < 0) secondesRestantes = 0;
 
-            // Mises à jour visuelles
+            // Mise à jour visuelle
             coeffBadgeEl.textContent = prochaine.coeff;
 
             if (estMontante) {
@@ -292,6 +311,10 @@
 
             countdownTimerEl.textContent = `${pad(th)}h ${pad(tm)}m ${pad(ts)}s`;
         }
+
+        // Lancement initial et rafraîchissement chaque seconde
+        calculerMareeTempsReel();
+        setInterval(calculerMareeTempsReel, 1000);
 
         function pad(num) { return String(num).padStart(2, '0'); }
     </script>
