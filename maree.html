@@ -28,16 +28,15 @@
             text-align: center;
         }
 
-        /* Conteneur principal façon "Verre" */
+        /* Conteneur principal façon "Verre" avec un fond sombre vide */
         .container {
-            background: rgba(0, 0, 0, 0.3);
+            background: rgba(5, 15, 25, 0.6);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             padding: 2.5rem 2rem;
             border-radius: 35px;
-            /* Bordure imitant le reflet d'un verre */
             border: 2px solid rgba(255, 255, 255, 0.2); 
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5), inset 0 0 20px rgba(255,255,255,0.05);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5), inset 0 0 30px rgba(0,0,0,0.8);
             max-width: 480px;
             width: 100%;
             position: relative;
@@ -48,21 +47,21 @@
             justify-content: space-between;
         }
 
-        /* La Jauge Horizontale (Le niveau de l'eau) */
+        /* La Jauge Horizontale (Le niveau de l'eau qui monte/descend) */
         .water-level {
             position: absolute;
             bottom: 0;
             left: 0;
             width: 100%;
-            /* Couleur de l'eau bien distincte */
-            background: rgba(0, 168, 204, 0.35);
+            /* Couleur de l'eau visible */
+            background: linear-gradient(180deg, rgba(0, 168, 204, 0.5) 0%, rgba(10, 47, 73, 0.85) 100%);
             /* Ligne horizontale nette de la surface */
-            border-top: 4px solid rgba(255, 255, 255, 0.9);
-            box-shadow: 0 -10px 25px rgba(0, 168, 204, 0.5);
+            border-top: 4px solid var(--white-foam);
+            box-shadow: 0 -5px 20px rgba(0, 168, 204, 0.8);
             transition: height 1.5s cubic-bezier(0.4, 0, 0.2, 1);
             z-index: 0;
             pointer-events: none;
-            border-radius: 0 0 33px 33px; /* Épouse le fond du verre */
+            border-radius: 0 0 33px 33px;
         }
 
         /* Le contenu reste au-dessus de l'eau */
@@ -143,7 +142,7 @@
         .status-descendant { color: var(--coral-red); }
 
         .countdown-box {
-            background: rgba(0, 0, 0, 0.4);
+            background: rgba(0, 0, 0, 0.5);
             backdrop-filter: blur(5px);
             padding: 1.2rem;
             border-radius: 20px;
@@ -188,7 +187,7 @@
 <body>
 
     <div class="container">
-        <!-- La jauge horizontale façon verre d'eau -->
+        <!-- La jauge horizontale -->
         <div id="water-level" class="water-level" style="height: 50%;"></div>
 
         <div id="coeff-badge" class="coeff-badge">--</div>
@@ -359,12 +358,12 @@
             if (progression > 1) progression = 1;
             if (progression < 0) progression = 0;
 
-            // La jauge évolue entre 10% (marée basse) et 90% (marée haute) de la hauteur du verre
+            // Évolution fluide de la jauge entre 5% (presque vide) et 95% (presque plein)
             let pourcentageHauteur;
             if (estMontante) {
-                pourcentageHauteur = 10 + (progression * 80);
+                pourcentageHauteur = 5 + (progression * 90);
             } else {
-                pourcentageHauteur = 90 - (progression * 80);
+                pourcentageHauteur = 95 - (progression * 90);
             }
             waterLevelEl.style.height = `${pourcentageHauteur}%`;
 
