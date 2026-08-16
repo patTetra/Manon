@@ -28,44 +28,59 @@
             text-align: center;
         }
 
-        /* Conteneur principal façon "Verre" avec un fond sombre vide */
         .container {
-            background: rgba(5, 15, 25, 0.6);
+            background: rgba(10, 30, 45, 0.75);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
-            padding: 2.5rem 2rem;
+            padding: 2rem 1.5rem;
             border-radius: 35px;
             border: 2px solid rgba(255, 255, 255, 0.2); 
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5), inset 0 0 30px rgba(0,0,0,0.8);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
             max-width: 480px;
             width: 100%;
             position: relative;
-            overflow: hidden;
-            min-height: 520px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
         }
 
-        /* La Jauge Horizontale (Le niveau de l'eau qui monte/descend) */
+        /* Le "Verre" ou la jauge visuelle dédiée intégrée proprement dans la carte */
+        .glass-cylinder {
+            width: 100%;
+            height: 220px; /* Hauteur fixe bien visible pour la jauge */
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.15);
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+            box-shadow: inset 0 10px 20px rgba(0,0,0,0.6);
+        }
+
+        /* Le niveau d'eau à l'intérieur du verre */
         .water-level {
             position: absolute;
             bottom: 0;
             left: 0;
             width: 100%;
-            /* Couleur de l'eau visible */
-            background: linear-gradient(180deg, rgba(0, 168, 204, 0.5) 0%, rgba(10, 47, 73, 0.85) 100%);
-            /* Ligne horizontale nette de la surface */
-            border-top: 4px solid var(--white-foam);
-            box-shadow: 0 -5px 20px rgba(0, 168, 204, 0.8);
-            transition: height 1.5s cubic-bezier(0.4, 0, 0.2, 1);
-            z-index: 0;
-            pointer-events: none;
-            border-radius: 0 0 33px 33px;
+            background: linear-gradient(180deg, rgba(0, 168, 204, 0.6) 0%, rgba(10, 47, 73, 0.9) 100%);
+            border-top: 4px solid var(--white-foam); /* La surface de l'eau */
+            box-shadow: 0 -5px 15px rgba(0, 168, 204, 0.8);
+            transition: height 1s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 0 0 18px 18px;
         }
 
-        /* Le contenu reste au-dessus de l'eau */
-        .container > * { position: relative; z-index: 1; }
+        /* Indicateur de pourcentage à l'intérieur du verre */
+        .water-percentage-text {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: var(--sand-beige);
+            z-index: 2;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 4px 10px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
 
         .coeff-badge {
             position: absolute;
@@ -84,9 +99,10 @@
             font-weight: 800;
             color: var(--sand-beige);
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            z-index: 10;
         }
 
-        #location-header { margin-bottom: 1rem; padding-right: 40px; text-align: left; }
+        #location-header { margin-bottom: 1.5rem; padding-right: 50px; text-align: left; }
 
         .city-select-wrapper { margin-top: 0.3rem; }
 
@@ -119,7 +135,7 @@
             margin-left: 0.2rem;
         }
 
-        .tide-status-wrapper { margin: 1.5rem 0; }
+        .tide-status-wrapper { margin: 1rem 0; }
 
         .tide-label {
             font-size: 0.85rem;
@@ -131,7 +147,7 @@
         }
 
         #tide-status-text {
-            font-size: 2.8rem;
+            font-size: 2.6rem;
             font-weight: 900;
             line-height: 1.1;
             transition: color 0.5s ease;
@@ -142,11 +158,11 @@
         .status-descendant { color: var(--coral-red); }
 
         .countdown-box {
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(0, 0, 0, 0.4);
             backdrop-filter: blur(5px);
             padding: 1.2rem;
             border-radius: 20px;
-            margin-top: 1.5rem;
+            margin-top: 1.2rem;
             border: 1px solid rgba(255, 255, 255, 0.15);
         }
 
@@ -187,9 +203,6 @@
 <body>
 
     <div class="container">
-        <!-- La jauge horizontale -->
-        <div id="water-level" class="water-level" style="height: 50%;"></div>
-
         <div id="coeff-badge" class="coeff-badge">--</div>
 
         <div id="location-header">
@@ -199,6 +212,12 @@
                 </select>
             </div>
             <div id="current-date"></div>
+        </div>
+
+        <!-- Le cylindre visuel (Verre d'eau avec jauge) -->
+        <div class="glass-cylinder">
+            <div id="water-percentage" class="water-percentage-text">--%</div>
+            <div id="water-level" class="water-level" style="height: 50%;"></div>
         </div>
 
         <div id="loader-container">
@@ -231,6 +250,7 @@
         const coeffBadgeEl = document.getElementById('coeff-badge');
         const portSelector = document.getElementById('port-selector');
         const waterLevelEl = document.getElementById('water-level');
+        const waterPercentageEl = document.getElementById('water-percentage');
 
         const now = new Date();
         dateEl.textContent = now.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -358,14 +378,17 @@
             if (progression > 1) progression = 1;
             if (progression < 0) progression = 0;
 
-            // Évolution fluide de la jauge entre 5% (presque vide) et 95% (presque plein)
+            // La jauge évolue proprement entre 10% et 90% du cylindre dédié
             let pourcentageHauteur;
             if (estMontante) {
-                pourcentageHauteur = 5 + (progression * 90);
+                pourcentageHauteur = 10 + (progression * 80);
             } else {
-                pourcentageHauteur = 95 - (progression * 90);
+                pourcentageHauteur = 90 - (progression * 80);
             }
-            waterLevelEl.style.height = `${pourcentageHauteur}%`;
+
+            const pourcentageArrondi = Math.round(pourcentageHauteur);
+            waterLevelEl.style.height = `${pourcentageArrondi}%`;
+            waterPercentageEl.textContent = `${pourcentageArrondi}%`;
 
             coeffBadgeEl.textContent = prochaine.c;
 
