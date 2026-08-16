@@ -29,7 +29,7 @@
         }
 
         .container {
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(10, 47, 73, 0.4);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
             padding: 2.5rem 2rem;
@@ -40,20 +40,24 @@
             width: 100%;
             position: relative;
             overflow: hidden;
+            min-height: 480px; /* Hauteur fixe garantie pour voir la jauge d'eau */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
 
-        /* Jauge d'eau dynamique en arrière-plan du rectangle */
+        /* Jauge d'eau dynamique en arrière-plan */
         .water-wave-bg {
             position: absolute;
             bottom: 0;
             left: 0;
             width: 100%;
-            background: linear-gradient(180deg, rgba(23, 162, 184, 0.25) 0%, rgba(10, 47, 73, 0.6) 100%);
-            transition: height 1s ease-in-out;
+            background: linear-gradient(180deg, rgba(23, 162, 184, 0.35) 0%, rgba(10, 47, 73, 0.85) 100%);
+            transition: height 1s cubic-bezier(0.4, 0, 0.2, 1);
             z-index: 0;
             pointer-events: none;
-            border-bottom-left-radius: 30px;
-            border-bottom-right-radius: 30px;
+            border-radius: 0 0 30px 30px;
+            border-top: 2px solid var(--ocean-teal);
         }
 
         .container > * {
@@ -79,7 +83,7 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.2);
         }
 
-        #location-header { margin-bottom: 1.5rem; padding-right: 40px; }
+        #location-header { margin-bottom: 1rem; padding-right: 40px; text-align: left; }
 
         .city-select-wrapper { margin-top: 0.3rem; }
 
@@ -110,7 +114,7 @@
             margin-top: 0.5rem;
         }
 
-        .tide-status-wrapper { margin: 1.5rem 0; }
+        .tide-status-wrapper { margin: 1rem 0; }
 
         .tide-label {
             font-size: 0.85rem;
@@ -122,7 +126,7 @@
         }
 
         #tide-status-text {
-            font-size: 2.8rem;
+            font-size: 2.6rem;
             font-weight: 900;
             line-height: 1.1;
             transition: color 0.5s ease;
@@ -133,10 +137,10 @@
         .status-descendant { color: var(--coral-red); }
 
         .countdown-box {
-            background: rgba(10, 47, 73, 0.65);
+            background: rgba(10, 47, 73, 0.7);
             padding: 1.2rem;
             border-radius: 15px;
-            margin-top: 1.5rem;
+            margin-top: 1rem;
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
@@ -167,7 +171,7 @@
             width: 40px;
             height: 40px;
             animation: spin 1s linear infinite;
-            margin: 0 auto 1rem auto;
+            margin: 2rem auto;
         }
 
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -224,7 +228,6 @@
         const now = new Date();
         dateEl.textContent = now.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-        // Liste exhaustive des principaux ports de France métropolitaine (Manche, Atlantique, Méditerranée)
         const PortsFrance = [
             { id: "dunkerque", nom: "Dunkerque", lat: 51.03, lon: 2.37, marees: [{t:'BM',h:5,m:20,c:82},{t:'PM',h:11,m:25,c:82},{t:'BM',h:17,m:40,c:78},{t:'PM',h:23,m:50,c:78}] },
             { id: "calais", nom: "Calais", lat: 50.95, lon: 1.85, marees: [{t:'BM',h:5,m:0,c:84},{t:'PM',h:11,m:10,c:84},{t:'BM',h:17,m:20,c:80},{t:'PM',h:23,m:30,c:80}] },
@@ -249,7 +252,7 @@
             { id: "corse-ajaccio", nom: "Ajaccio (Corse)", lat: 41.91, lon: 8.73, marees: [{t:'BM',h:6,m:0,c:15},{t:'PM',h:12,m:0,c:15},{t:'BM',h:18,m:0,c:15},{t:'PM',h:23,m:59,c:15}] }
         ];
 
-        let portActuel = PortsFrance[7]; // Par défaut Roscoff
+        let portActuel = PortsFrance[7];
         let intervalId = null;
 
         function initialiserSelecteur(portSelectionneId) {
@@ -338,10 +341,9 @@
             let secondesRestantes = prochaine.eventSec - secondesActuelles;
             if (secondesRestantes < 0) secondesRestantes = 0;
 
-            // Calcul dynamique de la hauteur du fond bleu (entre 15% et 85% de la carte) selon l'avancement entre la marée précédente et la prochaine
             const eventPrecedentSec = mareesDuJour[indexPrecedent].h * 3600 + mareesDuJour[indexPrecedent].m * 60;
             let dureeTotaleIntervalle = prochaine.eventSec - eventPrecedentSec;
-            if (dureeTotaleIntervalle <= 0) dureeTotaleIntervalle = 21600; // Sécurité (6h par défaut)
+            if (dureeTotaleIntervalle <= 0) dureeTotaleIntervalle = 21600; 
             let tempsEcouleIntervalle = secondesActuelles - eventPrecedentSec;
             if (tempsEcouleIntervalle < 0) tempsEcouleIntervalle += 86400;
 
@@ -349,16 +351,14 @@
             if (progression > 1) progression = 1;
             if (progression < 0) progression = 0;
 
-            // Si la mer monte, le fond monte de bas en haut (de 20% à 85%). Si elle descend, il descend (de 85% à 20%)
             let pourcentageHauteur;
             if (estMontante) {
-                pourcentageHauteur = 20 + (progression * 65);
+                pourcentageHauteur = 15 + (progression * 70);
             } else {
-                pourcentageHauteur = 85 - (progression * 65);
+                pourcentageHauteur = 85 - (progression * 70);
             }
             waterWaveEl.style.height = `${pourcentageHauteur}%`;
 
-            // Mise à jour visuelle des textes et badges
             coeffBadgeEl.textContent = prochaine.c;
 
             if (estMontante) {
