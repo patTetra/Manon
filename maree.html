@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Marée en Direct - France</title>
+    <title>Marée en Direct - Verre d'Eau</title>
     <style>
         :root {
-            --deep-sea-blue: #0a2f49;
-            --ocean-teal: #17a2b8;
+            --deep-sea-blue: #081b29;
+            --ocean-teal: #00a8cc;
             --sand-beige: #f3e5ab;
-            --coral-red: #ff6b6b;
+            --coral-red: #ff4a4a;
             --white-foam: #ffffff;
-            --bg-gradient: linear-gradient(135deg, #0a2f49 0%, #1c5d7d 100%);
+            --bg-gradient: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -28,42 +28,45 @@
             text-align: center;
         }
 
+        /* Conteneur principal façon "Verre" */
         .container {
-            background: rgba(10, 47, 73, 0.4);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             padding: 2.5rem 2rem;
-            border-radius: 30px;
-            border: 1px solid rgba(255, 255, 255, 0.18);
-            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+            border-radius: 35px;
+            /* Bordure imitant le reflet d'un verre */
+            border: 2px solid rgba(255, 255, 255, 0.2); 
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5), inset 0 0 20px rgba(255,255,255,0.05);
             max-width: 480px;
             width: 100%;
             position: relative;
             overflow: hidden;
-            min-height: 480px; /* Hauteur fixe garantie pour voir la jauge d'eau */
+            min-height: 520px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
         }
 
-        /* Jauge d'eau dynamique en arrière-plan */
-        .water-wave-bg {
+        /* La Jauge Horizontale (Le niveau de l'eau) */
+        .water-level {
             position: absolute;
             bottom: 0;
             left: 0;
             width: 100%;
-            background: linear-gradient(180deg, rgba(23, 162, 184, 0.35) 0%, rgba(10, 47, 73, 0.85) 100%);
-            transition: height 1s cubic-bezier(0.4, 0, 0.2, 1);
+            /* Couleur de l'eau bien distincte */
+            background: rgba(0, 168, 204, 0.35);
+            /* Ligne horizontale nette de la surface */
+            border-top: 4px solid rgba(255, 255, 255, 0.9);
+            box-shadow: 0 -10px 25px rgba(0, 168, 204, 0.5);
+            transition: height 1.5s cubic-bezier(0.4, 0, 0.2, 1);
             z-index: 0;
             pointer-events: none;
-            border-radius: 0 0 30px 30px;
-            border-top: 2px solid var(--ocean-teal);
+            border-radius: 0 0 33px 33px; /* Épouse le fond du verre */
         }
 
-        .container > * {
-            position: relative;
-            z-index: 1;
-        }
+        /* Le contenu reste au-dessus de l'eau */
+        .container > * { position: relative; z-index: 1; }
 
         .coeff-badge {
             position: absolute;
@@ -72,7 +75,8 @@
             width: 55px;
             height: 55px;
             border-radius: 50%;
-            background: rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(5px);
             border: 2px solid var(--sand-beige);
             display: flex;
             justify-content: center;
@@ -80,7 +84,7 @@
             font-size: 1.2rem;
             font-weight: 800;
             color: var(--sand-beige);
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
 
         #location-header { margin-bottom: 1rem; padding-right: 40px; text-align: left; }
@@ -88,18 +92,19 @@
         .city-select-wrapper { margin-top: 0.3rem; }
 
         #port-selector {
-            background: rgba(255, 255, 255, 0.15);
-            border: 1px solid var(--sand-beige);
-            color: var(--sand-beige);
-            padding: 6px 14px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255,255,255,0.4);
+            color: var(--white-foam);
+            padding: 8px 16px;
             border-radius: 20px;
-            font-size: 0.95rem;
+            font-size: 1rem;
             font-weight: 600;
             outline: none;
             cursor: pointer;
-            transition: background 0.3s;
+            transition: all 0.3s;
             max-width: 100%;
             text-overflow: ellipsis;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         }
 
         #port-selector option {
@@ -111,37 +116,39 @@
             font-size: 0.9rem;
             color: var(--sand-beige);
             opacity: 0.9;
-            margin-top: 0.5rem;
+            margin-top: 0.6rem;
+            margin-left: 0.2rem;
         }
 
-        .tide-status-wrapper { margin: 1rem 0; }
+        .tide-status-wrapper { margin: 1.5rem 0; }
 
         .tide-label {
             font-size: 0.85rem;
             text-transform: uppercase;
             letter-spacing: 2px;
-            color: var(--sand-beige);
+            color: rgba(255, 255, 255, 0.8);
             margin-bottom: 0.3rem;
             display: block;
         }
 
         #tide-status-text {
-            font-size: 2.6rem;
+            font-size: 2.8rem;
             font-weight: 900;
             line-height: 1.1;
             transition: color 0.5s ease;
-            text-shadow: 0 3px 6px rgba(0,0,0,0.4);
+            text-shadow: 0 3px 10px rgba(0,0,0,0.5);
         }
 
         .status-montant { color: var(--ocean-teal); }
         .status-descendant { color: var(--coral-red); }
 
         .countdown-box {
-            background: rgba(10, 47, 73, 0.7);
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(5px);
             padding: 1.2rem;
-            border-radius: 15px;
-            margin-top: 1rem;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            margin-top: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.15);
         }
 
         .countdown-title {
@@ -162,6 +169,7 @@
             font-weight: 700;
             font-variant-numeric: tabular-nums;
             color: var(--white-foam);
+            text-shadow: 0 2px 5px rgba(0,0,0,0.3);
         }
 
         .loader {
@@ -180,8 +188,8 @@
 <body>
 
     <div class="container">
-        <!-- Fond bleu dynamique représentant le niveau d'eau -->
-        <div id="water-wave" class="water-wave-bg" style="height: 50%;"></div>
+        <!-- La jauge horizontale façon verre d'eau -->
+        <div id="water-level" class="water-level" style="height: 50%;"></div>
 
         <div id="coeff-badge" class="coeff-badge">--</div>
 
@@ -223,7 +231,7 @@
         const countdownTimerEl = document.getElementById('countdown-timer');
         const coeffBadgeEl = document.getElementById('coeff-badge');
         const portSelector = document.getElementById('port-selector');
-        const waterWaveEl = document.getElementById('water-wave');
+        const waterLevelEl = document.getElementById('water-level');
 
         const now = new Date();
         dateEl.textContent = now.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -351,13 +359,14 @@
             if (progression > 1) progression = 1;
             if (progression < 0) progression = 0;
 
+            // La jauge évolue entre 10% (marée basse) et 90% (marée haute) de la hauteur du verre
             let pourcentageHauteur;
             if (estMontante) {
-                pourcentageHauteur = 15 + (progression * 70);
+                pourcentageHauteur = 10 + (progression * 80);
             } else {
-                pourcentageHauteur = 85 - (progression * 70);
+                pourcentageHauteur = 90 - (progression * 80);
             }
-            waterWaveEl.style.height = `${pourcentageHauteur}%`;
+            waterLevelEl.style.height = `${pourcentageHauteur}%`;
 
             coeffBadgeEl.textContent = prochaine.c;
 
