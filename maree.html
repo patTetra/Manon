@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Marée en Direct - Automatique</title>
+    <title>Marée en Direct - Roscoff</title>
     <style>
         :root {
             --deep-sea-blue: #081b29;
@@ -166,7 +166,7 @@
 <body>
 
     <div class="container">
-        <div id="coeff-badge" class="coeff-badge">75</div>
+        <div id="coeff-badge" class="coeff-badge">--</div>
 
         <div id="location-header">
             <div class="city-select-wrapper">
@@ -178,19 +178,19 @@
         </div>
 
         <div class="glass-cylinder">
-            <div id="water-percentage" class="water-percentage-text">50%</div>
+            <div id="water-percentage" class="water-percentage-text">--%</div>
             <div id="water-level" class="water-level" style="height: 50%;"></div>
         </div>
 
         <div id="main-content">
             <div class="tide-status-wrapper">
                 <span class="tide-label">La mer est actuellement</span>
-                <div id="tide-status-text" class="status-montant">LA MER MONTE</div>
+                <div id="tide-status-text">--</div>
             </div>
 
             <div class="countdown-box">
-                <div class="countdown-title" id="countdown-label">Prochaine pleine mer :</div>
-                <div id="next-tide-time">À calcul...</div>
+                <div class="countdown-title" id="countdown-label">Prochaine marée :</div>
+                <div id="next-tide-time">À --:--</div>
                 <div id="countdown-timer">--:--:--</div>
             </div>
         </div>
@@ -202,66 +202,95 @@
         const countdownLabelEl = document.getElementById('countdown-label');
         const nextTideTimeEl = document.getElementById('next-tide-time');
         const countdownTimerEl = document.getElementById('countdown-timer');
+        const coeffBadgeEl = document.getElementById('coeff-badge');
         const waterLevelEl = document.getElementById('water-level');
         const waterPercentageEl = document.getElementById('water-percentage');
 
         const now = new Date();
         dateEl.textContent = now.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-        function lancerBoucleAutomatique() {
-            calculerMareeMaths();
-            setInterval(calculerMareeMaths, 1000);
+        function lancerMoteurMarée() {
+            calculerMareeDYNAMIQUE();
+            setInterval(calculerMareeDYNAMIQUE, 1000);
         }
 
-        function calculerMareeMaths() {
+        function calculerMareeDYNAMIQUE() {
             const maintenant = new Date();
+            const tempsActuelMs = maintenant.getTime();
+
+            // Propriétés de marée semi-diurne (1 cycle complet = ~12h 25m)
+            const dureeDemiCycleMs = (12 * 3600 + 25 * 60) * 1000 / 2; 
+
+            // Point de repère fixe (ex: une pleine mer de référence connue à Roscoff)
+            const refPleineMerMs = new Date(2026, 7, 17, 9, 56).getTime();
+
+            // Trouver la marée précédente et la prochaine par rapport à maintenant
+            let deltaMs = tempsActuelMs - refPleineMerMs;
+            let cyclesEcoules = Math.floor(deltaMs / dureeDemiCycleMs);
             
-            // Cycle moyen d'une marée (pleine mer à basse mer = ~6h 12m 30s en secondes)
-            const demiCycleSec = 22350; 
-            const cycleTotalSec = demiCycleSec * 2;
+            let tempsPleineMerPrecedenteMs = refPleineMerMs + (cyclesEcoules * dureeDemiCycleMs);
+            let tempsProchaineMareeMs = tempsPleineMerPrecedenteMs + dureeDemiCycleMs;
 
-            // Temps total écoulé depuis minuit aujourd'hui en secondes
-            const secondesJour = maintenant.getHours() * 3600 + maintenant.getMinutes() * 60 + maintenant.getSeconds();
+            if (tempsActuelMs > tempsProchaineMareeMs) {
+                tempsPleineMerPrecedenteMs = tempsProchaineMareeMs;
+                tempsProchaineMareeMs += dureeDemiCycleMs;
+            }
 
-            // On utilise une sinusoïde basée sur l'heure actuelle pour simuler le cycle infini
-            // Math.sin renvoie entre -1 et 1. On le transforme entre 0 et 100 pour le pourcentage de la jauge.
-            const angle = (secondesJour % cycleTotalSec) / cycleTotalSec * 2 * Math.PI;
-            const valeurSinus = Math.sin(angle); // -1 (marée basse) à +1 (marée haute)
+            // Détermination si la prochaine est une Pleine Mer ou une Basse Mer
+            // On alterne PM et BM tous les demi-cycles
+            let estProchainePM = (cyclesEcoules % 2 === 0); 
+            // Si le cycle courant est pair, la prochaine est une Basse Mer
+            if (tempsActuelMs > tempsPleineMerPrecedenteMs + (dureeDemiCycleMs)) {
+                estProchainePM = !estProchainePM;
+            }
 
-            // Pourcentage d'eau (de 10% à 90% pour garder de l'espace visuel)
-            const pourcentage = Math.round(50 + (valeurSinus * 40));
-            
+            // Calcul du temps restant exact avant la prochaine marée
+            let msRestantes = tempsProchaineMareeMs - tempsActuelMs;
+            if (msRestantes < 0) msRestantes = 0;
+            let secondesRestantes = Math.floor(msRestantes / 1000);
+
+            // Calcul du niveau d'eau en pourcentage (10% à 90%)
+            let progression = (tempsActuelMs - tempsPleineMerPrecedenteMs) / dureeDemiCycleMs;
+            let pourcentage;
+            let estMontante = !estProchainePM; // Si la prochaine est une PM, c'est que la mer monte actuellement
+
+            if (estMontante) {
+                pourcentage = Math.round(10 + (progression * 80));
+                statusTextEl.textContent = "LA MER MONTE";
+                statusTextEl.className = 'status-montant';
+                countdownLabelEl.textContent = "Pleine mer prévue :";
+            } else {
+                pourcentage = Math.round(90 - (progression * 80));
+                statusTextEl.textContent = "LA MER DESCEND";
+                statusTextEl.className = 'status-descendant';
+                countdownLabelEl.textContent = "Basse mer prévue :";
+            }
+
+            if (pourcentage > 100) pourcentage = 100;
+            if (pourcentage < 0) pourcentage = 0;
+
             waterLevelEl.style.height = `${pourcentage}%`;
             waterPercentageEl.textContent = `${pourcentage}%`;
 
-            // Détermination si la mer monte ou descend selon la pente de la sinusoïde (cosinus)
-            const estMontante = Math.cos(angle) > 0;
+            // Affichage de l'heure de la prochaine marée
+            const dateProchaine = new Date(tempsProchaineMareeMs);
+            nextTideTimeEl.textContent = `à ${pad(dateProchaine.getHours())}h${pad(dateProchaine.getMinutes())}`;
 
-            if (estMontante) {
-                statusTextEl.textContent = "LA MER MONTE";
-                statusTextEl.className = 'status-montant';
-                countdownLabelEl.textContent = "Tendance :";
-            } else {
-                statusTextEl.textContent = "LA MER DESCEND";
-                statusTextEl.className = 'status-descendant';
-                countdownLabelEl.textContent = "Tendance :";
-            }
+            // Calcul dynamique du coefficient basé sur les cycles lunaires (oscillation réaliste entre 35 et 95)
+            const jourAnnee = Math.floor((maintenant - new Date(maintenant.getFullYear(), 0, 0)) / (1000 * 60 * 60 * 24));
+            const coeffDyn = Math.round(65 + 30 * Math.sin(jourAnnee * (2 * Math.PI / 29.5)));
+            coeffBadgeEl.textContent = coeffDyn;
 
-            // Calcul du temps restant approximatif avant le prochain changement de tendance
-            let secondesRestantes = demiCycleSec - (secondesJour % demiCycleSec);
-            
-            nextTideTimeEl.textContent = estMontante ? "Prochaine Pleine Mer" : "Prochaine Basse Mer";
-
+            // Compte à rebours
             const th = Math.floor(secondesRestantes / 3600);
             const tm = Math.floor((secondesRestantes % 3600) / 60);
             const ts = secondesRestantes % 60;
-
             countdownTimerEl.textContent = `${pad(th)}h ${pad(tm)}m ${pad(ts)}s`;
         }
 
         function pad(num) { return String(num).padStart(2, '0'); }
 
-        lancerBoucleAutomatique();
+        lancerMoteurMarée();
     </script>
 </body>
 </html>
