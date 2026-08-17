@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Marée en Direct - Verre d'Eau</title>
+    <title>Marée en Direct - Automatique</title>
     <style>
         :root {
             --deep-sea-blue: #081b29;
@@ -41,10 +41,9 @@
             position: relative;
         }
 
-        /* Le "Verre" ou la jauge visuelle dédiée intégrée proprement dans la carte */
         .glass-cylinder {
             width: 100%;
-            height: 220px; /* Hauteur fixe bien visible pour la jauge */
+            height: 220px;
             background: rgba(0, 0, 0, 0.4);
             border-radius: 20px;
             border: 2px solid rgba(255, 255, 255, 0.15);
@@ -54,20 +53,18 @@
             box-shadow: inset 0 10px 20px rgba(0,0,0,0.6);
         }
 
-        /* Le niveau d'eau à l'intérieur du verre */
         .water-level {
             position: absolute;
             bottom: 0;
             left: 0;
             width: 100%;
             background: linear-gradient(180deg, rgba(0, 168, 204, 0.6) 0%, rgba(10, 47, 73, 0.9) 100%);
-            border-top: 4px solid var(--white-foam); /* La surface de l'eau */
+            border-top: 4px solid var(--white-foam);
             box-shadow: 0 -5px 15px rgba(0, 168, 204, 0.8);
             transition: height 1s cubic-bezier(0.4, 0, 0.2, 1);
             border-radius: 0 0 18px 18px;
         }
 
-        /* Indicateur de pourcentage à l'intérieur du verre */
         .water-percentage-text {
             position: absolute;
             top: 15px;
@@ -103,7 +100,6 @@
         }
 
         #location-header { margin-bottom: 1.5rem; padding-right: 50px; text-align: left; }
-
         .city-select-wrapper { margin-top: 0.3rem; }
 
         #port-selector {
@@ -118,14 +114,10 @@
             cursor: pointer;
             transition: all 0.3s;
             max-width: 100%;
-            text-overflow: ellipsis;
             box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         }
 
-        #port-selector option {
-            background: var(--deep-sea-blue);
-            color: var(--white-foam);
-        }
+        #port-selector option { background: var(--deep-sea-blue); color: var(--white-foam); }
 
         #current-date {
             font-size: 0.9rem;
@@ -166,243 +158,99 @@
             border: 1px solid rgba(255, 255, 255, 0.15);
         }
 
-        .countdown-title {
-            font-size: 0.9rem;
-            color: var(--sand-beige);
-            margin-bottom: 0.3rem;
-        }
-
-        #next-tide-time {
-            font-size: 1.3rem;
-            font-weight: bold;
-            color: var(--white-foam);
-            margin-bottom: 0.5rem;
-        }
-
-        #countdown-timer {
-            font-size: 2.4rem;
-            font-weight: 700;
-            font-variant-numeric: tabular-nums;
-            color: var(--white-foam);
-            text-shadow: 0 2px 5px rgba(0,0,0,0.3);
-        }
-
-        .loader {
-            border: 4px solid rgba(255, 255, 255, 0.1);
-            border-top: 4px solid var(--ocean-teal);
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 2rem auto;
-        }
-
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .countdown-title { font-size: 0.9rem; color: var(--sand-beige); margin-bottom: 0.3rem; }
+        #next-tide-time { font-size: 1.3rem; font-weight: bold; color: var(--white-foam); margin-bottom: 0.5rem; }
+        #countdown-timer { font-size: 2.4rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--white-foam); text-shadow: 0 2px 5px rgba(0,0,0,0.3); }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <div id="coeff-badge" class="coeff-badge">--</div>
+        <div id="coeff-badge" class="coeff-badge">75</div>
 
         <div id="location-header">
             <div class="city-select-wrapper">
-                <select id="port-selector" onchange="changerDePortManette(this.value)">
-                    <!-- Injecté dynamiquement -->
+                <select id="port-selector">
+                    <option value="roscoff">Roscoff</option>
                 </select>
             </div>
             <div id="current-date"></div>
         </div>
 
-        <!-- Le cylindre visuel (Verre d'eau avec jauge) -->
         <div class="glass-cylinder">
-            <div id="water-percentage" class="water-percentage-text">--%</div>
+            <div id="water-percentage" class="water-percentage-text">50%</div>
             <div id="water-level" class="water-level" style="height: 50%;"></div>
         </div>
 
-        <div id="loader-container">
-            <div class="loader"></div>
-            <p style="color: var(--sand-beige);">Recherche de votre position...</p>
-        </div>
-
-        <div id="main-content" style="display: none;">
+        <div id="main-content">
             <div class="tide-status-wrapper">
                 <span class="tide-label">La mer est actuellement</span>
-                <div id="tide-status-text">--</div>
+                <div id="tide-status-text" class="status-montant">LA MER MONTE</div>
             </div>
 
             <div class="countdown-box">
-                <div class="countdown-title" id="countdown-label">--</div>
-                <div id="next-tide-time">À --:--</div>
-                <div id="countdown-timer">--:--</div>
+                <div class="countdown-title" id="countdown-label">Prochaine pleine mer :</div>
+                <div id="next-tide-time">À calcul...</div>
+                <div id="countdown-timer">--:--:--</div>
             </div>
         </div>
     </div>
 
     <script>
         const dateEl = document.getElementById('current-date');
-        const loaderEl = document.getElementById('loader-container');
-        const mainContentEl = document.getElementById('main-content');
         const statusTextEl = document.getElementById('tide-status-text');
         const countdownLabelEl = document.getElementById('countdown-label');
         const nextTideTimeEl = document.getElementById('next-tide-time');
         const countdownTimerEl = document.getElementById('countdown-timer');
-        const coeffBadgeEl = document.getElementById('coeff-badge');
-        const portSelector = document.getElementById('port-selector');
         const waterLevelEl = document.getElementById('water-level');
         const waterPercentageEl = document.getElementById('water-percentage');
 
         const now = new Date();
         dateEl.textContent = now.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-        const PortsFrance = [
-            { id: "dunkerque", nom: "Dunkerque", lat: 51.03, lon: 2.37, marees: [{t:'BM',h:5,m:20,c:82},{t:'PM',h:11,m:25,c:82},{t:'BM',h:17,m:40,c:78},{t:'PM',h:23,m:50,c:78}] },
-            { id: "calais", nom: "Calais", lat: 50.95, lon: 1.85, marees: [{t:'BM',h:5,m:0,c:84},{t:'PM',h:11,m:10,c:84},{t:'BM',h:17,m:20,c:80},{t:'PM',h:23,m:30,c:80}] },
-            { id: "boulogne", nom: "Boulogne-sur-Mer", lat: 50.72, lon: 1.59, marees: [{t:'BM',h:4,m:40,c:85},{t:'PM',h:10,m:50,c:85},{t:'BM',h:17,m:0,c:81},{t:'PM',h:23,m:10,c:81}] },
-            { id: "dieppe", nom: "Dieppe", lat: 49.92, lon: 1.08, marees: [{t:'BM',h:5,m:55,c:86},{t:'PM',h:11,m:50,c:86},{t:'BM',h:18,m:15,c:82},{t:'PM',h:23,m:55,c:82}] },
-            { id: "le-havre", nom: "Le Havre", lat: 49.49, lon: 0.10, marees: [{t:'BM',h:5,m:30,c:88},{t:'PM',h:11,m:40,c:88},{t:'BM',h:17,m:50,c:83},{t:'PM',h:23,m:55,c:83}] },
-            { id: "cherbourg", nom: "Cherbourg", lat: 49.63, lon: -1.62, marees: [{t:'BM',h:5,m:10,c:85},{t:'PM',h:11,m:15,c:85},{t:'BM',h:17,m:30,c:80},{t:'PM',h:23,m:25,c:80}] },
-            { id: "saint-malo", nom: "Saint-Malo", lat: 48.64, lon: -2.02, marees: [{t:'BM',h:4,m:5,c:96},{t:'PM',h:9,m:58,c:96},{t:'BM',h:16,m:20,c:91},{t:'PM',h:22,m:10,c:91}] },
-            { id: "roscoff", nom: "Roscoff", lat: 48.72, lon: -3.98, marees: [{t:'BM',h:3,m:31,c:95},{t:'PM',h:9,m:25,c:95},{t:'BM',h:15,m:45,c:90},{t:'PM',h:21,m:35,c:90}] },
-            { id: "brest", nom: "Brest", lat: 48.39, lon: -4.48, marees: [{t:'BM',h:3,m:45,c:94},{t:'PM',h:9,m:38,c:94},{t:'BM',h:16,m:0,c:89},{t:'PM',h:21,m:50,c:89}] },
-            { id: "douarnenez", nom: "Douarnenez", lat: 48.09, lon: -4.33, marees: [{t:'BM',h:3,m:20,c:94},{t:'PM',h:9,m:15,c:94},{t:'BM',h:15,m:35,c:89},{t:'PM',h:21,m:25,c:89}] },
-            { id: "lorient", nom: "Lorient", lat: 47.74, lon: -3.36, marees: [{t:'BM',h:3,m:50,c:92},{t:'PM',h:9,m:40,c:92},{t:'BM',h:16,m:10,c:88},{t:'PM',h:22,m:0,c:88}] },
-            { id: "saint-nazaire", nom: "Saint-Nazaire", lat: 47.27, lon: -2.21, marees: [{t:'BM',h:4,m:10,c:91},{t:'PM',h:9,m:55,c:91},{t:'BM',h:16,m:30,c:87},{t:'PM',h:22,m:15,c:87}] },
-            { id: "la-rochelle", nom: "La Rochelle", lat: 46.16, lon: -1.15, marees: [{t:'BM',h:4,m:20,c:90},{t:'PM',h:10,m:10,c:90},{t:'BM',h:16,m:45,c:86},{t:'PM',h:22,m:30,c:86}] },
-            { id: "bordeaux", nom: "Bordeaux", lat: 44.83, lon: -0.57, marees: [{t:'BM',h:6,m:15,c:75},{t:'PM',h:12,m:30,c:75},{t:'BM',h:18,m:40,c:72},{t:'PM',h:23,m:50,c:72}] },
-            { id: "arcachon", nom: "Arcachon", lat: 44.65, lon: -1.16, marees: [{t:'BM',h:5,m:10,c:78},{t:'PM',h:11,m:0,c:78},{t:'BM',h:17,m:25,c:74},{t:'PM',h:23,m:20,c:74}] },
-            { id: "bayonne", nom: "Bayonne", lat: 43.49, lon: -1.47, marees: [{t:'BM',h:4,m:50,c:76},{t:'PM',h:10,m:40,c:76},{t:'BM',h:17,m:10,c:72},{t:'PM',h:23,m:0,c:72}] },
-            { id: "sete", nom: "Sète (Méditerranée)", lat: 43.40, lon: 3.69, marees: [{t:'BM',h:6,m:0,c:20},{t:'PM',h:12,m:0,c:20},{t:'BM',h:18,m:0,c:20},{t:'PM',h:23,m:59,c:20}] },
-            { id: "marseille", nom: "Marseille (Méditerranée)", lat: 43.29, lon: 5.36, marees: [{t:'BM',h:6,m:0,c:20},{t:'PM',h:12,m:0,c:20},{t:'BM',h:18,m:0,c:20},{t:'PM',h:23,m:59,c:20}] },
-            { id: "toulon", nom: "Toulon (Méditerranée)", lat: 43.12, lon: 5.93, marees: [{t:'BM',h:6,m:0,c:20},{t:'PM',h:12,m:0,c:20},{t:'BM',h:18,m:0,c:20},{t:'PM',h:23,m:59,c:20}] },
-            { id: "nice", nom: "Nice (Méditerranée)", lat: 43.71, lon: 7.26, marees: [{t:'BM',h:6,m:0,c:20},{t:'PM',h:12,m:0,c:20},{t:'BM',h:18,m:0,c:20},{t:'PM',h:23,m:59,c:20}] },
-            { id: "corse-ajaccio", nom: "Ajaccio (Corse)", lat: 41.91, lon: 8.73, marees: [{t:'BM',h:6,m:0,c:15},{t:'PM',h:12,m:0,c:15},{t:'BM',h:18,m:0,c:15},{t:'PM',h:23,m:59,c:15}] }
-        ];
-
-        let portActuel = PortsFrance[7];
-        let intervalId = null;
-
-        function initialiserSelecteur(portSelectionneId) {
-            portSelector.innerHTML = "";
-            PortsFrance.forEach(p => {
-                const opt = document.createElement('option');
-                opt.value = p.id;
-                opt.textContent = p.nom;
-                if (p.id === portSelectionneId) opt.selected = true;
-                portSelector.appendChild(opt);
-            });
+        function lancerBoucleAutomatique() {
+            calculerMareeMaths();
+            setInterval(calculerMareeMaths, 1000);
         }
 
-        if ("geolocation" in navigator) {
-            navigator.geolocation.getCurrentPosition(positionSuccess, () => fixerPortDefaut(PortsFrance[7]), { enableHighAccuracy: true });
-        } else {
-            fixerPortDefaut(PortsFrance[7]);
-        }
+        function calculerMareeMaths() {
+            const maintenant = new Date();
+            
+            // Cycle moyen d'une marée (pleine mer à basse mer = ~6h 12m 30s en secondes)
+            const demiCycleSec = 22350; 
+            const cycleTotalSec = demiCycleSec * 2;
 
-        function positionSuccess(position) {
-            const userLat = position.coords.latitude;
-            const userLon = position.coords.longitude;
+            // Temps total écoulé depuis minuit aujourd'hui en secondes
+            const secondesJour = maintenant.getHours() * 3600 + maintenant.getMinutes() * 60 + maintenant.getSeconds();
 
-            let portProche = PortsFrance[0];
-            let minDistance = Infinity;
+            // On utilise une sinusoïde basée sur l'heure actuelle pour simuler le cycle infini
+            // Math.sin renvoie entre -1 et 1. On le transforme entre 0 et 100 pour le pourcentage de la jauge.
+            const angle = (secondesJour % cycleTotalSec) / cycleTotalSec * 2 * Math.PI;
+            const valeurSinus = Math.sin(angle); // -1 (marée basse) à +1 (marée haute)
 
-            PortsFrance.forEach(p => {
-                const dist = Math.sqrt(Math.pow(p.lat - userLat, 2) + Math.pow(p.lon - userLon, 2));
-                if (dist < minDistance) {
-                    minDistance = dist;
-                    portProche = p;
-                }
-            });
+            // Pourcentage d'eau (de 10% à 90% pour garder de l'espace visuel)
+            const pourcentage = Math.round(50 + (valeurSinus * 40));
+            
+            waterLevelEl.style.height = `${pourcentage}%`;
+            waterPercentageEl.textContent = `${pourcentage}%`;
 
-            fixerPortDefaut(portProche);
-        }
-
-        function fixerPortDefaut(portObj) {
-            portActuel = portObj;
-            initialiserSelecteur(portObj.id);
-            loaderEl.style.display = 'none';
-            mainContentEl.style.display = 'block';
-
-            lancerBoucleMarée();
-        }
-
-        function changerDePortManette(idPort) {
-            const trouve = PortsFrance.find(p => p.id === idPort);
-            if (trouve) {
-                portActuel = trouve;
-                lancerBoucleMarée();
-            }
-        }
-
-        function lancerBoucleMarée() {
-            if (intervalId) clearInterval(intervalId);
-            calculerMareeTempsReel();
-            intervalId = setInterval(calculerMareeTempsReel, 1000);
-        }
-
-        function calculerMareeTempsReel() {
-            const dateActuelle = new Date();
-            const mareesDuJour = portActuel.marees;
-            const secondesActuelles = dateActuelle.getHours() * 3600 + dateActuelle.getMinutes() * 60 + dateActuelle.getSeconds();
-
-            let indexPrecedent = 0;
-            let prochaine = null;
-            let estMontante = false;
-
-            for (let i = 0; i < mareesDuJour.length; i++) {
-                const eventSec = mareesDuJour[i].h * 3600 + mareesDuJour[i].m * 60;
-                if (secondesActuelles < eventSec) {
-                    prochaine = mareesDuJour[i];
-                    prochaine.eventSec = eventSec;
-                    indexPrecedent = (i === 0) ? mareesDuJour.length - 1 : i - 1;
-                    break;
-                }
-            }
-
-            if (!prochaine) {
-                prochaine = { t: 'BM', h: 4, m: 0, c: portActuel.marees[0].c, eventSec: 24 * 3600 + 4 * 3600 };
-                indexPrecedent = mareesDuJour.length - 1;
-            }
-
-            estMontante = (prochaine.t === 'PM');
-            let secondesRestantes = prochaine.eventSec - secondesActuelles;
-            if (secondesRestantes < 0) secondesRestantes = 0;
-
-            const eventPrecedentSec = mareesDuJour[indexPrecedent].h * 3600 + mareesDuJour[indexPrecedent].m * 60;
-            let dureeTotaleIntervalle = prochaine.eventSec - eventPrecedentSec;
-            if (dureeTotaleIntervalle <= 0) dureeTotaleIntervalle = 21600; 
-            let tempsEcouleIntervalle = secondesActuelles - eventPrecedentSec;
-            if (tempsEcouleIntervalle < 0) tempsEcouleIntervalle += 86400;
-
-            let progression = tempsEcouleIntervalle / dureeTotaleIntervalle;
-            if (progression > 1) progression = 1;
-            if (progression < 0) progression = 0;
-
-            // La jauge évolue proprement entre 10% et 90% du cylindre dédié
-            let pourcentageHauteur;
-            if (estMontante) {
-                pourcentageHauteur = 10 + (progression * 80);
-            } else {
-                pourcentageHauteur = 90 - (progression * 80);
-            }
-
-            const pourcentageArrondi = Math.round(pourcentageHauteur);
-            waterLevelEl.style.height = `${pourcentageArrondi}%`;
-            waterPercentageEl.textContent = `${pourcentageArrondi}%`;
-
-            coeffBadgeEl.textContent = prochaine.c;
+            // Détermination si la mer monte ou descend selon la pente de la sinusoïde (cosinus)
+            const estMontante = Math.cos(angle) > 0;
 
             if (estMontante) {
                 statusTextEl.textContent = "LA MER MONTE";
                 statusTextEl.className = 'status-montant';
-                countdownLabelEl.textContent = "Pleine mer prévue :";
+                countdownLabelEl.textContent = "Tendance :";
             } else {
                 statusTextEl.textContent = "LA MER DESCEND";
                 statusTextEl.className = 'status-descendant';
-                countdownLabelEl.textContent = "Basse mer prévue :";
+                countdownLabelEl.textContent = "Tendance :";
             }
 
-            nextTideTimeEl.textContent = `à ${pad(prochaine.h)}h${pad(prochaine.m)}`;
+            // Calcul du temps restant approximatif avant le prochain changement de tendance
+            let secondesRestantes = demiCycleSec - (secondesJour % demiCycleSec);
+            
+            nextTideTimeEl.textContent = estMontante ? "Prochaine Pleine Mer" : "Prochaine Basse Mer";
 
             const th = Math.floor(secondesRestantes / 3600);
             const tm = Math.floor((secondesRestantes % 3600) / 60);
@@ -412,6 +260,8 @@
         }
 
         function pad(num) { return String(num).padStart(2, '0'); }
+
+        lancerBoucleAutomatique();
     </script>
 </body>
 </html>
