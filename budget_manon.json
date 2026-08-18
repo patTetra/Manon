@@ -1,5 +1,5 @@
 {
-  "solde": 50,
+  "solde": 35.6,
   "tirelire": 23,
   "objectifActuel": 0,
   "objectifCible": 50,
@@ -112,6 +112,12 @@
       "type": "depense",
       "desc": "🐷 Vers Tirelire",
       "montant": 3
+    },
+    {
+      "date": "2026-08-17",
+      "type": "depense",
+      "desc": "Cahier et crayon",
+      "montant": 14.4
     }
   ],
   "lastAllowanceDate": {
