@@ -1,5 +1,5 @@
 {
-  "solde": 31.6,
+  "solde": 21.6,
   "tirelire": 23,
   "objectifActuel": 0,
   "objectifCible": 50,
@@ -124,6 +124,12 @@
       "type": "depense",
       "desc": "Un bracelet",
       "montant": 4
+    },
+    {
+      "date": "2026-08-22",
+      "type": "depense",
+      "desc": "Retrait",
+      "montant": 10
     }
   ],
   "lastAllowanceDate": {
