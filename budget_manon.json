@@ -1,5 +1,5 @@
 {
-  "solde": 25.6,
+  "solde": 45.6,
   "tirelire": 23,
   "objectifActuel": 0,
   "objectifCible": 50,
@@ -124,6 +124,12 @@
       "type": "depense",
       "desc": "Retrait",
       "montant": 10
+    },
+    {
+      "date": "2026-08-27",
+      "type": "gain",
+      "desc": "Taty caty",
+      "montant": 20
     }
   ],
   "lastAllowanceDate": {
