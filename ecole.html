@@ -28,7 +28,7 @@
       height: 100vh;
     }
 
-    /* Navigation par Onglets principaux */
+    /* Navigation par Onglets */
     .main-nav {
       display: flex;
       background: var(--card-bg);
@@ -37,10 +37,10 @@
 
     .main-tab-btn {
       flex: 1;
-      padding: 14px;
+      padding: 12px 4px;
       border: none;
       background: none;
-      font-size: 1rem;
+      font-size: 0.9rem;
       font-weight: bold;
       color: var(--text-muted);
       cursor: pointer;
@@ -130,7 +130,7 @@
       margin-bottom: 12px;
       display: flex;
       align-items: center;
-      gap: 8px;
+      justify-content: space-between;
     }
 
     .course-item {
@@ -198,7 +198,44 @@
       color: #1976D2;
     }
 
-    /* Styles pour l'onglet de la Carte de Bus */
+    .badge-live {
+      background: #E8F5E9;
+      color: #2E7D32;
+    }
+
+    /* Style Formulaire Réglages */
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    .form-group label {
+      display: block;
+      font-weight: bold;
+      font-size: 0.85rem;
+      margin-bottom: 6px;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #CCCCCC;
+      border-radius: 8px;
+      box-sizing: border-box;
+      font-size: 0.9rem;
+    }
+
+    .save-btn {
+      width: 100%;
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 10px;
+      font-weight: bold;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+
     #tab-bus-live {
       height: calc(100vh - 50px);
       padding: 0;
@@ -235,8 +272,9 @@
 <body>
 
   <nav class="main-nav">
-    <button class="main-tab-btn active" onclick="switchMainTab('schedule')">📅 Planning & Bus</button>
-    <button class="main-tab-btn" onclick="switchMainTab('bus-live')">🗺️ Temps Réel</button>
+    <button class="main-tab-btn active" onclick="switchMainTab('schedule')">📅 Planning</button>
+    <button class="main-tab-btn" onclick="switchMainTab('bus-live')">🗺️ Carte Bus</button>
+    <button class="main-tab-btn" onclick="switchMainTab('settings')">⚙️ Réglages</button>
   </nav>
 
   <div id="tab-schedule" class="tab-content active">
@@ -256,8 +294,8 @@
 
       <div class="card">
         <div class="card-title">
-          📚 Cours du jour
-          <span id="day-name-badge" class="badge"></span>
+          <span>📚 Cours du jour</span>
+          <span id="source-badge" class="badge">Fixe</span>
         </div>
         <div id="schedule-container"></div>
       </div>
@@ -280,6 +318,27 @@
     </div>
   </div>
 
+  <div id="tab-settings" class="tab-content">
+    <div class="container">
+      <div class="card">
+        <div class="card-title">⚙️ Connexion Home Assistant</div>
+        <div class="form-group">
+          <label for="ha-url">URL de l'instance Home Assistant :</label>
+          <input type="text" id="ha-url" placeholder="https://votre-instance.ui.nabu.casa">
+        </div>
+        <div class="form-group">
+          <label for="ha-token">Jeton d'accès longue durée (Token) :</label>
+          <input type="password" id="ha-token" placeholder="eyJhbGciOiJIUzI1NiI...">
+        </div>
+        <div class="form-group">
+          <label for="ha-entity">Entité Calendrier :</label>
+          <input type="text" id="ha-entity" value="calendar.ecoledirecte_manon" placeholder="calendar.ecoledirecte_manon">
+        </div>
+        <button class="save-btn" onclick="saveSettings()">Enregistrer les Réglages</button>
+      </div>
+    </div>
+  </div>
+
 <script>
   function switchMainTab(tabId) {
     document.querySelectorAll('.main-tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -288,15 +347,36 @@
     if (tabId === 'schedule') {
       document.querySelectorAll('.main-tab-btn')[0].classList.add('active');
       document.getElementById('tab-schedule').classList.add('active');
-    } else {
+    } else if (tabId === 'bus-live') {
       document.querySelectorAll('.main-tab-btn')[1].classList.add('active');
       document.getElementById('tab-bus-live').classList.add('active');
+    } else {
+      document.querySelectorAll('.main-tab-btn')[2].classList.add('active');
+      document.getElementById('tab-settings').classList.add('active');
     }
   }
 
-  // -------------------------------------------------------------
-  // EMPLOI DU TEMPS (Semaines A / B - Classe 6B)
-  // -------------------------------------------------------------
+  // Enregistrement et chargement des réglages dans localStorage
+  function saveSettings() {
+    const url = document.getElementById('ha-url').value.trim();
+    const token = document.getElementById('ha-token').value.trim();
+    const entity = document.getElementById('ha-entity').value.trim();
+
+    localStorage.setItem('ha_url', url);
+    localStorage.setItem('ha_token', token);
+    localStorage.setItem('ha_entity', entity);
+
+    alert("Réglages enregistrés !");
+    selectDay(currentDay);
+  }
+
+  function loadSettings() {
+    document.getElementById('ha-url').value = localStorage.getItem('ha_url') || '';
+    document.getElementById('ha-token').value = localStorage.getItem('ha_token') || '';
+    document.getElementById('ha-entity').value = localStorage.getItem('ha_entity') || 'calendar.ecoledirecte_manon';
+  }
+
+  // Emploi du temps fixe par défaut
   const timetable = {
     1: {
       all: [
@@ -408,29 +488,13 @@
       btn.classList.toggle('active', (index + 1) === dayNum);
     });
 
-    const dayNames = ["", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"];
-    document.getElementById('day-name-badge').innerText = dayNames[dayNum];
+    // Affichage local par défaut
+    renderLocalSchedule(dayNum);
 
-    const scheduleContainer = document.getElementById('schedule-container');
-    scheduleContainer.innerHTML = '';
-    
-    const dayData = timetable[dayNum];
-    if (dayData) {
-      const courses = [...(dayData.all || []), ...(dayData[weekInfo.type] || [])];
-      
-      courses.forEach(c => {
-        scheduleContainer.innerHTML += `
-          <div class="course-item">
-            <div class="course-time">${c.time}</div>
-            <div class="course-detail">
-              <div class="course-name">${c.name}</div>
-              <div class="course-sub">${c.prof} ${c.room ? '• Salle ' + c.room : ''}</div>
-            </div>
-          </div>
-        `;
-      });
-    }
+    // Tentative de chargement depuis Home Assistant
+    fetchHAData(dayNum);
 
+    // Mettre à jour le bus
     const busContainer = document.getElementById('bus-container');
     const bus = busSchedule[dayNum];
     if (bus) {
@@ -446,6 +510,92 @@
     }
   }
 
+  function renderLocalSchedule(dayNum) {
+    const badge = document.getElementById('source-badge');
+    badge.innerText = 'Fixe';
+    badge.className = 'badge';
+
+    const scheduleContainer = document.getElementById('schedule-container');
+    scheduleContainer.innerHTML = '';
+    
+    const dayData = timetable[dayNum];
+    if (dayData) {
+      const courses = [...(dayData.all || []), ...(dayData[weekInfo.type] || [])];
+      courses.forEach(c => {
+        scheduleContainer.innerHTML += `
+          <div class="course-item">
+            <div class="course-time">${c.time}</div>
+            <div class="course-detail">
+              <div class="course-name">${c.name}</div>
+              <div class="course-sub">${c.prof} ${c.room ? '• Salle ' + c.room : ''}</div>
+            </div>
+          </div>
+        `;
+      });
+    }
+  }
+
+  async function fetchHAData(dayNum) {
+    const haUrl = localStorage.getItem('ha_url');
+    const haToken = localStorage.getItem('ha_token');
+    const haEntity = localStorage.getItem('ha_entity') || 'calendar.ecoledirecte_manon';
+
+    if (!haUrl || !haToken) return;
+
+    // Déterminer la date correspondant au jour sélectionné dans la semaine courante
+    const now = new Date();
+    const currentDayOfWeek = now.getDay() || 7;
+    const targetDate = new Date(now);
+    targetDate.setDate(now.getDate() + (dayNum - currentDayOfWeek));
+
+    const dateStr = targetDate.toISOString().split('T')[0];
+    const start = `${dateStr}T00:00:00Z`;
+    const end = `${dateStr}T23:59:59Z`;
+
+    try {
+      const response = await fetch(`${haUrl}/api/calendars/${haEntity}?start=${start}&end=${end}`, {
+        headers: {
+          "Authorization": `Bearer ${haToken}`,
+          "Content-Type": "application/json"
+        }
+      });
+
+      if (!response.ok) return;
+
+      const events = await response.json();
+
+      if (events && events.length > 0) {
+        const badge = document.getElementById('source-badge');
+        badge.innerText = 'École Directe';
+        badge.className = 'badge badge-live';
+
+        const scheduleContainer = document.getElementById('schedule-container');
+        scheduleContainer.innerHTML = '';
+
+        events.sort((a, b) => new Date(a.start) - new Date(b.start));
+
+        events.forEach(event => {
+          const startTime = new Date(event.start).toLocaleTimeString([], { hour: '2digit', minute: '2digit' });
+          const endTime = new Date(event.end).toLocaleTimeString([], { hour: '2digit', minute: '2digit' });
+
+          scheduleContainer.innerHTML += `
+            <div class="course-item">
+              <div class="course-time">${startTime} - ${endTime}</div>
+              <div class="course-detail">
+                <div class="course-name">${event.summary}</div>
+                <div class="course-sub">${event.location || ''} ${event.description || ''}</div>
+              </div>
+            </div>
+          `;
+        });
+      }
+    } catch (e) {
+      console.warn("Fallback sur emploi du temps fixe local:", e);
+    }
+  }
+
+  // Initialisation
+  loadSettings();
   selectDay(currentDay);
 </script>
 
