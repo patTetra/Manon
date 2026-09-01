@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mon Emploi du Temps & Bus - 6B</title>
+  <style>
+    :root {
+      --primary: #4A90E2;
+      --secondary: #5C6BC0;
+      --accent: #FF9800;
+      --bg: #F4F6F9;
+      --card-bg: #FFFFFF;
+      --text: #333333;
+      --text-muted: #666666;
+      --bus-bg: #E8F5E9;
+      --bus-color: #2E7D32;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* Navigation par Onglets principaux */
+    .main-nav {
+      display: flex;
+      background: var(--card-bg);
+      border-bottom: 1px solid #DDDDDD;
+    }
+
+    .main-tab-btn {
+      flex: 1;
+      padding: 14px;
+      border: none;
+      background: none;
+      font-size: 1rem;
+      font-weight: bold;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .main-tab-btn.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+
+    .tab-content {
+      display: none;
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
+    }
+
+    header {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      padding: 16px;
+      border-radius: 16px;
+      text-align: center;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      margin-bottom: 16px;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 1.4rem;
+    }
+
+    header p {
+      margin: 4px 0 0 0;
+      font-size: 0.9rem;
+      opacity: 0.9;
+    }
+
+    .day-selector {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      gap: 4px;
+    }
+
+    .day-btn {
+      flex: 1;
+      padding: 10px 4px;
+      border: none;
+      background-color: var(--card-bg);
+      color: var(--text);
+      border-radius: 10px;
+      font-weight: bold;
+      font-size: 0.85rem;
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      transition: all 0.2s;
+    }
+
+    .day-btn.active {
+      background-color: var(--primary);
+      color: white;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: bold;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .course-item {
+      display: flex;
+      padding: 10px 0;
+      border-bottom: 1px solid #EEEEEE;
+    }
+
+    .course-item:last-child {
+      border-bottom: none;
+    }
+
+    .course-time {
+      width: 100px;
+      font-weight: bold;
+      font-size: 0.85rem;
+      color: var(--secondary);
+    }
+
+    .course-detail {
+      flex: 1;
+    }
+
+    .course-name {
+      font-weight: bold;
+      font-size: 0.95rem;
+    }
+
+    .course-sub {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .bus-card {
+      background-color: var(--bus-bg);
+      border: 1px solid #C8E6C9;
+    }
+
+    .bus-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 8px;
+    }
+
+    .bus-time {
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: var(--bus-color);
+    }
+
+    .bus-route {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: bold;
+      background: #E3F2FD;
+      color: #1976D2;
+    }
+
+    /* Styles pour l'onglet de la Carte de Bus */
+    #tab-bus-live {
+      height: calc(100vh - 50px);
+      padding: 0;
+    }
+
+    .iframe-wrapper {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    .external-link-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: var(--primary);
+      color: white;
+      padding: 8px 12px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-size: 0.8rem;
+      font-weight: bold;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="main-nav">
+    <button class="main-tab-btn active" onclick="switchMainTab('schedule')">📅 Planning & Bus</button>
+    <button class="main-tab-btn" onclick="switchMainTab('bus-live')">🗺️ Temps Réel</button>
+  </nav>
+
+  <div id="tab-schedule" class="tab-content active">
+    <div class="container">
+      <header>
+        <h1>Collège - Classe 6B</h1>
+        <p id="week-info">Chargement...</p>
+      </header>
+
+      <div class="day-selector">
+        <button class="day-btn" onclick="selectDay(1)">Lun</button>
+        <button class="day-btn" onclick="selectDay(2)">Mar</button>
+        <button class="day-btn" onclick="selectDay(3)">Mer</button>
+        <button class="day-btn" onclick="selectDay(4)">Jeu</button>
+        <button class="day-btn" onclick="selectDay(5)">Ven</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          📚 Cours du jour
+          <span id="day-name-badge" class="badge"></span>
+        </div>
+        <div id="schedule-container"></div>
+      </div>
+
+      <div class="card bus-card">
+        <div class="card-title" style="color: var(--bus-color);">
+          🚌 Bus du soir (Ligne 39)
+        </div>
+        <div id="bus-container"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-bus-live" class="tab-content">
+    <div class="iframe-wrapper">
+      <a href="https://hawk.hanoverdisplays.com/morlaix/public/" target="_blank" class="external-link-btn">
+        ↗ Externe
+      </a>
+      <iframe src="https://hawk.hanoverdisplays.com/morlaix/public/" title="Carte Bus Morlaix Temps Réel"></iframe>
+    </div>
+  </div>
+
+<script>
+  function switchMainTab(tabId) {
+    document.querySelectorAll('.main-tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+    
+    if (tabId === 'schedule') {
+      document.querySelectorAll('.main-tab-btn')[0].classList.add('active');
+      document.getElementById('tab-schedule').classList.add('active');
+    } else {
+      document.querySelectorAll('.main-tab-btn')[1].classList.add('active');
+      document.getElementById('tab-bus-live').classList.add('active');
+    }
+  }
+
+  // -------------------------------------------------------------
+  // EMPLOI DU TEMPS (Semaines A / B - Classe 6B)
+  // -------------------------------------------------------------
+  const timetable = {
+    1: {
+      all: [
+        { time: "08h05 - 09h00", name: "Éducation Musicale", prof: "Mme Cahagnon", room: "MUS" },
+        { time: "09h00 - 09h55", name: "Physique-Chimie / SVT", prof: "Mme Pericart / Mme Inizan", room: "PHYS / SVT" },
+        { time: "10h10 - 11h05", name: "Anglais LV1", prof: "Mme Bourel", room: "111" },
+        { time: "11h05 - 12h00", name: "Histoire-Géographie", prof: "Mme Creach", room: "211" }
+      ],
+      A: [
+        { time: "13h30 - 14h25", name: "Atelier Théâtre", prof: "Mme Tascon", room: "6CHKCO-A" },
+        { time: "14h25 - 15h20", name: "Mathématiques", prof: "M. Bascou", room: "111" },
+        { time: "15h35 - 16h30", name: "Français", prof: "Mme Gallouedec", room: "111" }
+      ],
+      B: [
+        { time: "13h30 - 14h25", name: "Chant Choral Collectif", prof: "Mme Cahagnon", room: "MUS" },
+        { time: "14h25 - 15h20", name: "Mathématiques", prof: "M. Bascou", room: "111" },
+        { time: "15h35 - 16h30", name: "Histoire-Géographie", prof: "Mme Creach", room: "211" }
+      ]
+    },
+    2: {
+      all: [
+        { time: "08h05 - 09h00", name: "Éducation Musicale", prof: "Mme Cahagnon", room: "MUS" },
+        { time: "09h00 - 09h55", name: "Anglais LV1", prof: "Mme Bourel", room: "111" },
+        { time: "10h10 - 11h05", name: "Arts Plastiques", prof: "Mme Mesnage", room: "AP" }
+      ],
+      A: [
+        { time: "11h05 - 12h00", name: "Renfro-Français 6", prof: "Mme Casses / Mme Le Maux", room: "110" },
+        { time: "13h30 - 16h30", name: "Section Sport / Football", prof: "Gr-SECT / Gr-FOOTB", room: "" }
+      ],
+      B: [
+        { time: "11h05 - 12h00", name: "Renfro-Français 6", prof: "Mme Casses / Mme Le Maux", room: "110" },
+        { time: "13h30 - 16h30", name: "Section Sport / Football", prof: "Gr-SECT / Gr-FOOTB", room: "" }
+      ]
+    },
+    3: {
+      all: [
+        { time: "08h05 - 09h55", name: "EPS", prof: "M. Pors", room: "" }
+      ],
+      A: [
+        { time: "10h10 - 12h00", name: "Renfro-Maths 6 / Mathématiques", prof: "M. Bascou", room: "111" }
+      ],
+      B: [
+        { time: "10h10 - 12h00", name: "Mathématiques", prof: "M. Bascou", room: "111" }
+      ]
+    },
+    4: {
+      all: [
+        { time: "08h05 - 09h00", name: "INIT LV2", prof: "M. Simon / Mme Michel", room: "6RENFRA-A" },
+        { time: "09h00 - 09h55", name: "Mathématiques", prof: "M. Bascou", room: "111" },
+        { time: "10h10 - 11h05", name: "Français", prof: "Mme Gallouedec", room: "111" },
+        { time: "11h05 - 12h00", name: "Histoire-Géographie", prof: "Mme Creach", room: "211" }
+      ],
+      A: [
+        { time: "13h30 - 14h25", name: "Anglais LV1", prof: "Mme Bourel", room: "111" },
+        { time: "14h25 - 15h20", name: "SVT", prof: "Mme Inizan", room: "SVT" }
+      ],
+      B: [
+        { time: "13h30 - 14h25", name: "Anglais LV1", prof: "Mme Bourel", room: "111" },
+        { time: "14h25 - 15h20", name: "VDC / Français", prof: "M. Pors / Mme Gallouedec", room: "111" }
+      ]
+    },
+    5: {
+      all: [
+        { time: "09h00 - 09h55", name: "Physique-Chimie", prof: "Mme Pericart", room: "PHYS" },
+        { time: "10h10 - 12h00", name: "EPS", prof: "M. Pors", room: "" }
+      ],
+      A: [
+        { time: "13h30 - 14h25", name: "Chant Choral Collectif", prof: "Mme Cahagnon", room: "MUS" },
+        { time: "14h25 - 15h20", name: "Anglais LV1", prof: "Mme Bourel", room: "111" },
+        { time: "15h35 - 16h30", name: "Français", prof: "Mme Gallouedec", room: "111" }
+      ],
+      B: [
+        { time: "13h30 - 14h25", name: "Chant Choral Collectif", prof: "Mme Cahagnon", room: "MUS" },
+        { time: "14h25 - 15h20", name: "Anglais LV1", prof: "Mme Bourel", room: "111" }
+      ]
+    }
+  };
+
+  const busSchedule = {
+    1: { departure: "17h10", arrival: "17h34", stop: "Pouliet ➔ Lanleya" },
+    2: { departure: "17h10", arrival: "17h34", stop: "Pouliet ➔ Lanleya" },
+    3: { departure: "12h20", arrival: "12h42", stop: "Pouliet ➔ Lanleya" },
+    4: { departure: "17h10", arrival: "17h34", stop: "Pouliet ➔ Lanleya" },
+    5: { departure: "17h10", arrival: "17h34", stop: "Pouliet ➔ Lanleya" }
+  };
+
+  function getWeekType() {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+    const yearStart = new Date(d.getFullYear(), 0, 1);
+    const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    return {
+      number: weekNo,
+      type: (weekNo % 2 === 0) ? 'B' : 'A'
+    };
+  }
+
+  let currentDay = new Date().getDay();
+  if (currentDay === 0 || currentDay === 6) currentDay = 1;
+
+  const weekInfo = getWeekType();
+  document.getElementById('week-info').innerText = `Semaine ${weekInfo.number} (${weekInfo.type === 'A' ? 'Impaire / A' : 'Paire / B'})`;
+
+  function selectDay(dayNum) {
+    currentDay = dayNum;
+    
+    document.querySelectorAll('.day-btn').forEach((btn, index) => {
+      btn.classList.toggle('active', (index + 1) === dayNum);
+    });
+
+    const dayNames = ["", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"];
+    document.getElementById('day-name-badge').innerText = dayNames[dayNum];
+
+    const scheduleContainer = document.getElementById('schedule-container');
+    scheduleContainer.innerHTML = '';
+    
+    const dayData = timetable[dayNum];
+    if (dayData) {
+      const courses = [...(dayData.all || []), ...(dayData[weekInfo.type] || [])];
+      
+      courses.forEach(c => {
+        scheduleContainer.innerHTML += `
+          <div class="course-item">
+            <div class="course-time">${c.time}</div>
+            <div class="course-detail">
+              <div class="course-name">${c.name}</div>
+              <div class="course-sub">${c.prof} ${c.room ? '• Salle ' + c.room : ''}</div>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    const busContainer = document.getElementById('bus-container');
+    const bus = busSchedule[dayNum];
+    if (bus) {
+      busContainer.innerHTML = `
+        <div class="bus-route">${bus.stop}</div>
+        <div class="bus-info">
+          <div>Départ <strong>${bus.departure}</strong></div>
+          <div class="bus-time">➔ Arrivée ${bus.arrival}</div>
+        </div>
+      `;
+    } else {
+      busContainer.innerHTML = `<div>Pas de bus prévu ce jour.</div>`;
+    }
+  }
+
+  selectDay(currentDay);
+</script>
+
+</body>
+</html>
