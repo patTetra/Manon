@@ -33,6 +33,7 @@
       display: flex;
       background: var(--card-bg);
       border-bottom: 1px solid #DDDDDD;
+      overflow-x: auto;
     }
 
     .main-tab-btn {
@@ -40,12 +41,13 @@
       padding: 12px 4px;
       border: none;
       background: none;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       font-weight: bold;
       color: var(--text-muted);
       cursor: pointer;
       border-bottom: 3px solid transparent;
       transition: all 0.2s;
+      white-space: nowrap;
     }
 
     .main-tab-btn.active {
@@ -203,6 +205,32 @@
       color: #2E7D32;
     }
 
+    /* Style des cartes numériques */
+    .digital-card {
+      text-align: center;
+    }
+
+    .card-img-wrapper {
+      width: 100%;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid #E0E0E0;
+      background-color: #FAFAFA;
+      margin-top: 8px;
+    }
+
+    .card-img-wrapper img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .card-hint {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
     /* Style Formulaire Réglages */
     .form-group {
       margin-bottom: 14px;
@@ -274,6 +302,7 @@
   <nav class="main-nav">
     <button class="main-tab-btn active" onclick="switchMainTab('schedule')">📅 Planning</button>
     <button class="main-tab-btn" onclick="switchMainTab('bus-live')">🗺️ Carte Bus</button>
+    <button class="main-tab-btn" onclick="switchMainTab('cards')">💳 Cartes</button>
     <button class="main-tab-btn" onclick="switchMainTab('settings')">⚙️ Réglages</button>
   </nav>
 
@@ -318,6 +347,26 @@
     </div>
   </div>
 
+  <div id="tab-cards" class="tab-content">
+    <div class="container">
+      <div class="card digital-card">
+        <div class="card-title">🚌 Carte de Bus</div>
+        <div class="card-img-wrapper">
+          <img src="carte-bus.jpg" alt="Carte de Bus Manon" onerror="this.onerror=null; this.src='https://via.placeholder.com/400x250?text=Ajoutez+carte-bus.jpg';">
+        </div>
+        <div class="card-hint">À présenter ou scanner au niveau de la borne bus</div>
+      </div>
+
+      <div class="card digital-card">
+        <div class="card-title">🍽️ Carte Cantine (Code-Barres)</div>
+        <div class="card-img-wrapper">
+          <img src="carte-cantine.jpg" alt="Carte Cantine Manon" onerror="this.onerror=null; this.src='https://via.placeholder.com/400x180?text=Ajoutez+carte-cantine.jpg';">
+        </div>
+        <div class="card-hint">Augmentez la luminosité du téléphone avant le passage du scanner</div>
+      </div>
+    </div>
+  </div>
+
   <div id="tab-settings" class="tab-content">
     <div class="container">
       <div class="card">
@@ -350,8 +399,11 @@
     } else if (tabId === 'bus-live') {
       document.querySelectorAll('.main-tab-btn')[1].classList.add('active');
       document.getElementById('tab-bus-live').classList.add('active');
-    } else {
+    } else if (tabId === 'cards') {
       document.querySelectorAll('.main-tab-btn')[2].classList.add('active');
+      document.getElementById('tab-cards').classList.add('active');
+    } else {
+      document.querySelectorAll('.main-tab-btn')[3].classList.add('active');
       document.getElementById('tab-settings').classList.add('active');
     }
   }
@@ -489,7 +541,6 @@
     renderLocalSchedule(dayNum);
     fetchHAData(dayNum);
 
-    // Mettre à jour le bus et adapter le titre selon le jour
     const busContainer = document.getElementById('bus-container');
     const busTitleElement = document.querySelector('.bus-card .card-title');
     const bus = busSchedule[dayNum];
