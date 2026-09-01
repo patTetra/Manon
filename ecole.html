@@ -205,7 +205,6 @@
       color: #2E7D32;
     }
 
-    /* Style des cartes numériques */
     .digital-card {
       text-align: center;
     }
@@ -231,7 +230,6 @@
       margin-top: 6px;
     }
 
-    /* Style Formulaire Réglages */
     .form-group {
       margin-bottom: 14px;
     }
@@ -428,79 +426,76 @@
   }
 
   const timetable = {
-    1: {
+    1: { // Lundi
       all: [
-        { time: "08h05 - 09h00", name: "Éducation Musicale", prof: "Mme Cahagnon", room: "MUS" },
-        { time: "09h00 - 09h55", name: "Physique-Chimie / SVT", prof: "Mme Pericart / Mme Inizan", room: "PHYS / SVT" },
         { time: "10h10 - 11h05", name: "Anglais LV1", prof: "Mme Bourel", room: "111" },
-        { time: "11h05 - 12h00", name: "Histoire-Géographie", prof: "Mme Creach", room: "211" }
-      ],
-      A: [
-        { time: "13h30 - 14h25", name: "Atelier Théâtre", prof: "Mme Tascon", room: "6CHKCO-A" },
-        { time: "14h25 - 15h20", name: "Mathématiques", prof: "M. Bascou", room: "111" },
+        { time: "11h05 - 12h00", name: "Histoire-Géographie", prof: "Mme Creach", room: "211" },
+        { time: "12h00 - 13h30", name: "Atelier Théâtre", prof: "Mme Tascon", room: "" },
+        { time: "13h30 - 14h25", name: "Mathématiques", prof: "M. Bascou", room: "111" },
+        { time: "14h25 - 15h20", name: "Français", prof: "Mme Gallouedec", room: "111" },
         { time: "15h35 - 16h30", name: "Français", prof: "Mme Gallouedec", room: "111" }
       ],
-      B: [
-        { time: "13h30 - 14h25", name: "Chant Choral Collectif", prof: "Mme Cahagnon", room: "MUS" },
-        { time: "14h25 - 15h20", name: "Mathématiques", prof: "M. Bascou", room: "111" },
-        { time: "15h35 - 16h30", name: "Histoire-Géographie", prof: "Mme Creach", room: "211" }
+      A: [ // Impaire
+        { time: "09h00 - 09h55", name: "Physique", prof: "Mme Pericart", room: "PHYS" }
+      ],
+      B: [ // Paire
+        { time: "09h00 - 09h55", name: "SVT", prof: "Mme Inizan", room: "SVT" }
       ]
     },
-    2: {
+    2: { // Mardi
       all: [
-        { time: "08h05 - 09h00", name: "Éducation Musicale", prof: "Mme Cahagnon", room: "MUS" },
+        { time: "08h05 - 09h00", name: "Éducation Musicale", prof: "Mme Chahagnon", room: "MUS" },
         { time: "09h00 - 09h55", name: "Anglais LV1", prof: "Mme Bourel", room: "111" },
-        { time: "10h10 - 11h05", name: "Arts Plastiques", prof: "Mme Mesnage", room: "AP" }
+        { time: "10h10 - 11h05", name: "Arts Plastiques", prof: "Mme Mesnage", room: "AP" },
+        { time: "11h05 - 12h00", name: "Renfo français 6", prof: "Mmes Casses / Le Maux", room: "110" },
+        { time: "12h00 - 13h30", name: "Chant Choral Collectif", prof: "Mme Chahagnon", room: "MUS" },
+        { time: "13h30 - 14h25", name: "Mathématiques", prof: "M. Bascou", room: "111" },
+        { time: "14h25 - 15h20", name: "Histoire-Géographie", prof: "Mme Creach", room: "211" },
+        { time: "15h35 - 16h30", name: "Section sport / Football", prof: "", room: "" }
+      ],
+      A: [],
+      B: []
+    },
+    3: { // Mercredi
+      all: [
+        { time: "08h05 - 09h00", name: "EPS", prof: "M. Pors", room: "" },
+        { time: "09h00 - 09h55", name: "EPS", prof: "M. Pors", room: "" },
+        { time: "11h05 - 12h00", name: "Mathématiques", prof: "M. Bascou", room: "111" }
       ],
       A: [
-        { time: "11h05 - 12h00", name: "Renfro-Français 6", prof: "Mme Casses / Mme Le Maux", room: "110" },
-        { time: "13h30 - 16h30", name: "Section Sport / Football", prof: "Gr-SECT / Gr-FOOTB", room: "" }
+        { time: "10h10 - 11h05", name: "Renfomaths 6ème", prof: "M. Bascou", room: "111" }
       ],
       B: [
-        { time: "11h05 - 12h00", name: "Renfro-Français 6", prof: "Mme Casses / Mme Le Maux", room: "110" },
-        { time: "13h30 - 16h30", name: "Section Sport / Football", prof: "Gr-SECT / Gr-FOOTB", room: "" }
+        { time: "10h10 - 11h05", name: "Mathématiques", prof: "M. Bascou", room: "111" }
       ]
     },
-    3: {
+    4: { // Jeudi
       all: [
-        { time: "08h05 - 09h55", name: "EPS", prof: "M. Pors", room: "" }
-      ],
-      A: [
-        { time: "10h10 - 12h00", name: "Renfro-Maths 6 / Mathématiques", prof: "M. Bascou", room: "111" }
-      ],
-      B: [
-        { time: "10h10 - 12h00", name: "Mathématiques", prof: "M. Bascou", room: "111" }
-      ]
-    },
-    4: {
-      all: [
-        { time: "08h05 - 09h00", name: "INIT LV2", prof: "M. Simon / Mme Michel", room: "6RENFRA-A" },
+        { time: "08h05 - 09h00", name: "Initiation LV2", prof: "M. Simon / Mme Michel", room: "6RENFRA-A" },
         { time: "09h00 - 09h55", name: "Mathématiques", prof: "M. Bascou", room: "111" },
         { time: "10h10 - 11h05", name: "Français", prof: "Mme Gallouedec", room: "111" },
-        { time: "11h05 - 12h00", name: "Histoire-Géographie", prof: "Mme Creach", room: "211" }
-      ],
-      A: [
+        { time: "11h05 - 12h00", name: "Histoire-Géographie", prof: "Mme Creach", room: "211" },
         { time: "13h30 - 14h25", name: "Anglais LV1", prof: "Mme Bourel", room: "111" },
-        { time: "14h25 - 15h20", name: "SVT", prof: "Mme Inizan", room: "SVT" }
+        { time: "14h25 - 15h20", name: "SVT", prof: "Mme Inizan", room: "SVT" },
+        { time: "15h35 - 16h30", name: "Section sport / Football / Atelier Théâtre", prof: "", room: "" }
       ],
-      B: [
-        { time: "13h30 - 14h25", name: "Anglais LV1", prof: "Mme Bourel", room: "111" },
-        { time: "14h25 - 15h20", name: "VDC / Français", prof: "M. Pors / Mme Gallouedec", room: "111" }
-      ]
+      A: [],
+      B: []
     },
-    5: {
+    5: { // Vendredi
       all: [
-        { time: "09h00 - 09h55", name: "Physique-Chimie", prof: "Mme Pericart", room: "PHYS" },
-        { time: "10h10 - 12h00", name: "EPS", prof: "M. Pors", room: "" }
+        { time: "09h00 - 09h55", name: "Physique", prof: "Mme Pericart", room: "PHYS" },
+        { time: "10h10 - 11h05", name: "EPS", prof: "M. Pors", room: "" },
+        { time: "11h05 - 12h00", name: "EPS", prof: "M. Pors", room: "" },
+        { time: "12h00 - 13h30", name: "Chant Choral Collectif", prof: "Mme Chahagnon", room: "MUS" },
+        { time: "13h30 - 14h25", name: "Anglais LV1", prof: "Mme Bourel", room: "111" },
+        { time: "14h25 - 15h20", name: "Français", prof: "Mme Gallouedec", room: "111" }
       ],
       A: [
-        { time: "13h30 - 14h25", name: "Chant Choral Collectif", prof: "Mme Cahagnon", room: "MUS" },
-        { time: "14h25 - 15h20", name: "Anglais LV1", prof: "Mme Bourel", room: "111" },
         { time: "15h35 - 16h30", name: "Français", prof: "Mme Gallouedec", room: "111" }
       ],
       B: [
-        { time: "13h30 - 14h25", name: "Chant Choral Collectif", prof: "Mme Cahagnon", room: "MUS" },
-        { time: "14h25 - 15h20", name: "Anglais LV1", prof: "Mme Bourel", room: "111" }
+        { time: "15h35 - 16h30", name: "VDC", prof: "M. Pors", room: "111" }
       ]
     }
   };
@@ -575,6 +570,13 @@
     const dayData = timetable[dayNum];
     if (dayData) {
       const courses = [...(dayData.all || []), ...(dayData[weekInfo.type] || [])];
+      
+      courses.sort((a, b) => {
+        const timeA = parseInt(a.time.substring(0, 2));
+        const timeB = parseInt(b.time.substring(0, 2));
+        return timeA - timeB;
+      });
+
       courses.forEach(c => {
         scheduleContainer.innerHTML += `
           <div class="course-item">
