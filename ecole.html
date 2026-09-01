@@ -356,7 +356,6 @@
     }
   }
 
-  // Enregistrement et chargement des réglages dans localStorage
   function saveSettings() {
     const url = document.getElementById('ha-url').value.trim();
     const token = document.getElementById('ha-token').value.trim();
@@ -376,7 +375,6 @@
     document.getElementById('ha-entity').value = localStorage.getItem('ha_entity') || 'calendar.ecoledirecte_manon';
   }
 
-  // Emploi du temps fixe par défaut
   const timetable = {
     1: {
       all: [
@@ -488,15 +486,20 @@
       btn.classList.toggle('active', (index + 1) === dayNum);
     });
 
-    // Affichage local par défaut
     renderLocalSchedule(dayNum);
-
-    // Tentative de chargement depuis Home Assistant
     fetchHAData(dayNum);
 
-    // Mettre à jour le bus
+    // Mettre à jour le bus et adapter le titre selon le jour
     const busContainer = document.getElementById('bus-container');
+    const busTitleElement = document.querySelector('.bus-card .card-title');
     const bus = busSchedule[dayNum];
+
+    if (dayNum === 3) {
+      busTitleElement.innerHTML = `🚌 Bus du midi (Ligne 39)`;
+    } else {
+      busTitleElement.innerHTML = `🚌 Bus du soir (Ligne 39)`;
+    }
+
     if (bus) {
       busContainer.innerHTML = `
         <div class="bus-route">${bus.stop}</div>
@@ -542,7 +545,6 @@
 
     if (!haUrl || !haToken) return;
 
-    // Déterminer la date correspondant au jour sélectionné dans la semaine courante
     const now = new Date();
     const currentDayOfWeek = now.getDay() || 7;
     const targetDate = new Date(now);
@@ -594,7 +596,6 @@
     }
   }
 
-  // Initialisation
   loadSettings();
   selectDay(currentDay);
 </script>
