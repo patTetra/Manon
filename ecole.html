@@ -378,8 +378,8 @@
           <input type="password" id="ha-token" placeholder="eyJhbGciOiJIUzI1NiI...">
         </div>
         <div class="form-group">
-          <label for="ha-prefix">Préfixe des sensors École Directe :</label>
-          <input type="text" id="ha-prefix" value="sensor.ed_manon_leal_le_borgne_emploi_du_temps" placeholder="sensor.ed_manon_leal_le_borgne_emploi_du_temps">
+          <label for="ha-entity">Entité Emploi du temps (Semaine en cours) :</label>
+          <input type="text" id="ha-entity" value="sensor.ed_manon_leal_le_borgne_emploi_du_temps_semaine_en_cours" placeholder="sensor.ed_manon_leal_le_borgne_emploi_du_temps_semaine_en_cours">
         </div>
         <button class="save-btn" onclick="saveSettings()">Enregistrer les Réglages</button>
       </div>
@@ -409,11 +409,11 @@
   function saveSettings() {
     const url = document.getElementById('ha-url').value.trim();
     const token = document.getElementById('ha-token').value.trim();
-    const prefix = document.getElementById('ha-prefix').value.trim();
+    const entity = document.getElementById('ha-entity').value.trim();
 
     localStorage.setItem('ha_url', url);
     localStorage.setItem('ha_token', token);
-    localStorage.setItem('ha_prefix', prefix);
+    localStorage.setItem('ha_entity', entity);
 
     alert("Réglages enregistrés !");
     selectDay(currentDay);
@@ -422,7 +422,7 @@
   function loadSettings() {
     document.getElementById('ha-url').value = localStorage.getItem('ha_url') || '';
     document.getElementById('ha-token').value = localStorage.getItem('ha_token') || '';
-    document.getElementById('ha-prefix').value = localStorage.getItem('ha_prefix') || 'sensor.ed_manon_leal_le_borgne_emploi_du_temps';
+    document.getElementById('ha-entity').value = localStorage.getItem('ha_entity') || 'sensor.ed_manon_leal_le_borgne_emploi_du_temps_semaine_en_cours';
   }
 
   const timetable = {
@@ -582,19 +582,12 @@
   async function fetchHASensors(dayNum) {
     const haUrl = localStorage.getItem('ha_url');
     const haToken = localStorage.getItem('ha_token');
-    const prefix = localStorage.getItem('ha_prefix') || 'sensor.ed_manon_leal_le_borgne_emploi_du_temps';
+    const entity = localStorage.getItem('ha_entity') || 'sensor.ed_manon_leal_le_borgne_emploi_du_temps_semaine_en_cours';
 
     if (!haUrl || !haToken) return;
 
-    const todayDayOfWeek = (new Date().getDay() || 7);
-    let targetSensor = `${prefix}_semaine_en_cours`;
-
-    if (dayNum === todayDayOfWeek) {
-      targetSensor = `${prefix}_aujourd_hui`;
-    }
-
     try {
-      const response = await fetch(`${haUrl}/api/states/${targetSensor}`, {
+      const response = await fetch(`${haUrl}/api/states/${entity}`, {
         headers: {
           "Authorization": `Bearer ${haToken}`,
           "Content-Type": "application/json"
@@ -608,14 +601,24 @@
 
       if (!lessons || lessons.length === 0) return;
 
+      // Calcul du lundi de la semaine en cours
       const now = new Date();
-      const targetDate = new Date(now);
-      targetDate.setDate(now.getDate() + (dayNum - todayDayOfWeek));
-      const targetDateStr = targetDate.toISOString().split('T')[0];
+      const currentDayOfWeek = now.getDay() || 7; // Lundi = 1, Dimanche = 7
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - (currentDayOfWeek - 1));
+
+      // Calcul de la date du jour ciblé (dayNum: 1=Lun, 2=Mar, 3=Mer, 4=Jeu, 5=Ven)
+      const targetDate = new Date(monday);
+      targetDate.setDate(monday.getDate() + (dayNum - 1));
+
+      const year = targetDate.getFullYear();
+      const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+      const day = String(targetDate.getDate()).padStart(2, '0');
+      const targetDateStr = `${year}-${month}-${day}`;
 
       let filteredLessons = lessons.filter(l => {
         if (l.is_annule === true) return false;
-        if (!l.start) return true;
+        if (!l.start) return false;
         const lessonDate = l.start.split('T')[0];
         return lessonDate === targetDateStr;
       });
