@@ -378,7 +378,7 @@
           <input type="password" id="ha-token" placeholder="eyJhbGciOiJIUzI1NiI...">
         </div>
         <div class="form-group">
-          <label for="ha-prefix">Prefixe des sensors École Directe :</label>
+          <label for="ha-prefix">Préfixe des sensors École Directe :</label>
           <input type="text" id="ha-prefix" value="sensor.ed_manon_leal_le_borgne_emploi_du_temps" placeholder="sensor.ed_manon_leal_le_borgne_emploi_du_temps">
         </div>
         <button class="save-btn" onclick="saveSettings()">Enregistrer les Réglages</button>
@@ -604,7 +604,7 @@
       if (!response.ok) return;
 
       const data = await response.json();
-      const lessons = data.attributes ? (data.attributes.lessons || data.attributes.courses || []) : [];
+      const lessons = data.attributes ? (data.attributes['Emploi du temps'] || data.attributes.lessons || []) : [];
 
       if (!lessons || lessons.length === 0) return;
 
@@ -614,8 +614,9 @@
       const targetDateStr = targetDate.toISOString().split('T')[0];
 
       let filteredLessons = lessons.filter(l => {
-        if (!l.start_date && !l.start) return true;
-        const lessonDate = (l.start_date || l.start).split(' ')[0].split('T')[0];
+        if (l.is_annule === true) return false;
+        if (!l.start) return true;
+        const lessonDate = l.start.split('T')[0];
         return lessonDate === targetDateStr;
       });
 
@@ -627,28 +628,20 @@
         const scheduleContainer = document.getElementById('schedule-container');
         scheduleContainer.innerHTML = '';
 
-        filteredLessons.sort((a, b) => new Date(a.start_date || a.start) - new Date(b.start_date || b.start));
+        filteredLessons.sort((a, b) => new Date(a.start) - new Date(b.start));
 
         filteredLessons.forEach(l => {
-          let timeDisplay = "";
-          if (l.start_time && l.end_time) {
-            timeDisplay = `${l.start_time} - ${l.end_time}`;
-          } else if (l.start_date || l.start) {
-            const startD = new Date(l.start_date || l.start);
-            const endD = new Date(l.end_date || l.end);
-            timeDisplay = `${startD.toLocaleTimeString([], {hour:'2digit', minute:'2digit'})} - ${endD.toLocaleTimeString([], {hour:'2digit', minute:'2digit'})}`;
-          }
-
-          const name = l.text || l.subject || l.title || "Cours";
-          const prof = l.teacher || l.prof || "";
-          const room = l.classroom || l.room || "";
+          const timeDisplay = `${l.start_time || ''} - ${l.end_time || ''}`;
+          const name = l.lesson || "Cours";
+          const prof = l.prof || "";
+          const room = l.salle || "";
 
           scheduleContainer.innerHTML += `
             <div class="course-item">
               <div class="course-time">${timeDisplay}</div>
               <div class="course-detail">
                 <div class="course-name">${name}</div>
-                <div class="course-sub">${prof} ${room ? '• Salle ' + room : ''}</div>
+                <div class="course-sub">${prof} ${room ? '• ' + room : ''}</div>
               </div>
             </div>
           `;
