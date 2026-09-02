@@ -350,7 +350,7 @@
       <div class="card digital-card">
         <div class="card-title">🚌 Carte de Bus</div>
         <div class="card-img-wrapper">
-          <img src="carte-bus.jpg.jpg" alt="Carte de Bus Manon" onerror="this.onerror=null; this.src='https://via.placeholder.com/400x250?text=Ajoutez+carte-bus.jpg';">
+          <img src="carte-bus.jpg" alt="Carte de Bus Manon" onerror="this.onerror=null; this.src='https://via.placeholder.com/400x250?text=Ajoutez+carte-bus.jpg';">
         </div>
         <div class="card-hint">À présenter ou scanner au niveau de la borne bus</div>
       </div>
@@ -378,8 +378,8 @@
           <input type="password" id="ha-token" placeholder="eyJhbGciOiJIUzI1NiI...">
         </div>
         <div class="form-group">
-          <label for="ha-entity">Entité Calendrier :</label>
-          <input type="text" id="ha-entity" value="calendar.ecoledirecte_manon" placeholder="calendar.ecoledirecte_manon">
+          <label for="ha-prefix">Prefixe des sensors École Directe :</label>
+          <input type="text" id="ha-prefix" value="sensor.ed_manon_leal_le_borgne_emploi_du_temps" placeholder="sensor.ed_manon_leal_le_borgne_emploi_du_temps">
         </div>
         <button class="save-btn" onclick="saveSettings()">Enregistrer les Réglages</button>
       </div>
@@ -409,11 +409,11 @@
   function saveSettings() {
     const url = document.getElementById('ha-url').value.trim();
     const token = document.getElementById('ha-token').value.trim();
-    const entity = document.getElementById('ha-entity').value.trim();
+    const prefix = document.getElementById('ha-prefix').value.trim();
 
     localStorage.setItem('ha_url', url);
     localStorage.setItem('ha_token', token);
-    localStorage.setItem('ha_entity', entity);
+    localStorage.setItem('ha_prefix', prefix);
 
     alert("Réglages enregistrés !");
     selectDay(currentDay);
@@ -422,11 +422,11 @@
   function loadSettings() {
     document.getElementById('ha-url').value = localStorage.getItem('ha_url') || '';
     document.getElementById('ha-token').value = localStorage.getItem('ha_token') || '';
-    document.getElementById('ha-entity').value = localStorage.getItem('ha_entity') || 'calendar.ecoledirecte_manon';
+    document.getElementById('ha-prefix').value = localStorage.getItem('ha_prefix') || 'sensor.ed_manon_leal_le_borgne_emploi_du_temps';
   }
 
   const timetable = {
-    1: { // Lundi
+    1: {
       all: [
         { time: "10h10 - 11h05", name: "Anglais LV1", prof: "Mme Bourel", room: "111" },
         { time: "11h05 - 12h00", name: "Histoire-Géographie", prof: "Mme Creach", room: "211" },
@@ -435,14 +435,10 @@
         { time: "14h25 - 15h20", name: "Français", prof: "Mme Gallouedec", room: "111" },
         { time: "15h35 - 16h30", name: "Français", prof: "Mme Gallouedec", room: "111" }
       ],
-      A: [ // Impaire
-        { time: "09h00 - 09h55", name: "Physique", prof: "Mme Pericart", room: "PHYS" }
-      ],
-      B: [ // Paire
-        { time: "09h00 - 09h55", name: "SVT", prof: "Mme Inizan", room: "SVT" }
-      ]
+      A: [{ time: "09h00 - 09h55", name: "Physique", prof: "Mme Pericart", room: "PHYS" }],
+      B: [{ time: "09h00 - 09h55", name: "SVT", prof: "Mme Inizan", room: "SVT" }]
     },
-    2: { // Mardi
+    2: {
       all: [
         { time: "08h05 - 09h00", name: "Éducation Musicale", prof: "Mme Chahagnon", room: "MUS" },
         { time: "09h00 - 09h55", name: "Anglais LV1", prof: "Mme Bourel", room: "111" },
@@ -456,20 +452,16 @@
       A: [],
       B: []
     },
-    3: { // Mercredi
+    3: {
       all: [
         { time: "08h05 - 09h00", name: "EPS", prof: "M. Pors", room: "" },
         { time: "09h00 - 09h55", name: "EPS", prof: "M. Pors", room: "" },
         { time: "11h05 - 12h00", name: "Mathématiques", prof: "M. Bascou", room: "111" }
       ],
-      A: [
-        { time: "10h10 - 11h05", name: "Renfomaths 6ème", prof: "M. Bascou", room: "111" }
-      ],
-      B: [
-        { time: "10h10 - 11h05", name: "Mathématiques", prof: "M. Bascou", room: "111" }
-      ]
+      A: [{ time: "10h10 - 11h05", name: "Renfomaths 6ème", prof: "M. Bascou", room: "111" }],
+      B: [{ time: "10h10 - 11h05", name: "Mathématiques", prof: "M. Bascou", room: "111" }]
     },
-    4: { // Jeudi
+    4: {
       all: [
         { time: "08h05 - 09h00", name: "Initiation LV2", prof: "M. Simon / Mme Michel", room: "6RENFRA-A" },
         { time: "09h00 - 09h55", name: "Mathématiques", prof: "M. Bascou", room: "111" },
@@ -482,7 +474,7 @@
       A: [],
       B: []
     },
-    5: { // Vendredi
+    5: {
       all: [
         { time: "09h00 - 09h55", name: "Physique", prof: "Mme Pericart", room: "PHYS" },
         { time: "10h10 - 11h05", name: "EPS", prof: "M. Pors", room: "" },
@@ -491,12 +483,8 @@
         { time: "13h30 - 14h25", name: "Anglais LV1", prof: "Mme Bourel", room: "111" },
         { time: "14h25 - 15h20", name: "Français", prof: "Mme Gallouedec", room: "111" }
       ],
-      A: [
-        { time: "15h35 - 16h30", name: "VDC", prof: "M. Pors", room: "111" }
-      ],
-      B: [
-        { time: "15h35 - 16h30", name: "Français", prof: "Mme Gallouedec", room: "111" }
-      ]
+      A: [{ time: "15h35 - 16h30", name: "VDC", prof: "M. Pors", room: "111" }],
+      B: [{ time: "15h35 - 16h30", name: "Français", prof: "Mme Gallouedec", room: "111" }]
     }
   };
 
@@ -534,7 +522,7 @@
     });
 
     renderLocalSchedule(dayNum);
-    fetchHAData(dayNum);
+    fetchHASensors(dayNum);
 
     const busContainer = document.getElementById('bus-container');
     const busTitleElement = document.querySelector('.bus-card .card-title');
@@ -591,24 +579,22 @@
     }
   }
 
-  async function fetchHAData(dayNum) {
+  async function fetchHASensors(dayNum) {
     const haUrl = localStorage.getItem('ha_url');
     const haToken = localStorage.getItem('ha_token');
-    const haEntity = localStorage.getItem('ha_entity') || 'calendar.ecoledirecte_manon';
+    const prefix = localStorage.getItem('ha_prefix') || 'sensor.ed_manon_leal_le_borgne_emploi_du_temps';
 
     if (!haUrl || !haToken) return;
 
-    const now = new Date();
-    const currentDayOfWeek = now.getDay() || 7;
-    const targetDate = new Date(now);
-    targetDate.setDate(now.getDate() + (dayNum - currentDayOfWeek));
+    const todayDayOfWeek = (new Date().getDay() || 7);
+    let targetSensor = `${prefix}_semaine_en_cours`;
 
-    const dateStr = targetDate.toISOString().split('T')[0];
-    const start = `${dateStr}T00:00:00Z`;
-    const end = `${dateStr}T23:59:59Z`;
+    if (dayNum === todayDayOfWeek) {
+      targetSensor = `${prefix}_aujourd_hui`;
+    }
 
     try {
-      const response = await fetch(`${haUrl}/api/calendars/${haEntity}?start=${start}&end=${end}`, {
+      const response = await fetch(`${haUrl}/api/states/${targetSensor}`, {
         headers: {
           "Authorization": `Bearer ${haToken}`,
           "Content-Type": "application/json"
@@ -617,9 +603,23 @@
 
       if (!response.ok) return;
 
-      const events = await response.json();
+      const data = await response.json();
+      const lessons = data.attributes ? (data.attributes.lessons || data.attributes.courses || []) : [];
 
-      if (events && events.length > 0) {
+      if (!lessons || lessons.length === 0) return;
+
+      const now = new Date();
+      const targetDate = new Date(now);
+      targetDate.setDate(now.getDate() + (dayNum - todayDayOfWeek));
+      const targetDateStr = targetDate.toISOString().split('T')[0];
+
+      let filteredLessons = lessons.filter(l => {
+        if (!l.start_date && !l.start) return true;
+        const lessonDate = (l.start_date || l.start).split(' ')[0].split('T')[0];
+        return lessonDate === targetDateStr;
+      });
+
+      if (filteredLessons.length > 0) {
         const badge = document.getElementById('source-badge');
         badge.innerText = 'École Directe';
         badge.className = 'badge badge-live';
@@ -627,25 +627,35 @@
         const scheduleContainer = document.getElementById('schedule-container');
         scheduleContainer.innerHTML = '';
 
-        events.sort((a, b) => new Date(a.start) - new Date(b.start));
+        filteredLessons.sort((a, b) => new Date(a.start_date || a.start) - new Date(b.start_date || b.start));
 
-        events.forEach(event => {
-          const startTime = new Date(event.start).toLocaleTimeString([], { hour: '2digit', minute: '2digit' });
-          const endTime = new Date(event.end).toLocaleTimeString([], { hour: '2digit', minute: '2digit' });
+        filteredLessons.forEach(l => {
+          let timeDisplay = "";
+          if (l.start_time && l.end_time) {
+            timeDisplay = `${l.start_time} - ${l.end_time}`;
+          } else if (l.start_date || l.start) {
+            const startD = new Date(l.start_date || l.start);
+            const endD = new Date(l.end_date || l.end);
+            timeDisplay = `${startD.toLocaleTimeString([], {hour:'2digit', minute:'2digit'})} - ${endD.toLocaleTimeString([], {hour:'2digit', minute:'2digit'})}`;
+          }
+
+          const name = l.text || l.subject || l.title || "Cours";
+          const prof = l.teacher || l.prof || "";
+          const room = l.classroom || l.room || "";
 
           scheduleContainer.innerHTML += `
             <div class="course-item">
-              <div class="course-time">${startTime} - ${endTime}</div>
+              <div class="course-time">${timeDisplay}</div>
               <div class="course-detail">
-                <div class="course-name">${event.summary}</div>
-                <div class="course-sub">${event.location || ''} ${event.description || ''}</div>
+                <div class="course-name">${name}</div>
+                <div class="course-sub">${prof} ${room ? '• Salle ' + room : ''}</div>
               </div>
             </div>
           `;
         });
       }
     } catch (e) {
-      console.warn("Fallback sur emploi du temps fixe local:", e);
+      console.warn("Erreur chargement sensor HA, retour au local:", e);
     }
   }
 
