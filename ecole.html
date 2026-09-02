@@ -350,7 +350,7 @@
       <div class="card digital-card">
         <div class="card-title">🚌 Carte de Bus</div>
         <div class="card-img-wrapper">
-          <img src="carte-bus.jpg" alt="Carte de Bus Manon" onerror="this.onerror=null; this.src='https://via.placeholder.com/400x250?text=Ajoutez+carte-bus.jpg';">
+          <img src="carte-bus.jpg.jpg" alt="Carte de Bus Manon" onerror="this.onerror=null; this.src='https://via.placeholder.com/400x250?text=Ajoutez+carte-bus.jpg';">
         </div>
         <div class="card-hint">À présenter ou scanner au niveau de la borne bus</div>
       </div>
@@ -378,7 +378,7 @@
           <input type="password" id="ha-token" placeholder="eyJhbGciOiJIUzI1NiI...">
         </div>
         <div class="form-group">
-          <label for="ha-entity">Entité Emploi du temps (Semaine en cours) :</label>
+          <label for="ha-entity">Entité Capteur École Directe (sensor) :</label>
           <input type="text" id="ha-entity" value="sensor.ed_manon_leal_le_borgne_emploi_du_temps_semaine_en_cours" placeholder="sensor.ed_manon_leal_le_borgne_emploi_du_temps_semaine_en_cours">
         </div>
         <button class="save-btn" onclick="saveSettings()">Enregistrer les Réglages</button>
@@ -426,7 +426,7 @@
   }
 
   const timetable = {
-    1: {
+    1: { // Lundi
       all: [
         { time: "10h10 - 11h05", name: "Anglais LV1", prof: "Mme Bourel", room: "111" },
         { time: "11h05 - 12h00", name: "Histoire-Géographie", prof: "Mme Creach", room: "211" },
@@ -435,10 +435,14 @@
         { time: "14h25 - 15h20", name: "Français", prof: "Mme Gallouedec", room: "111" },
         { time: "15h35 - 16h30", name: "Français", prof: "Mme Gallouedec", room: "111" }
       ],
-      A: [{ time: "09h00 - 09h55", name: "Physique", prof: "Mme Pericart", room: "PHYS" }],
-      B: [{ time: "09h00 - 09h55", name: "SVT", prof: "Mme Inizan", room: "SVT" }]
+      A: [ // Impaire
+        { time: "09h00 - 09h55", name: "Physique", prof: "Mme Pericart", room: "PHYS" }
+      ],
+      B: [ // Paire
+        { time: "09h00 - 09h55", name: "SVT", prof: "Mme Inizan", room: "SVT" }
+      ]
     },
-    2: {
+    2: { // Mardi
       all: [
         { time: "08h05 - 09h00", name: "Éducation Musicale", prof: "Mme Chahagnon", room: "MUS" },
         { time: "09h00 - 09h55", name: "Anglais LV1", prof: "Mme Bourel", room: "111" },
@@ -452,16 +456,20 @@
       A: [],
       B: []
     },
-    3: {
+    3: { // Mercredi
       all: [
         { time: "08h05 - 09h00", name: "EPS", prof: "M. Pors", room: "" },
         { time: "09h00 - 09h55", name: "EPS", prof: "M. Pors", room: "" },
         { time: "11h05 - 12h00", name: "Mathématiques", prof: "M. Bascou", room: "111" }
       ],
-      A: [{ time: "10h10 - 11h05", name: "Renfomaths 6ème", prof: "M. Bascou", room: "111" }],
-      B: [{ time: "10h10 - 11h05", name: "Mathématiques", prof: "M. Bascou", room: "111" }]
+      A: [
+        { time: "10h10 - 11h05", name: "Renfomaths 6ème", prof: "M. Bascou", room: "111" }
+      ],
+      B: [
+        { time: "10h10 - 11h05", name: "Mathématiques", prof: "M. Bascou", room: "111" }
+      ]
     },
-    4: {
+    4: { // Jeudi
       all: [
         { time: "08h05 - 09h00", name: "Initiation LV2", prof: "M. Simon / Mme Michel", room: "6RENFRA-A" },
         { time: "09h00 - 09h55", name: "Mathématiques", prof: "M. Bascou", room: "111" },
@@ -474,7 +482,7 @@
       A: [],
       B: []
     },
-    5: {
+    5: { // Vendredi
       all: [
         { time: "09h00 - 09h55", name: "Physique", prof: "Mme Pericart", room: "PHYS" },
         { time: "10h10 - 11h05", name: "EPS", prof: "M. Pors", room: "" },
@@ -483,8 +491,12 @@
         { time: "13h30 - 14h25", name: "Anglais LV1", prof: "Mme Bourel", room: "111" },
         { time: "14h25 - 15h20", name: "Français", prof: "Mme Gallouedec", room: "111" }
       ],
-      A: [{ time: "15h35 - 16h30", name: "VDC", prof: "M. Pors", room: "111" }],
-      B: [{ time: "15h35 - 16h30", name: "Français", prof: "Mme Gallouedec", room: "111" }]
+      A: [
+        { time: "15h35 - 16h30", name: "VDC", prof: "M. Pors", room: "111" }
+      ],
+      B: [
+        { time: "15h35 - 16h30", name: "Français", prof: "Mme Gallouedec", room: "111" }
+      ]
     }
   };
 
@@ -522,7 +534,7 @@
     });
 
     renderLocalSchedule(dayNum);
-    fetchHASensors(dayNum);
+    fetchHAData(dayNum);
 
     const busContainer = document.getElementById('bus-container');
     const busTitleElement = document.querySelector('.bus-card .card-title');
@@ -579,15 +591,38 @@
     }
   }
 
-  async function fetchHASensors(dayNum) {
+  // Trouve, quelle que soit sa casse/orthographe exacte, la clé d'attribut
+  // contenant la liste des créneaux dans l'entité sensor École Directe.
+  function findScheduleAttribute(attributes) {
+    const candidates = ['Emploi du temps', 'emploi_du_temps', 'emploi du temps'];
+    for (const key of candidates) {
+      if (Array.isArray(attributes[key])) return attributes[key];
+    }
+    // Repli : premier attribut qui est un tableau non vide
+    for (const key in attributes) {
+      if (Array.isArray(attributes[key]) && attributes[key].length > 0 && attributes[key][0].start) {
+        return attributes[key];
+      }
+    }
+    return null;
+  }
+
+  async function fetchHAData(dayNum) {
     const haUrl = localStorage.getItem('ha_url');
     const haToken = localStorage.getItem('ha_token');
-    const entity = localStorage.getItem('ha_entity') || 'sensor.ed_manon_leal_le_borgne_emploi_du_temps_semaine_en_cours';
+    const haEntity = localStorage.getItem('ha_entity') || 'sensor.ed_manon_leal_le_borgne_emploi_du_temps_semaine_en_cours';
 
     if (!haUrl || !haToken) return;
 
+    // Date correspondant au jour sélectionné (Lun-Ven) dans la semaine en cours
+    const now = new Date();
+    const currentDayOfWeek = now.getDay() || 7;
+    const targetDate = new Date(now);
+    targetDate.setDate(now.getDate() + (dayNum - currentDayOfWeek));
+    const dateStr = targetDate.toISOString().split('T')[0]; // YYYY-MM-DD
+
     try {
-      const response = await fetch(`${haUrl}/api/states/${entity}`, {
+      const response = await fetch(`${haUrl}/api/states/${haEntity}`, {
         headers: {
           "Authorization": `Bearer ${haToken}`,
           "Content-Type": "application/json"
@@ -596,79 +631,42 @@
 
       if (!response.ok) return;
 
-      const data = await response.json();
-      const lessons = data.attributes ? (data.attributes['Emploi du temps'] || data.attributes.lessons || data.attributes.courses || []) : [];
+      const state = await response.json();
+      const allSlots = findScheduleAttribute(state.attributes || {});
 
-      if (!lessons || !Array.isArray(lessons) || lessons.length === 0) return;
+      if (!allSlots) return;
 
-      // Calcul de la date exacte YYYY-MM-DD du jour sélectionné
-      const now = new Date();
-      const currentDayOfWeek = now.getDay() || 7;
-      const monday = new Date(now);
-      monday.setDate(now.getDate() - (currentDayOfWeek - 1));
+      // On ne garde que les créneaux du jour sélectionné
+      const daySlots = allSlots
+        .filter(slot => (slot.start_at || slot.start || '').startsWith(dateStr))
+        .sort((a, b) => new Date(a.start) - new Date(b.start));
 
-      const targetDate = new Date(monday);
-      targetDate.setDate(monday.getDate() + (dayNum - 1));
+      if (daySlots.length === 0) return;
 
-      const year = targetDate.getFullYear();
-      const month = String(targetDate.getMonth() + 1).padStart(2, '0');
-      const day = String(targetDate.getDate()).padStart(2, '0');
-      const targetDateStr = `${year}-${month}-${day}`;
+      const badge = document.getElementById('source-badge');
+      badge.innerText = 'École Directe';
+      badge.className = 'badge badge-live';
 
-      const dayNames = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'];
-      const targetDayName = dayNames[dayNum - 1];
+      const scheduleContainer = document.getElementById('schedule-container');
+      scheduleContainer.innerHTML = '';
 
-      let filteredLessons = lessons.filter(l => {
-        if (l.is_annule === true || l.is_canceled === true) return false;
-        
-        // Extraction de la date depuis les différentes structures d'École Directe
-        const rawDate = l.start || l.date || l.start_time || l.day || '';
-        
-        if (typeof rawDate === 'string' && rawDate.includes(targetDateStr)) {
-          return true;
-        }
-        if (typeof l.day === 'string' && l.day.toLowerCase().includes(targetDayName)) {
-          return true;
-        }
-        return false;
-      });
+      daySlots.forEach(slot => {
+        const annule = slot.is_annule === true || slot.is_annule === 1;
+        const color = slot.background_color || '#DDDDDD';
+        const subParts = [slot.prof, slot.salle ? 'Salle ' + slot.salle : ''].filter(Boolean).join(' • ');
 
-      if (filteredLessons.length > 0) {
-        const badge = document.getElementById('source-badge');
-        badge.innerText = 'École Directe';
-        badge.className = 'badge badge-live';
-
-        const scheduleContainer = document.getElementById('schedule-container');
-        scheduleContainer.innerHTML = '';
-
-        filteredLessons.sort((a, b) => {
-          const tA = a.start_time || a.start || a.heure_debut || '';
-          const tB = b.start_time || b.start || b.heure_debut || '';
-          return tA.localeCompare(tB);
-        });
-
-        filteredLessons.forEach(l => {
-          const startTime = l.start_time || (l.start ? l.start.split('T')[1]?.substring(0,5) : '') || '';
-          const endTime = l.end_time || (l.end ? l.end.split('T')[1]?.substring(0,5) : '') || '';
-          const timeDisplay = (startTime && endTime) ? `${startTime} - ${endTime}` : (l.time || '');
-          
-          const name = l.lesson || l.matiere || l.text || "Cours";
-          const prof = l.prof || l.teacher || "";
-          const room = l.salle || l.classroom || "";
-
-          scheduleContainer.innerHTML += `
-            <div class="course-item">
-              <div class="course-time">${timeDisplay}</div>
-              <div class="course-detail">
-                <div class="course-name">${name}</div>
-                <div class="course-sub">${prof} ${room ? '• ' + room : ''}</div>
-              </div>
+        scheduleContainer.innerHTML += `
+          <div class="course-item" style="border-left: 4px solid ${color}; padding-left: 8px; ${annule ? 'opacity: 0.55;' : ''}">
+            <div class="course-time">${slot.start_time} - ${slot.end_time}</div>
+            <div class="course-detail">
+              <div class="course-name">${slot.lesson}${annule ? ' <span class="badge" style="background:#FDECEA;color:#C62828;">Annulé</span>' : ''}</div>
+              <div class="course-sub">${subParts}</div>
             </div>
-          `;
-        });
-      }
+          </div>
+        `;
+      });
     } catch (e) {
-      console.warn("Erreur chargement sensor HA, retour au local:", e);
+      console.warn("Fallback sur emploi du temps fixe local:", e);
     }
   }
 
