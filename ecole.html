@@ -597,17 +597,16 @@
       if (!response.ok) return;
 
       const data = await response.json();
-      const lessons = data.attributes ? (data.attributes['Emploi du temps'] || data.attributes.lessons || []) : [];
+      const lessons = data.attributes ? (data.attributes['Emploi du temps'] || data.attributes.lessons || data.attributes.courses || []) : [];
 
-      if (!lessons || lessons.length === 0) return;
+      if (!lessons || !Array.isArray(lessons) || lessons.length === 0) return;
 
-      // Calcul du lundi de la semaine en cours
+      // Calcul de la date exacte YYYY-MM-DD du jour sélectionné
       const now = new Date();
-      const currentDayOfWeek = now.getDay() || 7; // Lundi = 1, Dimanche = 7
+      const currentDayOfWeek = now.getDay() || 7;
       const monday = new Date(now);
       monday.setDate(now.getDate() - (currentDayOfWeek - 1));
 
-      // Calcul de la date du jour ciblé (dayNum: 1=Lun, 2=Mar, 3=Mer, 4=Jeu, 5=Ven)
       const targetDate = new Date(monday);
       targetDate.setDate(monday.getDate() + (dayNum - 1));
 
@@ -616,11 +615,22 @@
       const day = String(targetDate.getDate()).padStart(2, '0');
       const targetDateStr = `${year}-${month}-${day}`;
 
+      const dayNames = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'];
+      const targetDayName = dayNames[dayNum - 1];
+
       let filteredLessons = lessons.filter(l => {
-        if (l.is_annule === true) return false;
-        if (!l.start) return false;
-        const lessonDate = l.start.split('T')[0];
-        return lessonDate === targetDateStr;
+        if (l.is_annule === true || l.is_canceled === true) return false;
+        
+        // Extraction de la date depuis les différentes structures d'École Directe
+        const rawDate = l.start || l.date || l.start_time || l.day || '';
+        
+        if (typeof rawDate === 'string' && rawDate.includes(targetDateStr)) {
+          return true;
+        }
+        if (typeof l.day === 'string' && l.day.toLowerCase().includes(targetDayName)) {
+          return true;
+        }
+        return false;
       });
 
       if (filteredLessons.length > 0) {
@@ -631,13 +641,20 @@
         const scheduleContainer = document.getElementById('schedule-container');
         scheduleContainer.innerHTML = '';
 
-        filteredLessons.sort((a, b) => new Date(a.start) - new Date(b.start));
+        filteredLessons.sort((a, b) => {
+          const tA = a.start_time || a.start || a.heure_debut || '';
+          const tB = b.start_time || b.start || b.heure_debut || '';
+          return tA.localeCompare(tB);
+        });
 
         filteredLessons.forEach(l => {
-          const timeDisplay = `${l.start_time || ''} - ${l.end_time || ''}`;
-          const name = l.lesson || "Cours";
-          const prof = l.prof || "";
-          const room = l.salle || "";
+          const startTime = l.start_time || (l.start ? l.start.split('T')[1]?.substring(0,5) : '') || '';
+          const endTime = l.end_time || (l.end ? l.end.split('T')[1]?.substring(0,5) : '') || '';
+          const timeDisplay = (startTime && endTime) ? `${startTime} - ${endTime}` : (l.time || '');
+          
+          const name = l.lesson || l.matiere || l.text || "Cours";
+          const prof = l.prof || l.teacher || "";
+          const room = l.salle || l.classroom || "";
 
           scheduleContainer.innerHTML += `
             <div class="course-item">
