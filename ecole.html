@@ -324,6 +324,7 @@
           <span>📚 Cours du jour</span>
           <span id="source-badge" class="badge">Fixe</span>
         </div>
+        <div id="ha-debug" style="font-size:0.75rem;color:#C62828;margin-bottom:8px;"></div>
         <div id="schedule-container"></div>
       </div>
 
@@ -608,18 +609,24 @@
   }
 
   async function fetchHAData(dayNum) {
+    const debugEl = document.getElementById('ha-debug');
+    debugEl.innerText = '';
+
     const haUrl = localStorage.getItem('ha_url');
     const haToken = localStorage.getItem('ha_token');
     const haEntity = localStorage.getItem('ha_entity') || 'sensor.ed_manon_leal_le_borgne_emploi_du_temps_semaine_en_cours';
 
-    if (!haUrl || !haToken) return;
+    if (!haUrl || !haToken) {
+      debugEl.innerText = '⚠️ Renseigne l\'URL et le token HA dans Réglages.';
+      return;
+    }
 
     // Date correspondant au jour sélectionné (Lun-Ven) dans la semaine en cours
     const now = new Date();
     const currentDayOfWeek = now.getDay() || 7;
     const targetDate = new Date(now);
     targetDate.setDate(now.getDate() + (dayNum - currentDayOfWeek));
-    const dateStr = targetDate.toISOString().split('T')[0]; // YYYY-MM-DD
+    const dateStr = `${targetDate.getFullYear()}-${String(targetDate.getMonth()+1).padStart(2,'0')}-${String(targetDate.getDate()).padStart(2,'0')}`;
 
     try {
       const response = await fetch(`${haUrl}/api/states/${haEntity}`, {
@@ -629,19 +636,30 @@
         }
       });
 
-      if (!response.ok) return;
+      if (!response.ok) {
+        debugEl.innerText = `⚠️ HA a répondu ${response.status} (${response.statusText}). Vérifie l'URL, le token et le nom de l'entité.`;
+        return;
+      }
 
       const state = await response.json();
+      console.log('Réponse HA brute pour', haEntity, state);
+
       const allSlots = findScheduleAttribute(state.attributes || {});
 
-      if (!allSlots) return;
+      if (!allSlots) {
+        debugEl.innerText = `⚠️ Entité trouvée mais aucun attribut "Emploi du temps" reconnu. Attributs reçus : ${Object.keys(state.attributes || {}).join(', ')}`;
+        return;
+      }
 
       // On ne garde que les créneaux du jour sélectionné
       const daySlots = allSlots
         .filter(slot => (slot.start_at || slot.start || '').startsWith(dateStr))
         .sort((a, b) => new Date(a.start) - new Date(b.start));
 
-      if (daySlots.length === 0) return;
+      if (daySlots.length === 0) {
+        debugEl.innerText = `ℹ️ ${allSlots.length} créneau(x) reçus au total, mais aucun pour le ${dateStr}.`;
+        return;
+      }
 
       const badge = document.getElementById('source-badge');
       badge.innerText = 'École Directe';
@@ -667,6 +685,7 @@
       });
     } catch (e) {
       console.warn("Fallback sur emploi du temps fixe local:", e);
+      debugEl.innerText = `⚠️ Erreur réseau/CORS en contactant HA : ${e.message}. Si ton HA est en HTTPS avec un certificat valide et joignable depuis l'extérieur, vérifie les CORS (cors_allowed_origins dans configuration.yaml).`;
     }
   }
 
