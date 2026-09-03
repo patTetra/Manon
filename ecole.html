@@ -371,16 +371,8 @@
       <div class="card">
         <div class="card-title">⚙️ Connexion Home Assistant</div>
         <div class="form-group">
-          <label for="ha-url">URL de l'instance Home Assistant :</label>
-          <input type="text" id="ha-url" placeholder="https://votre-instance.ui.nabu.casa">
-        </div>
-        <div class="form-group">
-          <label for="ha-token">Jeton d'accès longue durée (Token) :</label>
-          <input type="password" id="ha-token" placeholder="eyJhbGciOiJIUzI1NiI...">
-        </div>
-        <div class="form-group">
-          <label for="ha-entity">Entité Capteur École Directe (sensor) :</label>
-          <input type="text" id="ha-entity" value="sensor.ed_manon_leal_le_borgne_emploi_du_temps_semaine_en_cours" placeholder="sensor.ed_manon_leal_le_borgne_emploi_du_temps_semaine_en_cours">
+          <label for="ha-url">URL du fichier JSON planning :</label>
+          <input type="text" id="ha-url" value="schedule.json" placeholder="schedule.json (chemin relatif, même repo GitHub)">
         </div>
         <button class="save-btn" onclick="saveSettings()">Enregistrer les Réglages</button>
       </div>
@@ -409,21 +401,13 @@
 
   function saveSettings() {
     const url = document.getElementById('ha-url').value.trim();
-    const token = document.getElementById('ha-token').value.trim();
-    const entity = document.getElementById('ha-entity').value.trim();
-
     localStorage.setItem('ha_url', url);
-    localStorage.setItem('ha_token', token);
-    localStorage.setItem('ha_entity', entity);
-
     alert("Réglages enregistrés !");
     selectDay(currentDay);
   }
 
   function loadSettings() {
-    document.getElementById('ha-url').value = localStorage.getItem('ha_url') || '';
-    document.getElementById('ha-token').value = localStorage.getItem('ha_token') || '';
-    document.getElementById('ha-entity').value = localStorage.getItem('ha_entity') || 'sensor.ed_manon_leal_le_borgne_emploi_du_temps_semaine_en_cours';
+    document.getElementById('ha-url').value = localStorage.getItem('ha_url') || 'schedule.json';
   }
 
   const timetable = {
@@ -612,14 +596,7 @@
     const debugEl = document.getElementById('ha-debug');
     debugEl.innerText = '';
 
-    const haUrl = localStorage.getItem('ha_url');
-    const haToken = localStorage.getItem('ha_token');
-    const haEntity = localStorage.getItem('ha_entity') || 'sensor.ed_manon_leal_le_borgne_emploi_du_temps_semaine_en_cours';
-
-    if (!haUrl || !haToken) {
-      debugEl.innerText = '⚠️ Renseigne l\'URL et le token HA dans Réglages.';
-      return;
-    }
+    const jsonUrl = localStorage.getItem('ha_url') || 'schedule.json';
 
     // Date correspondant au jour sélectionné (Lun-Ven) dans la semaine en cours
     const now = new Date();
@@ -629,25 +606,19 @@
     const dateStr = `${targetDate.getFullYear()}-${String(targetDate.getMonth()+1).padStart(2,'0')}-${String(targetDate.getDate()).padStart(2,'0')}`;
 
     try {
-      const response = await fetch(`${haUrl}/api/states/${haEntity}`, {
-        headers: {
-          "Authorization": `Bearer ${haToken}`,
-          "Content-Type": "application/json"
-        }
-      });
+      // cache-bust pour ne pas garder une vieille version en cache navigateur
+      const response = await fetch(`${jsonUrl}?t=${Date.now()}`, { cache: 'no-store' });
 
       if (!response.ok) {
-        debugEl.innerText = `⚠️ HA a répondu ${response.status} (${response.statusText}). Vérifie l'URL, le token et le nom de l'entité.`;
+        debugEl.innerText = `⚠️ Impossible de charger ${jsonUrl} (${response.status}). Vérifie que le fichier existe bien dans le repo.`;
         return;
       }
 
-      const state = await response.json();
-      console.log('Réponse HA brute pour', haEntity, state);
-
-      const allSlots = findScheduleAttribute(state.attributes || {});
+      const data = await response.json();
+      const allSlots = findScheduleAttribute(data || {});
 
       if (!allSlots) {
-        debugEl.innerText = `⚠️ Entité trouvée mais aucun attribut "Emploi du temps" reconnu. Attributs reçus : ${Object.keys(state.attributes || {}).join(', ')}`;
+        debugEl.innerText = `⚠️ Fichier JSON chargé mais aucune clé "Emploi du temps" reconnue. Clés reçues : ${Object.keys(data || {}).join(', ')}`;
         return;
       }
 
@@ -685,7 +656,7 @@
       });
     } catch (e) {
       console.warn("Fallback sur emploi du temps fixe local:", e);
-      debugEl.innerText = `⚠️ Erreur réseau/CORS en contactant HA : ${e.message}. Si ton HA est en HTTPS avec un certificat valide et joignable depuis l'extérieur, vérifie les CORS (cors_allowed_origins dans configuration.yaml).`;
+      debugEl.innerText = `⚠️ Erreur lors du chargement de ${jsonUrl} : ${e.message}`;
     }
   }
 
