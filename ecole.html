@@ -299,6 +299,7 @@
 
   <nav class="main-nav">
     <button class="main-tab-btn active" onclick="switchMainTab('schedule')">📅 Planning</button>
+    <button class="main-tab-btn" onclick="switchMainTab('devoirs')">📓 Devoirs</button>
     <button class="main-tab-btn" onclick="switchMainTab('bus-live')">🗺️ Carte Bus</button>
     <button class="main-tab-btn" onclick="switchMainTab('cards')">💳 Cartes</button>
     <button class="main-tab-btn" onclick="switchMainTab('settings')">⚙️ Réglages</button>
@@ -343,6 +344,39 @@
     </div>
   </div>
 
+  <div id="tab-devoirs" class="tab-content">
+    <div class="container">
+      <header>
+        <h1>📓 Devoirs de Manon</h1>
+      </header>
+
+      <div style="display:flex;gap:10px;margin-bottom:14px;">
+        <div id="badge-today" style="flex:1;text-align:center;padding:16px 8px;border-radius:16px;background:var(--card-bg);box-shadow:0 2px 6px rgba(0,0,0,0.08);">
+          <div style="font-size:2rem;">🎒</div>
+          <div id="badge-today-count" style="font-size:1.6rem;font-weight:bold;">–</div>
+          <div style="font-size:0.75rem;color:var(--text);opacity:0.7;">Aujourd'hui</div>
+        </div>
+        <div id="badge-tomorrow" style="flex:1;text-align:center;padding:16px 8px;border-radius:16px;background:var(--card-bg);box-shadow:0 2px 6px rgba(0,0,0,0.08);">
+          <div style="font-size:2rem;">📖</div>
+          <div id="badge-tomorrow-count" style="font-size:1.6rem;font-weight:bold;">–</div>
+          <div style="font-size:0.75rem;color:var(--text);opacity:0.7;">Demain</div>
+        </div>
+      </div>
+
+      <div class="week-selector" style="display:flex;gap:4px;margin-bottom:10px;">
+        <button class="devoirs-period-btn active" onclick="selectDevoirsPeriod('aujourd_hui')" style="flex:1;padding:8px 4px;border:none;border-radius:8px;font-size:0.72rem;font-weight:bold;cursor:pointer;background:var(--primary);color:white;">Aujourd'hui</button>
+        <button class="devoirs-period-btn" onclick="selectDevoirsPeriod('demain')" style="flex:1;padding:8px 4px;border:none;border-radius:8px;font-size:0.72rem;font-weight:bold;cursor:pointer;background:var(--card-bg);color:var(--text);box-shadow:0 2px 4px rgba(0,0,0,0.05);">Demain</button>
+        <button class="devoirs-period-btn" onclick="selectDevoirsPeriod('semaine_courante')" style="flex:1;padding:8px 4px;border:none;border-radius:8px;font-size:0.72rem;font-weight:bold;cursor:pointer;background:var(--card-bg);color:var(--text);box-shadow:0 2px 4px rgba(0,0,0,0.05);">Cette semaine</button>
+        <button class="devoirs-period-btn" onclick="selectDevoirsPeriod('semaine_suivante')" style="flex:1;padding:8px 4px;border:none;border-radius:8px;font-size:0.72rem;font-weight:bold;cursor:pointer;background:var(--card-bg);color:var(--text);box-shadow:0 2px 4px rgba(0,0,0,0.05);">Sem. prochaine</button>
+      </div>
+
+      <div class="card">
+        <div id="devoirs-debug" style="font-size:0.75rem;color:#C62828;margin-bottom:8px;"></div>
+        <div id="devoirs-container"></div>
+      </div>
+    </div>
+  </div>
+
   <div id="tab-bus-live" class="tab-content">
     <div class="iframe-wrapper">
       <a href="https://hawk.hanoverdisplays.com/morlaix/public/" target="_blank" class="external-link-btn">
@@ -357,7 +391,7 @@
       <div class="card digital-card">
         <div class="card-title">🚌 Carte de Bus</div>
         <div class="card-img-wrapper">
-          <img src="carte-bus.jpg" alt="Carte de Bus Manon" onerror="this.onerror=null; this.src='https://via.placeholder.com/400x250?text=Ajoutez+carte-bus.jpg';">
+          <img src="carte-bus.jpg.jpg" alt="Carte de Bus Manon" onerror="this.onerror=null; this.src='https://via.placeholder.com/400x250?text=Ajoutez+carte-bus.jpg';">
         </div>
         <div class="card-hint">À présenter ou scanner au niveau de la borne bus</div>
       </div>
@@ -393,14 +427,18 @@
     if (tabId === 'schedule') {
       document.querySelectorAll('.main-tab-btn')[0].classList.add('active');
       document.getElementById('tab-schedule').classList.add('active');
-    } else if (tabId === 'bus-live') {
+    } else if (tabId === 'devoirs') {
       document.querySelectorAll('.main-tab-btn')[1].classList.add('active');
+      document.getElementById('tab-devoirs').classList.add('active');
+      loadDevoirs();
+    } else if (tabId === 'bus-live') {
+      document.querySelectorAll('.main-tab-btn')[2].classList.add('active');
       document.getElementById('tab-bus-live').classList.add('active');
     } else if (tabId === 'cards') {
-      document.querySelectorAll('.main-tab-btn')[2].classList.add('active');
+      document.querySelectorAll('.main-tab-btn')[3].classList.add('active');
       document.getElementById('tab-cards').classList.add('active');
     } else {
-      document.querySelectorAll('.main-tab-btn')[3].classList.add('active');
+      document.querySelectorAll('.main-tab-btn')[4].classList.add('active');
       document.getElementById('tab-settings').classList.add('active');
     }
   }
@@ -499,8 +537,9 @@
     5: { departure: "17h10", arrival: "17h34", stop: "Pouliet ➔ Lanleya" }
   };
 
-  function getWeekType() {
+  function getWeekType(offsetDays = 0) {
     const d = new Date();
+    d.setDate(d.getDate() + offsetDays);
     d.setHours(0, 0, 0, 0);
     d.setDate(d.getDate() + 4 - (d.getDay() || 7));
     const yearStart = new Date(d.getFullYear(), 0, 1);
@@ -513,12 +552,20 @@
 
   let currentDay = new Date().getDay();
   if (currentDay === 0 || currentDay === 6) currentDay = 1;
+  let currentWeekOffset = 0;
+  const weekKeys = ['semaine_courante', 'semaine_suivante', 'semaine_apres_suivante'];
 
-  const weekInfo = getWeekType();
-  document.getElementById('week-info').innerText = `Semaine ${weekInfo.number} (${weekInfo.type === 'A' ? 'Impaire / A' : 'Paire / B'})`;
+  let weekInfo = getWeekType();
+
+  function updateWeekLabel() {
+    weekInfo = getWeekType(currentWeekOffset * 7);
+    document.getElementById('week-info').innerText = `Semaine ${weekInfo.number} (${weekInfo.type === 'A' ? 'Impaire / A' : 'Paire / B'})`;
+  }
+  updateWeekLabel();
 
   function selectDay(dayNum) {
     currentDay = dayNum;
+    updateWeekLabel();
     
     document.querySelectorAll('.day-btn').forEach((btn, index) => {
       btn.classList.toggle('active', (index + 1) === dayNum);
@@ -598,8 +645,175 @@
     return null;
   }
 
-  let currentWeekOffset = 0;
-  const weekKeys = ['semaine_courante', 'semaine_suivante', 'semaine_apres_suivante'];
+  // --- DEVOIRS ---
+  let currentDevoirsPeriod = 'aujourd_hui';
+  let devoirsFullList = [];
+
+  function findDevoirsList(attributes) {
+    const candidates = ['Devoirs', 'devoirs'];
+    for (const key of candidates) {
+      if (Array.isArray(attributes[key])) return attributes[key];
+    }
+    for (const key in attributes) {
+      if (Array.isArray(attributes[key])) return attributes[key];
+    }
+    return [];
+  }
+
+  // Cherche une valeur parmi plusieurs noms de clé possibles (insensible à la casse)
+  function pickField(obj, candidates) {
+    const keys = Object.keys(obj);
+    for (const cand of candidates) {
+      const found = keys.find(k => k.toLowerCase() === cand.toLowerCase());
+      if (found !== undefined && obj[found] !== null && obj[found] !== '') return obj[found];
+    }
+    return null;
+  }
+
+  function stripHtml(str) {
+    if (typeof str !== 'string') return str;
+    return str.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+
+  function ymd(d) {
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
+  function getMonday(offsetWeeks) {
+    const now = new Date();
+    const day = now.getDay() || 7;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - day + 1 + offsetWeeks * 7);
+    monday.setHours(0, 0, 0, 0);
+    return monday;
+  }
+
+  function devoirDate(item) {
+    const raw = pickField(item, ['date', 'pour_le', 'date_a_rendre', 'echeance']);
+    return raw ? new Date(raw) : null;
+  }
+
+  function filterDevoirsByPeriod(list, period) {
+    const now = new Date();
+    if (period === 'aujourd_hui' || period === 'demain') {
+      const target = new Date(now);
+      if (period === 'demain') target.setDate(target.getDate() + 1);
+      const targetStr = ymd(target);
+      return list.filter(item => {
+        const d = devoirDate(item);
+        return d && ymd(d) === targetStr;
+      });
+    }
+    // Semaines : lundi -> dimanche
+    const offset = period === 'semaine_suivante' ? 1 : 0;
+    const monday = getMonday(offset);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+    return list.filter(item => {
+      const d = devoirDate(item);
+      return d && d >= monday && d <= sunday;
+    });
+  }
+
+  function selectDevoirsPeriod(period) {
+    currentDevoirsPeriod = period;
+    const order = ['aujourd_hui', 'demain', 'semaine_courante', 'semaine_suivante'];
+    document.querySelectorAll('.devoirs-period-btn').forEach((btn, idx) => {
+      const active = order[idx] === period;
+      btn.style.background = active ? 'var(--primary)' : 'var(--card-bg)';
+      btn.style.color = active ? 'white' : 'var(--text)';
+    });
+    renderDevoirsPeriod();
+  }
+
+  async function loadDevoirs() {
+    const debugEl = document.getElementById('devoirs-debug');
+    debugEl.innerText = '';
+    const jsonUrl = localStorage.getItem('ha_url') || 'schedule.json';
+
+    try {
+      const response = await fetch(`${jsonUrl}?t=${Date.now()}`, { cache: 'no-store' });
+      if (!response.ok) {
+        debugEl.innerText = `⚠️ Impossible de charger ${jsonUrl} (${response.status}).`;
+        return;
+      }
+      const data = await response.json();
+      const devoirsAttrs = data ? data.devoirs : null;
+
+      if (!devoirsAttrs) {
+        debugEl.innerText = `⚠️ Pas de clé "devoirs" dans le JSON (fais tourner l'automatisation à jour).`;
+        return;
+      }
+
+      devoirsFullList = findDevoirsList(devoirsAttrs);
+
+      // Badges Aujourd'hui / Demain (comptés à partir de la liste, pas de "A faire" qui est global)
+      const todayCount = filterDevoirsByPeriod(devoirsFullList, 'aujourd_hui').filter(i => !isDoneItem(i)).length;
+      const tomorrowCount = filterDevoirsByPeriod(devoirsFullList, 'demain').filter(i => !isDoneItem(i)).length;
+      const setBadge = (elId, count) => {
+        const el = document.getElementById(elId);
+        el.innerText = count;
+        el.parentElement.style.background = count === 0 ? '#E8F5E9' : '#FFF3E0';
+      };
+      setBadge('badge-today-count', todayCount);
+      setBadge('badge-tomorrow-count', tomorrowCount);
+
+      renderDevoirsPeriod();
+    } catch (e) {
+      debugEl.innerText = `⚠️ Erreur lors du chargement des devoirs : ${e.message}`;
+    }
+  }
+
+  function isDoneItem(item) {
+    const done = pickField(item, ['effectue', 'fait', 'done', 'termine']);
+    return done === true || done === 1 || done === 'true';
+  }
+
+  function renderDevoirsPeriod() {
+    const container = document.getElementById('devoirs-container');
+    const debugEl = document.getElementById('devoirs-debug');
+    debugEl.innerText = '';
+    container.innerHTML = '';
+
+    const list = filterDevoirsByPeriod(devoirsFullList, currentDevoirsPeriod);
+
+    if (list.length === 0) {
+      container.innerHTML = `
+        <div style="text-align:center;padding:24px 8px;">
+          <div style="font-size:2.2rem;">🎉</div>
+          <div style="font-weight:bold;margin-top:6px;">Rien à faire, bravo !</div>
+        </div>`;
+      return;
+    }
+
+    // Tri par date
+    list.sort((a, b) => {
+      const da = devoirDate(a), db = devoirDate(b);
+      return (da && db) ? da - db : 0;
+    });
+
+    list.forEach(item => {
+      const matiere = pickField(item, ['matiere', 'matière', 'subject', 'nom_matiere']) || 'Devoir';
+      const isDone = isDoneItem(item);
+      const isInterro = pickField(item, ['interrogation']) === true;
+      const d = devoirDate(item);
+      const dateLabel = d ? d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) : '';
+      const contenuRaw = pickField(item, ['short_description', 'description', 'contenu', 'enonce', 'text']);
+      const contenu = contenuRaw ? stripHtml(contenuRaw) : '';
+
+      container.innerHTML += `
+        <div style="display:flex;gap:10px;align-items:flex-start;padding:10px 4px;border-bottom:1px solid rgba(0,0,0,0.06);${isDone ? 'opacity:0.5;' : ''}">
+          <div style="font-size:1.3rem;">${isDone ? '✅' : (isInterro ? '📌' : '📝')}</div>
+          <div style="flex:1;">
+            <div style="font-weight:bold;${isDone ? 'text-decoration:line-through;' : ''}">${matiere}${isInterro ? ' <span style="font-size:0.7rem;background:#FFEBEE;color:#C62828;padding:1px 6px;border-radius:6px;">Interro</span>' : ''}</div>
+            <div style="font-size:0.75rem;opacity:0.6;">${dateLabel}</div>
+            ${contenu ? `<div style="font-size:0.85rem;opacity:0.85;margin-top:2px;">${contenu}</div>` : ''}
+          </div>
+        </div>
+      `;
+    });
+  }
 
   function selectWeek(offset) {
     currentWeekOffset = offset;
