@@ -311,6 +311,12 @@
         <p id="week-info">Chargement...</p>
       </header>
 
+      <div class="week-selector" style="display:flex;gap:4px;margin-bottom:10px;">
+        <button class="week-btn active" onclick="selectWeek(0)" style="flex:1;padding:8px 4px;border:none;border-radius:8px;font-size:0.75rem;font-weight:bold;cursor:pointer;background:var(--primary);color:white;">Cette semaine</button>
+        <button class="week-btn" onclick="selectWeek(1)" style="flex:1;padding:8px 4px;border:none;border-radius:8px;font-size:0.75rem;font-weight:bold;cursor:pointer;background:var(--card-bg);color:var(--text);box-shadow:0 2px 4px rgba(0,0,0,0.05);">Semaine prochaine</button>
+        <button class="week-btn" onclick="selectWeek(2)" style="flex:1;padding:8px 4px;border:none;border-radius:8px;font-size:0.75rem;font-weight:bold;cursor:pointer;background:var(--card-bg);color:var(--text);box-shadow:0 2px 4px rgba(0,0,0,0.05);">Semaine +2</button>
+      </div>
+
       <div class="day-selector">
         <button class="day-btn" onclick="selectDay(1)">Lun</button>
         <button class="day-btn" onclick="selectDay(2)">Mar</button>
@@ -592,17 +598,30 @@
     return null;
   }
 
+  let currentWeekOffset = 0;
+  const weekKeys = ['semaine_courante', 'semaine_suivante', 'semaine_apres_suivante'];
+
+  function selectWeek(offset) {
+    currentWeekOffset = offset;
+    document.querySelectorAll('.week-btn').forEach((btn, idx) => {
+      const active = idx === offset;
+      btn.style.background = active ? 'var(--primary)' : 'var(--card-bg)';
+      btn.style.color = active ? 'white' : 'var(--text)';
+    });
+    selectDay(currentDay);
+  }
+
   async function fetchHAData(dayNum) {
     const debugEl = document.getElementById('ha-debug');
     debugEl.innerText = '';
 
     const jsonUrl = localStorage.getItem('ha_url') || 'schedule.json';
 
-    // Date correspondant au jour sélectionné (Lun-Ven) dans la semaine en cours
+    // Date correspondant au jour sélectionné, décalée de la semaine choisie
     const now = new Date();
     const currentDayOfWeek = now.getDay() || 7;
     const targetDate = new Date(now);
-    targetDate.setDate(now.getDate() + (dayNum - currentDayOfWeek));
+    targetDate.setDate(now.getDate() + (dayNum - currentDayOfWeek) + (currentWeekOffset * 7));
     const dateStr = `${targetDate.getFullYear()}-${String(targetDate.getMonth()+1).padStart(2,'0')}-${String(targetDate.getDate()).padStart(2,'0')}`;
 
     try {
@@ -615,10 +634,23 @@
       }
 
       const data = await response.json();
-      const allSlots = findScheduleAttribute(data || {});
+      const weekKey = weekKeys[currentWeekOffset];
+      const weekData = data ? data[weekKey] : null;
+
+      if (!weekData) {
+        debugEl.innerText = `⚠️ Clé "${weekKey}" absente du JSON.`;
+        return;
+      }
+
+      const allSlots = findScheduleAttribute(weekData);
 
       if (!allSlots) {
-        debugEl.innerText = `⚠️ Fichier JSON chargé mais aucune clé "Emploi du temps" reconnue. Clés reçues : ${Object.keys(data || {}).join(', ')}`;
+        debugEl.innerText = `⚠️ Aucune clé "Emploi du temps" reconnue pour ${weekKey}.`;
+        return;
+      }
+
+      if (allSlots.length === 0) {
+        debugEl.innerText = `ℹ️ Pas encore de planning publié pour cette semaine.`;
         return;
       }
 
@@ -628,7 +660,7 @@
         .sort((a, b) => new Date(a.start) - new Date(b.start));
 
       if (daySlots.length === 0) {
-        debugEl.innerText = `ℹ️ ${allSlots.length} créneau(x) reçus au total, mais aucun pour le ${dateStr}.`;
+        debugEl.innerText = `ℹ️ ${allSlots.length} créneau(x) reçus au total pour ${weekKey}, mais aucun pour le ${dateStr}.`;
         return;
       }
 
