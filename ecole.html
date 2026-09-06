@@ -647,7 +647,7 @@
 
   // --- DEVOIRS ---
   let currentDevoirsPeriod = 'aujourd_hui';
-  let devoirsFullList = [];
+  let devoirsData = null;
 
   function findDevoirsList(attributes) {
     const candidates = ['Devoirs', 'devoirs'];
@@ -675,45 +675,17 @@
     return str.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
   }
 
-  function ymd(d) {
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  }
-
-  function getMonday(offsetWeeks) {
-    const now = new Date();
-    const day = now.getDay() || 7;
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - day + 1 + offsetWeeks * 7);
-    monday.setHours(0, 0, 0, 0);
-    return monday;
-  }
-
   function devoirDate(item) {
     const raw = pickField(item, ['date', 'pour_le', 'date_a_rendre', 'echeance']);
     return raw ? new Date(raw) : null;
   }
 
-  function filterDevoirsByPeriod(list, period) {
-    const now = new Date();
-    if (period === 'aujourd_hui' || period === 'demain') {
-      const target = new Date(now);
-      if (period === 'demain') target.setDate(target.getDate() + 1);
-      const targetStr = ymd(target);
-      return list.filter(item => {
-        const d = devoirDate(item);
-        return d && ymd(d) === targetStr;
-      });
-    }
-    // Semaines : lundi -> dimanche
-    const offset = period === 'semaine_suivante' ? 1 : 0;
-    const monday = getMonday(offset);
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    sunday.setHours(23, 59, 59, 999);
-    return list.filter(item => {
-      const d = devoirDate(item);
-      return d && d >= monday && d <= sunday;
-    });
+  function isDoneItem(item) {
+    const id = getItemId(item);
+    const overrides = getDoneOverrides();
+    if (Object.prototype.hasOwnProperty.call(overrides, id)) return overrides[id];
+    const done = pickField(item, ['effectue', 'fait', 'done', 'termine']);
+    return done === true || done === 1 || done === 'true';
   }
 
   function selectDevoirsPeriod(period) {
@@ -739,25 +711,23 @@
         return;
       }
       const data = await response.json();
-      const devoirsAttrs = data ? data.devoirs : null;
+      devoirsData = data ? data.devoirs : null;
 
-      if (!devoirsAttrs) {
+      if (!devoirsData) {
         debugEl.innerText = `⚠️ Pas de clé "devoirs" dans le JSON (fais tourner l'automatisation à jour).`;
         return;
       }
 
-      devoirsFullList = findDevoirsList(devoirsAttrs);
-
-      // Badges Aujourd'hui / Demain (comptés à partir de la liste, pas de "A faire" qui est global)
-      const todayCount = filterDevoirsByPeriod(devoirsFullList, 'aujourd_hui').filter(i => !isDoneItem(i)).length;
-      const tomorrowCount = filterDevoirsByPeriod(devoirsFullList, 'demain').filter(i => !isDoneItem(i)).length;
-      const setBadge = (elId, count) => {
+      const todayList = findDevoirsList(devoirsData.aujourd_hui || {});
+      const tomorrowList = findDevoirsList(devoirsData.demain || {});
+      const setBadge = (elId, list) => {
+        const count = list.filter(i => !isDoneItem(i)).length;
         const el = document.getElementById(elId);
         el.innerText = count;
         el.parentElement.style.background = count === 0 ? '#E8F5E9' : '#FFF3E0';
       };
-      setBadge('badge-today-count', todayCount);
-      setBadge('badge-tomorrow-count', tomorrowCount);
+      setBadge('badge-today-count', todayList);
+      setBadge('badge-tomorrow-count', tomorrowList);
 
       renderDevoirsPeriod();
     } catch (e) {
@@ -765,9 +735,23 @@
     }
   }
 
-  function isDoneItem(item) {
-    const done = pickField(item, ['effectue', 'fait', 'done', 'termine']);
-    return done === true || done === 1 || done === 'true';
+  function getDoneOverrides() {
+    try { return JSON.parse(localStorage.getItem('devoirs_done_overrides') || '{}'); } catch (e) { return {}; }
+  }
+
+  function getItemId(item) {
+    const id = pickField(item, ['devoir_id', 'id']);
+    if (id !== null) return 'id_' + id;
+    const matiere = pickField(item, ['matiere']) || '';
+    const date = pickField(item, ['date']) || '';
+    return 'fallback_' + matiere + '_' + date;
+  }
+
+  function toggleDevoirDone(itemId, currentlyDone) {
+    const overrides = getDoneOverrides();
+    overrides[itemId] = !currentlyDone;
+    localStorage.setItem('devoirs_done_overrides', JSON.stringify(overrides));
+    renderDevoirsPeriod();
   }
 
   function renderDevoirsPeriod() {
@@ -776,7 +760,15 @@
     debugEl.innerText = '';
     container.innerHTML = '';
 
-    const list = filterDevoirsByPeriod(devoirsFullList, currentDevoirsPeriod);
+    if (!devoirsData) return;
+
+    const periodData = devoirsData[currentDevoirsPeriod];
+    if (!periodData) {
+      debugEl.innerText = `⚠️ Pas de données pour cette période.`;
+      return;
+    }
+
+    const list = findDevoirsList(periodData).slice();
 
     if (list.length === 0) {
       container.innerHTML = `
@@ -795,16 +787,17 @@
 
     list.forEach(item => {
       const matiere = pickField(item, ['matiere', 'matière', 'subject', 'nom_matiere']) || 'Devoir';
+      const itemId = getItemId(item);
       const isDone = isDoneItem(item);
       const isInterro = pickField(item, ['interrogation']) === true;
       const d = devoirDate(item);
       const dateLabel = d ? d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) : '';
-      const contenuRaw = pickField(item, ['short_description', 'description', 'contenu', 'enonce', 'text']);
+      const contenuRaw = pickField(item, ['description', 'short_description', 'contenu', 'enonce', 'text']);
       const contenu = contenuRaw ? stripHtml(contenuRaw) : '';
 
       container.innerHTML += `
         <div style="display:flex;gap:10px;align-items:flex-start;padding:10px 4px;border-bottom:1px solid rgba(0,0,0,0.06);${isDone ? 'opacity:0.5;' : ''}">
-          <div style="font-size:1.3rem;">${isDone ? '✅' : (isInterro ? '📌' : '📝')}</div>
+          <input type="checkbox" ${isDone ? 'checked' : ''} onclick="toggleDevoirDone('${itemId}', ${isDone})" style="width:22px;height:22px;margin-top:2px;flex-shrink:0;accent-color:var(--primary);">
           <div style="flex:1;">
             <div style="font-weight:bold;${isDone ? 'text-decoration:line-through;' : ''}">${matiere}${isInterro ? ' <span style="font-size:0.7rem;background:#FFEBEE;color:#C62828;padding:1px 6px;border-radius:6px;">Interro</span>' : ''}</div>
             <div style="font-size:0.75rem;opacity:0.6;">${dateLabel}</div>
