@@ -1,5 +1,5 @@
 {
-  "solde": 45.6,
+  "solde": 90.6,
   "tirelire": 23,
   "objectifActuel": 0,
   "objectifCible": 50,
@@ -130,10 +130,22 @@
       "type": "gain",
       "desc": "Taty caty",
       "montant": 20
+    },
+    {
+      "date": "2026-08-31",
+      "type": "gain",
+      "desc": "Argent de poche",
+      "montant": 15
+    },
+    {
+      "date": "2026-09-12",
+      "type": "gain",
+      "desc": "Papa et Gaelle",
+      "montant": 30
     }
   ],
   "lastAllowanceDate": {
     "year": 2026,
-    "month": 7
+    "month": 8
   }
 }
