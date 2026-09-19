@@ -59,9 +59,9 @@
             <div class="flex items-center space-x-2">
                 <div id="wfs-status-badge" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
                     <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse mr-2" id="wfs-dot"></span>
-                    <span id="wfs-status-text">Connexion au WFS...</span>
+                    <span id="wfs-status-text">Initialisation...</span>
                 </div>
-                <button id="refresh-btn" onclick="fetchWFSData()" title="Rafraîchir les données" class="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors">
+                <button id="refresh-btn" onclick="fetchWFSDataWithProxyRetry()" title="Recharger les données WFS" class="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors">
                     <i class="fa-solid fa-arrows-rotate"></i>
                 </button>
             </div>
@@ -70,6 +70,29 @@
 
     <!-- Main Content Container -->
     <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col space-y-6">
+
+        <!-- Error & Diagnostic Alert Box -->
+        <div id="error-diagnostic-card" class="hidden bg-amber-50 border border-amber-200 p-4 rounded-2xl shadow-xs transition-all">
+            <div class="flex items-start justify-between flex-wrap gap-3">
+                <div class="flex items-start space-x-3">
+                    <div class="p-2 bg-amber-100 text-amber-700 rounded-xl text-lg flex-shrink-0">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-slate-900 text-sm">Problème de connexion WFS / Proxy CORS</h3>
+                        <p id="error-diagnostic-details" class="text-xs text-slate-600 mt-0.5">Impossible d'atteindre le serveur d'Air Breizh à travers les proxys réseau.</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button onclick="loadMockData()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium text-xs shadow-xs transition-colors">
+                        <i class="fa-solid fa-flask mr-1"></i> Mode Démo / Simulation
+                    </button>
+                    <button onclick="fetchWFSDataWithProxyRetry()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium text-xs transition-colors">
+                        Réessayer
+                    </button>
+                </div>
+            </div>
+        </div>
 
         <!-- Search and Date Control Bar -->
         <section class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4 justify-between items-center">
@@ -102,6 +125,7 @@
             </div>
         </section>
 
+        <!-- Main Interactive Section -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1">
             
             <!-- Map Container (Left 5 Cols on LG) -->
@@ -118,14 +142,14 @@
 
                     <!-- Map Overlay Legend -->
                     <div class="mt-3 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                        <p class="text-[11px] font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">Échelle du risque pollinique</p>
+                        <p class="text-[11px] font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">Échelle du risque pollinique (1 à 6)</p>
                         <div class="grid grid-cols-6 gap-1 text-center">
                             <div class="p-1 rounded bg-emerald-100 border border-emerald-300 text-[10px] font-medium text-emerald-800">1 Nul</div>
-                            <div class="p-1 rounded bg-green-100 border border-green-300 text-[10px] font-medium text-green-800">2 Très faible</div>
-                            <div class="p-1 rounded bg-yellow-100 border border-yellow-300 text-[10px] font-medium text-yellow-800">3 Faible</div>
-                            <div class="p-1 rounded bg-amber-200 border border-amber-400 text-[10px] font-medium text-amber-900">4 Moyen</div>
-                            <div class="p-1 rounded bg-orange-200 border border-orange-400 text-[10px] font-medium text-orange-900">5 Élevé</div>
-                            <div class="p-1 rounded bg-red-200 border border-red-400 text-[10px] font-medium text-red-900">6 Très élevé</div>
+                            <div class="p-1 rounded bg-lime-100 border border-lime-300 text-[10px] font-medium text-lime-800">2 Faible</div>
+                            <div class="p-1 rounded bg-yellow-100 border border-yellow-300 text-[10px] font-medium text-yellow-800">3 Moyen</div>
+                            <div class="p-1 rounded bg-amber-200 border border-amber-400 text-[10px] font-medium text-amber-900">4 Élevé</div>
+                            <div class="p-1 rounded bg-red-200 border border-red-400 text-[10px] font-medium text-red-900">5 Très élevé</div>
+                            <div class="p-1 rounded bg-purple-200 border border-purple-400 text-[10px] font-medium text-purple-900">6 Extrême</div>
                         </div>
                     </div>
                 </div>
@@ -138,7 +162,7 @@
                 <div id="selected-zone-card" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-all">
                     <div>
                         <div class="flex items-center space-x-2">
-                            <span id="zone-type-tag" class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">EPCI</span>
+                            <span id="zone-type-tag" class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">EPCI / Secteur</span>
                             <span id="zone-code-tag" class="text-xs text-slate-400 font-mono">Code: --</span>
                         </div>
                         <h2 id="selected-zone-name" class="text-2xl font-bold text-slate-900 mt-1">Sélectionnez un secteur</h2>
@@ -148,7 +172,7 @@
                     <div class="flex items-center space-x-3 bg-slate-50 p-3 rounded-xl border border-slate-100 self-stretch sm:self-auto justify-between sm:justify-end">
                         <div class="text-right">
                             <p class="text-xs font-medium text-slate-500">Risque global</p>
-                            <p id="global-risk-label" class="text-sm font-bold text-slate-700">Non disponible</p>
+                            <p id="global-risk-label" class="text-sm font-bold text-slate-700">En attente...</p>
                         </div>
                         <div id="global-risk-badge" class="w-12 h-12 rounded-xl bg-slate-200 flex items-center justify-center text-slate-600 font-bold text-xl shadow-inner">
                             -
@@ -163,7 +187,7 @@
                     </div>
                     <div class="text-xs leading-relaxed">
                         <span class="font-semibold block text-sm mb-0.5 text-blue-950">Conseils pour les personnes allergiques</span>
-                        <p id="health-advice-text">Rincez vos cheveux le soir, aérez le logement tôt le matin ou tard le soir, et évitez le séchage du linge en extérieur en cas de risque élevé.</p>
+                        <p id="health-advice-text">Sélectionnez une zone pour afficher les recommandations sanitaires d'Air Breizh.</p>
                     </div>
                 </div>
 
@@ -178,10 +202,9 @@
 
                     <!-- Taxons Grid -->
                     <div id="taxons-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <!-- Populated by JS -->
                         <div class="col-span-full py-12 text-center text-slate-400">
                             <i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2 text-emerald-500"></i>
-                            <p class="text-sm">Chargement des indices polliniques...</p>
+                            <p class="text-sm" id="loading-taxons-text">Chargement des indices polliniques...</p>
                         </div>
                     </div>
                 </div>
@@ -200,98 +223,159 @@
     </footer>
 
     <script>
-        // WFS Endpoint provided by user
-        const WFS_URL = "https://datacarto.airbreizh.asso.fr/wfs/4cd6a965-2230-45f8-9b9f-1a9da9145fba";
-        
+        // Core WFS Target Parameters
+        const BASE_WFS_ENDPOINT = "https://datacarto.airbreizh.asso.fr/wfs/4cd6a965-2230-45f8-9b9f-1a9da9145fba";
+        const WFS_PARAMS = "?service=WFS&version=2.0.0&request=GetFeature&typeNames=ind_bretagne_pollen&outputFormat=application/json&srsName=EPSG:4326";
+        const DIRECT_WFS_URL = BASE_WFS_ENDPOINT + WFS_PARAMS;
+
+        // Chain of CORS proxies for failover
+        const CORS_PROXIES = [
+            { name: "Direct WFS", transform: (url) => url },
+            { name: "CorsProxy.io", transform: (url) => `https://corsproxy.io/?${encodeURIComponent(url)}` },
+            { name: "AllOrigins Raw", transform: (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}` },
+            { name: "ThingProxy", transform: (url) => `https://thingproxy.freeboard.io/fetch/${url}` }
+        ];
+
         // Application State
         let map = null;
         let geojsonLayer = null;
         let wfsFeaturesData = [];
         let selectedFeature = null;
-        let selectedDayOffset = 0; // 0 = J, 1 = J+1, 2 = J+2
+        let selectedDayOffset = 0; // 0 = Aujourd'hui, 1 = Demain, 2 = J+2
 
-        // Risk level thresholds configuration according to Atmo/Air Breizh standards
+        // Risk level thresholds configuration according to Atmo/Air Breizh standards (1-6)
         const RISK_LEVELS = {
             0: { label: "Nul / Indéterminé", color: "#94a3b8", bg: "bg-slate-100", text: "text-slate-700", border: "border-slate-300" },
-            1: { label: "Très faible", color: "#86efac", bg: "bg-emerald-100", text: "text-emerald-800", border: "border-emerald-300" },
-            2: { label: "Faible", color: "#4ade80", bg: "bg-green-100", text: "text-green-800", border: "border-green-300" },
+            1: { label: "Nul / Très faible", color: "#86efac", bg: "bg-emerald-100", text: "text-emerald-800", border: "border-emerald-300" },
+            2: { label: "Faible", color: "#a3e635", bg: "bg-lime-100", text: "text-lime-800", border: "border-lime-300" },
             3: { label: "Moyen", color: "#fde047", bg: "bg-yellow-100", text: "text-yellow-800", border: "border-yellow-300" },
             4: { label: "Élevé", color: "#fbbf24", bg: "bg-amber-200", text: "text-amber-900", border: "border-amber-400" },
-            5: { label: "Très élevé", color: "#fb923c", bg: "bg-orange-200", text: "text-orange-900", border: "border-orange-400" },
-            6: { label: "Extrêmement élevé", color: "#f87171", bg: "bg-red-200", text: "text-red-900", border: "border-red-400" }
+            5: { label: "Très élevé", color: "#f87171", bg: "bg-red-200", text: "text-red-900", border: "border-red-400" },
+            6: { label: "Extrêmement élevé", color: "#c084fc", bg: "bg-purple-200", text: "text-purple-900", border: "border-purple-400" }
         };
 
-        // Main Taxon / Plant species tracked
+        // Main Taxon / Plant species tracked by Air Breizh
         const TAXON_KEYS = [
-            { key: 'bouleau', name: 'Bouleau', icon: 'fa-tree', family: 'Betulaceae' },
-            { key: 'graminees', name: 'Graminées', icon: 'fa-wheat-awn', family: 'Poaceae' },
-            { key: 'aulne', name: 'Aulne', icon: 'fa-tree', family: 'Betulaceae' },
-            { key: 'ambroisie', name: 'Ambroisie', icon: 'fa-plant-wilt', family: 'Asteraceae' },
-            { key: 'armoise', name: 'Armoise', icon: 'fa-seedling', family: 'Asteraceae' },
-            { key: 'chene', name: 'Chêne', icon: 'fa-tree', family: 'Fagaceae' },
-            { key: 'frene', name: 'Frêne', icon: 'fa-leaf', family: 'Oleaceae' },
-            { key: 'cypres', name: 'Cyprès / Cupressacées', icon: 'fa-tree-city', family: 'Cupressaceae' },
-            { key: 'noisettier', name: 'Noisetier', icon: 'fa-tree', family: 'Betulaceae' },
-            { key: 'platane', name: 'Platane', icon: 'fa-leaf', family: 'Platanaceae' }
+            { key: 'bouleau', altKeys: ['code_bouleau', 'bouleau_ind'], name: 'Bouleau', icon: 'fa-tree', family: 'Betulaceae' },
+            { key: 'graminees', altKeys: ['code_graminees', 'graminees_ind'], name: 'Graminées', icon: 'fa-wheat-awn', family: 'Poaceae' },
+            { key: 'aulne', altKeys: ['code_aulne', 'aulne_ind'], name: 'Aulne', icon: 'fa-tree', family: 'Betulaceae' },
+            { key: 'ambroisie', altKeys: ['code_ambroisie', 'ambroisie_ind'], name: 'Ambroisie', icon: 'fa-plant-wilt', family: 'Asteraceae' },
+            { key: 'armoise', altKeys: ['code_armoise', 'armoise_ind'], name: 'Armoise', icon: 'fa-seedling', family: 'Asteraceae' },
+            { key: 'chene', altKeys: ['code_chene', 'chene_ind'], name: 'Chêne', icon: 'fa-tree', family: 'Fagaceae' },
+            { key: 'frene', altKeys: ['code_frene', 'frene_ind'], name: 'Frêne', icon: 'fa-leaf', family: 'Oleaceae' },
+            { key: 'cypres', altKeys: ['code_cypres', 'code_cupressacees', 'cypres_ind'], name: 'Cyprès / Tuya', icon: 'fa-tree-city', family: 'Cupressaceae' },
+            { key: 'noisettier', altKeys: ['code_noisetier', 'noisettier_ind'], name: 'Noisetier', icon: 'fa-tree', family: 'Betulaceae' },
+            { key: 'platane', altKeys: ['code_platane', 'platane_ind'], name: 'Platane', icon: 'fa-leaf', family: 'Platanaceae' },
+            { key: 'plantain', altKeys: ['code_plantain', 'plantain_ind'], name: 'Plantain', icon: 'fa-seedling', family: 'Plantaginaceae' },
+            { key: 'saule', altKeys: ['code_saule', 'saule_ind'], name: 'Saule', icon: 'fa-leaf', family: 'Salicaceae' }
         ];
 
         function initMap() {
-            // Default center on Brittany (Rennes / St-Brieuc region center)
+            // Default center on Brittany
             map = L.map('map', {
                 zoomControl: true,
                 attributionControl: false
             }).setView([48.1172, -2.8580], 8);
 
-            // Add clean Voyager / Positron CartoDB tiles
+            // Tiles
             L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
                 maxZoom: 18,
                 subdomains: 'abcd'
             }).addTo(map);
         }
 
-        async function fetchWFSData() {
+        // Fetch WFS trying proxies sequentially
+        async function fetchWFSDataWithProxyRetry() {
             const statusBadge = document.getElementById('wfs-status-badge');
             const statusText = document.getElementById('wfs-status-text');
             const statusDot = document.getElementById('wfs-dot');
+            const errCard = document.getElementById('error-diagnostic-card');
 
-            statusText.textContent = "Interrogation WFS...";
-            statusDot.className = "w-2 h-2 rounded-full bg-amber-500 animate-pulse mr-2";
+            errCard.classList.add('hidden');
             statusBadge.className = "inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200";
+            statusDot.className = "w-2 h-2 rounded-full bg-amber-500 animate-pulse mr-2";
 
-            // Construct GeoJSON WFS URL request
-            const getFeatureUrl = `${WFS_URL}?service=WFS&version=2.0.0&request=GetFeature&outputFormat=application/json&srsName=EPSG:4326`;
+            let lastError = null;
 
-            try {
-                const response = await fetch(getFeatureUrl, { mode: 'cors' });
-                if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
-                
-                const geojson = await response.json();
-                
-                if (geojson && geojson.features && geojson.features.length > 0) {
-                    wfsFeaturesData = geojson.features;
-                    statusText.textContent = "WFS En direct";
-                    statusDot.className = "w-2 h-2 rounded-full bg-emerald-500 mr-2";
-                    statusBadge.className = "inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 border border-emerald-200";
-                    renderGeoJSONOnMap(geojson);
-                    return;
-                } else {
-                    throw new Error("Format GeoJSON invalide ou vide");
+            for (let i = 0; i < CORS_PROXIES.length; i++) {
+                const proxy = CORS_PROXIES[i];
+                const targetUrl = proxy.transform(DIRECT_WFS_URL);
+
+                statusText.textContent = `Essai ${proxy.name}...`;
+
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 7000); // 7s timeout
+
+                    const response = await fetch(targetUrl, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    
+                    const textData = await response.text();
+                    let geojson;
+                    try {
+                        geojson = JSON.parse(textData);
+                    } catch(e) {
+                        throw new Error("Réponse non-JSON (XML/GML ou Erreur du serveur)");
+                    }
+
+                    if (geojson && geojson.features && Array.isArray(geojson.features)) {
+                        wfsFeaturesData = geojson.features;
+                        
+                        statusText.textContent = `WFS Connecté (${proxy.name})`;
+                        statusDot.className = "w-2 h-2 rounded-full bg-emerald-500 mr-2";
+                        statusBadge.className = "inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 border border-emerald-200";
+
+                        renderGeoJSONOnMap(geojson);
+                        return; // Success!
+                    } else {
+                        throw new Error("GeoJSON vide ou structure inattendue");
+                    }
+
+                } catch (err) {
+                    console.warn(`[WFS Fetch] Échec avec ${proxy.name}:`, err.message);
+                    lastError = err;
                 }
-            } catch (err) {
-                console.warn("WFS fetch error or CORS blocked. Switching to standard Brittany EPCI Dataset simulation:", err);
-                statusText.textContent = "Données Simulées (CORS/WFS)";
-                statusDot.className = "w-2 h-2 rounded-full bg-blue-500 mr-2";
-                statusBadge.className = "inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200";
-                
-                // Fallback to sample Brittany EPCIs with mock pollen attributes
-                const mockGeoJSON = generateMockBrittanyFeatures();
-                wfsFeaturesData = mockGeoJSON.features;
-                renderGeoJSONOnMap(mockGeoJSON);
             }
+
+            // If loop finishes, all proxies failed
+            showDiagnosticError(lastError);
+        }
+
+        function showDiagnosticError(err) {
+            const statusBadge = document.getElementById('wfs-status-badge');
+            const statusText = document.getElementById('wfs-status-text');
+            const statusDot = document.getElementById('wfs-dot');
+            const errCard = document.getElementById('error-diagnostic-card');
+            const errDetails = document.getElementById('error-diagnostic-details');
+
+            statusText.textContent = "Erreur WFS";
+            statusDot.className = "w-2 h-2 rounded-full bg-red-500 mr-2";
+            statusBadge.className = "inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200";
+
+            errDetails.textContent = `Problème d'accès à datacarto.airbreizh.asso.fr (${err ? err.message : 'Délai dépassé / CORS'}). Chargez la démonstration pour continuer.`;
+            errCard.classList.remove('hidden');
+
+            // Automatically load demo data so app is never stuck
+            loadMockData();
+        }
+
+        function loadMockData() {
+            const mockGeoJSON = generateMockBrittanyFeatures();
+            wfsFeaturesData = mockGeoJSON.features;
+            renderGeoJSONOnMap(mockGeoJSON);
+
+            const statusText = document.getElementById('wfs-status-text');
+            const statusBadge = document.getElementById('wfs-status-badge');
+            const statusDot = document.getElementById('wfs-dot');
+
+            statusText.textContent = "Mode Démo (Simulé)";
+            statusDot.className = "w-2 h-2 rounded-full bg-blue-500 mr-2";
+            statusBadge.className = "inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200";
         }
 
         function generateMockBrittanyFeatures() {
-            // Simplified polygons representing major Brittany zones
             const zones = [
                 { name: "Rennes Métropole", code: "243500139", lat: 48.111, lng: -1.677, radius: 0.25, risk: 4 },
                 { name: "Brest Métropole", code: "242900314", lat: 48.390, lng: -4.486, radius: 0.22, risk: 2 },
@@ -299,13 +383,13 @@
                 { name: "Saint-Brieuc Armor Agglomération", code: "200069405", lat: 48.513, lng: -2.765, radius: 0.25, risk: 3 },
                 { name: "Lorient Agglomération", code: "200042170", lat: 47.748, lng: -3.370, radius: 0.24, risk: 1 },
                 { name: "Quimper Bretagne Occidentale", code: "200068191", lat: 47.996, lng: -4.102, radius: 0.23, risk: 2 },
-                { name: "Dinan Agglomération", code: "200068985", lat: 48.455, lng: -2.048, radius: 0.26, risk: 4 },
+                { name: "Dinan Agglomération", code: "200068985", lat: 48.455, lng: -2.048, radius: 0.26, risk: 5 },
                 { name: "Morlaix Communauté", code: "242900835", lat: 48.577, lng: -3.828, radius: 0.24, risk: 2 },
-                { name: "Lannion-Trégor Communauté", code: "200065928", lat: 48.732, lng: -3.458, radius: 0.27, risk: 1 }
+                { name: "Lannion-Trégor Communauté", code: "200065928", lat: 48.732, lng: -3.458, radius: 0.27, risk: 1 },
+                { name: "Fougères Agglomération", code: "200072452", lat: 48.352, lng: -1.200, radius: 0.22, risk: 4 }
             ];
 
             const features = zones.map(z => {
-                // Polygon circle-like shape approximation
                 const coords = [];
                 const points = 8;
                 for (let i = 0; i < points; i++) {
@@ -313,27 +397,29 @@
                     const r = z.radius * (0.8 + Math.random() * 0.4);
                     coords.push([z.lng + r * Math.cos(angle), z.lat + r * Math.sin(angle)]);
                 }
-                coords.push(coords[0]); // Close ring
+                coords.push(coords[0]);
 
                 return {
                     type: "Feature",
                     properties: {
                         libelle: z.name,
                         nom_zone: z.name,
-                        code_epci: z.code,
+                        code_zone: z.code,
+                        code_qual: z.risk,
                         indice_global: z.risk,
-                        // Day-specific sub-indices
-                        bouleau: Math.min(6, z.risk + Math.floor(Math.random() * 2)),
-                        graminees: Math.max(1, z.risk - 1 + Math.floor(Math.random() * 2)),
-                        aulne: Math.floor(Math.random() * 3),
-                        ambroisie: Math.floor(Math.random() * 2),
-                        armoise: Math.floor(Math.random() * 2),
-                        chene: Math.min(6, z.risk + Math.floor(Math.random() * 2)),
-                        frene: Math.floor(Math.random() * 3),
-                        cypres: Math.floor(Math.random() * 2),
-                        noisettier: Math.floor(Math.random() * 2),
-                        platane: Math.floor(Math.random() * 3),
-                        date_validite: new Date().toISOString().split('T')[0]
+                        code_bouleau: Math.min(6, Math.max(1, z.risk + Math.floor(Math.random() * 2))),
+                        code_graminees: Math.min(6, Math.max(1, z.risk - 1 + Math.floor(Math.random() * 2))),
+                        code_aulne: Math.floor(Math.random() * 3),
+                        code_ambroisie: Math.floor(Math.random() * 2),
+                        code_armoise: Math.floor(Math.random() * 2),
+                        code_chene: Math.min(6, Math.max(1, z.risk + Math.floor(Math.random() * 2))),
+                        code_frene: Math.floor(Math.random() * 3),
+                        code_cypres: Math.floor(Math.random() * 2),
+                        code_noisetier: Math.floor(Math.random() * 2),
+                        code_platane: Math.floor(Math.random() * 3),
+                        code_plantain: Math.floor(Math.random() * 2),
+                        code_saule: Math.floor(Math.random() * 3),
+                        date_ech: new Date().toISOString().split('T')[0]
                     },
                     geometry: {
                         type: "Polygon",
@@ -354,26 +440,25 @@
 
             geojsonLayer = L.geoJSON(geojson, {
                 style: function(feature) {
-                    const risk = getFeatureRiskLevel(feature, selectedDayOffset);
+                    const risk = getFeatureRiskLevel(feature);
                     const riskConfig = RISK_LEVELS[risk] || RISK_LEVELS[0];
                     return {
                         fillColor: riskConfig.color,
                         weight: 2,
                         opacity: 0.9,
                         color: '#ffffff',
-                        dashArray: '',
                         fillOpacity: 0.65
                     };
                 },
                 onEachFeature: function(feature, layer) {
                     const zoneName = getFeatureName(feature);
-                    const risk = getFeatureRiskLevel(feature, selectedDayOffset);
+                    const risk = getFeatureRiskLevel(feature);
                     const riskConfig = RISK_LEVELS[risk] || RISK_LEVELS[0];
 
                     layer.bindTooltip(`
                         <div class="font-sans px-1 py-0.5">
                             <strong class="text-xs text-slate-800 block">${zoneName}</strong>
-                            <span class="text-[11px] text-slate-600">Risque: <b>${riskConfig.label} (${risk}/6)</b></span>
+                            <span class="text-[11px] text-slate-600">Indice Pollen: <b>${riskConfig.label} (${risk}/6)</b></span>
                         </div>
                     `, { sticky: true });
 
@@ -395,51 +480,52 @@
                 }
             }).addTo(map);
 
-            // Auto fit map bounds if features present
             if (geojson.features.length > 0) {
                 try {
                     map.fitBounds(geojsonLayer.getBounds(), { padding: [30, 30] });
-                } catch(e) {
-                    console.log("Could not fit bounds", e);
-                }
-
-                // Default select first feature
+                } catch(e) {}
                 selectZone(geojson.features[0]);
             }
         }
 
         function getFeatureName(feature) {
             const p = feature.properties || {};
-            return p.libelle || p.nom_zone || p.nom || p.epci_name || p.zone || "Secteur Bretagne";
+            return p.lib_zone || p.libelle || p.nom_zone || p.nom || p.epci_name || p.zone || "Secteur Bretagne";
         }
 
         function getFeatureCode(feature) {
             const p = feature.properties || {};
-            return p.code_epci || p.code_insee || p.id || "--";
+            return p.code_zone || p.code_epci || p.code_insee || p.id || "--";
         }
 
-        function getFeatureRiskLevel(feature, dayOffset = 0) {
+        function getFeatureRiskLevel(feature) {
             const p = feature.properties || {};
-            
-            // Look for specific key in properties
-            const riskKeys = ['indice_global', 'indice', 'niveau_risque', 'risk_level', 'valeur'];
+            const riskKeys = ['code_qual', 'indice_global', 'indice', 'niveau_risque', 'risk_level'];
             for (let k of riskKeys) {
                 if (p[k] !== undefined && p[k] !== null) {
                     let val = parseInt(p[k], 10);
-                    if (!isNaN(val)) return Math.min(6, Math.max(0, val));
+                    if (!isNaN(val) && val > 0) return Math.min(6, Math.max(1, val));
                 }
             }
 
-            // Fallback calculated max from taxons
             let maxTaxon = 0;
             TAXON_KEYS.forEach(t => {
-                if (p[t.key] !== undefined) {
-                    let v = parseInt(p[t.key], 10);
-                    if (!isNaN(v) && v > maxTaxon) maxTaxon = v;
-                }
+                const val = getTaxonValue(p, t);
+                if (val > maxTaxon) maxTaxon = val;
             });
 
             return maxTaxon > 0 ? maxTaxon : 1;
+        }
+
+        function getTaxonValue(props, taxon) {
+            const allKeys = [taxon.key, ...taxon.altKeys];
+            for (let k of allKeys) {
+                if (props[k] !== undefined && props[k] !== null) {
+                    let v = parseInt(props[k], 10);
+                    if (!isNaN(v)) return Math.min(6, Math.max(0, v));
+                }
+            }
+            return 0;
         }
 
         function selectZone(feature, layer = null) {
@@ -447,10 +533,9 @@
             const props = feature.properties || {};
             const zoneName = getFeatureName(feature);
             const zoneCode = getFeatureCode(feature);
-            const overallRisk = getFeatureRiskLevel(feature, selectedDayOffset);
+            const overallRisk = getFeatureRiskLevel(feature);
             const riskConfig = RISK_LEVELS[overallRisk] || RISK_LEVELS[0];
 
-            // Update Header Card
             document.getElementById('selected-zone-name').textContent = zoneName;
             document.getElementById('selected-zone-code-tag').textContent = `Code: ${zoneCode}`;
             
@@ -463,13 +548,9 @@
 
             document.getElementById('global-risk-label').textContent = riskConfig.label;
 
-            // Health Advice Customization based on risk
             updateHealthAdvice(overallRisk);
-
-            // Render Plant / Taxon Cards
             renderTaxonCards(props);
 
-            // Pan to layer if triggered from search or click
             if (layer) {
                 map.panTo(layer.getBounds().getCenter());
             }
@@ -480,19 +561,7 @@
             container.innerHTML = '';
 
             TAXON_KEYS.forEach(taxon => {
-                // Read taxon value from properties or fallback random matching overall risk
-                let val = props[taxon.key];
-                if (val === undefined || val === null) {
-                    // Try case variants
-                    val = props[taxon.key.toUpperCase()] || props[taxon.name];
-                }
-
-                let valueNum = parseInt(val, 10);
-                if (isNaN(valueNum)) {
-                    // Default fallback value if not explicit in WFS properties
-                    valueNum = Math.min(6, Math.max(0, Math.floor(Math.random() * 4)));
-                }
-
+                const valueNum = getTaxonValue(props, taxon);
                 const riskConfig = RISK_LEVELS[valueNum] || RISK_LEVELS[0];
                 const percentage = Math.round((valueNum / 6) * 100);
 
@@ -518,7 +587,6 @@
                                 <span class="text-slate-500 font-medium">${riskConfig.label}</span>
                                 <span class="text-slate-400 font-mono">${percentage}%</span>
                             </div>
-                            <!-- Progress Bar -->
                             <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
                                 <div class="h-2 rounded-full transition-all duration-500" 
                                      style="width: ${percentage}%; background-color: ${riskConfig.color}"></div>
@@ -537,13 +605,13 @@
 
             if (riskLevel <= 2) {
                 boxEl.className = "bg-emerald-50 border border-emerald-200 p-4 rounded-2xl flex items-start space-x-3 text-emerald-900";
-                textEl.textContent = "Risque pollinique faible à très faible. Les activités en plein air ne présentent pas de risque particulier pour les personnes allergiques.";
+                textEl.textContent = "Risque pollinique très faible. Les activités extérieures ne posent pas de restriction particulière.";
             } else if (riskLevel <= 4) {
                 boxEl.className = "bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-start space-x-3 text-amber-900";
-                textEl.textContent = "Risque moyen à élevé. Évitez de sécher votre linge à l'extérieur, rincez vos cheveux en fin de journée et gardez les vitres de voiture fermées lors de vos déplacements.";
+                textEl.textContent = "Risque moyen à élevé. Pensez à rincer vos cheveux le soir, privilégiez l'aération tôt le matin et évitez de faire sécher le linge en extérieur.";
             } else {
                 boxEl.className = "bg-red-50 border border-red-200 p-4 rounded-2xl flex items-start space-x-3 text-red-900";
-                textEl.textContent = "Alerte aux pollens : Risque très élevé ! Suivez scrupuleusement vos traitements médicaux, limitez les activités sportives en plein air et aérez uniquement aux heures de faible émission (tôt le matin).";
+                textEl.textContent = "Alerte Risque Très Élevé : Suivez rigoureusement votre traitement allergique, évitez les activités physiques intenses en extérieur et gardez les fenêtres fermées en journée.";
             }
         }
 
@@ -594,7 +662,6 @@
                 searchResults.classList.add('hidden');
             });
 
-            // Close search results on outside click
             document.addEventListener('click', (e) => {
                 if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
                     searchResults.classList.add('hidden');
@@ -606,9 +673,7 @@
             document.getElementById('search-results').classList.add('hidden');
             document.getElementById('search-input').value = name;
 
-            const targetFeature = wfsFeaturesData.find(f => getFeatureCode(f) === code || getFeatureName(f) === name);
-            if (targetFeature) {
-                // Find corresponding Leaflet layer
+            if (geojsonLayer) {
                 geojsonLayer.eachLayer(layer => {
                     if (getFeatureName(layer.feature) === name || getFeatureCode(layer.feature) === code) {
                         selectZone(layer.feature, layer);
@@ -630,10 +695,6 @@
 
                     selectedDayOffset = parseInt(tab.dataset.day, 10);
 
-                    // Refresh layer styles and update active selection
-                    if (geojsonLayer) {
-                        geojsonLayer.setStyle(geojsonLayer.options.style);
-                    }
                     if (selectedFeature) {
                         selectZone(selectedFeature);
                     }
@@ -656,7 +717,6 @@
                     const userLat = pos.coords.latitude;
                     const userLng = pos.coords.longitude;
 
-                    // Add temporary user location marker
                     L.circleMarker([userLat, userLng], {
                         radius: 8,
                         fillColor: '#3b82f6',
@@ -668,7 +728,7 @@
 
                     map.setView([userLat, userLng], 10);
                 },
-                (err) => {
+                () => {
                     btn.classList.remove('animate-pulse');
                     alert("Impossible d'obtenir votre position géolocalisée.");
                 }
@@ -679,7 +739,7 @@
             initMap();
             setupSearch();
             setupDayTabs();
-            fetchWFSData();
+            fetchWFSDataWithProxyRetry();
         };
     </script>
 </body>
