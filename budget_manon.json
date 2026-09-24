@@ -1,6 +1,6 @@
 {
-  "solde": 90.6,
-  "tirelire": 23,
+  "solde": 70.6,
+  "tirelire": 43,
   "objectifActuel": 0,
   "objectifCible": 50,
   "nomObjectif": "Mon Objectif",
@@ -142,6 +142,12 @@
       "type": "gain",
       "desc": "Papa et Gaelle",
       "montant": 30
+    },
+    {
+      "date": "2026-09-24",
+      "type": "depense",
+      "desc": "🐷 Vers Tirelire",
+      "montant": 20
     }
   ],
   "lastAllowanceDate": {
