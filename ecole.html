@@ -456,11 +456,11 @@
       </div>
 
       <div class="week-selector" style="display:flex;gap:4px;margin-bottom:10px;">
-        <button class="devoirs-period-btn active" onclick="selectDevoirsPeriod('aujourd_hui')" style="flex:1;padding:8px 4px;border:none;border-radius:8px;font-size:0.72rem;font-weight:bold;cursor:pointer;background:var(--primary);color:white;">Aujourd'hui</button>
-        <button class="devoirs-period-btn" onclick="selectDevoirsPeriod('prochain_cours')" style="flex:1;padding:8px 4px;border:none;border-radius:8px;font-size:0.72rem;font-weight:bold;cursor:pointer;background:var(--card-bg);color:var(--text);box-shadow:0 2px 4px rgba(0,0,0,0.05);">Prochain cours</button>
+        <button class="devoirs-period-btn active" onclick="selectDevoirsPeriod('prochain_cours')" style="flex:1;padding:8px 4px;border:none;border-radius:8px;font-size:0.72rem;font-weight:bold;cursor:pointer;background:var(--primary);color:white;">Prochain cours</button>
         <button class="devoirs-period-btn" onclick="selectDevoirsPeriod('semaine_courante')" style="flex:1;padding:8px 4px;border:none;border-radius:8px;font-size:0.72rem;font-weight:bold;cursor:pointer;background:var(--card-bg);color:var(--text);box-shadow:0 2px 4px rgba(0,0,0,0.05);">Cette semaine</button>
         <button class="devoirs-period-btn" onclick="selectDevoirsPeriod('semaine_suivante')" style="flex:1;padding:8px 4px;border:none;border-radius:8px;font-size:0.72rem;font-weight:bold;cursor:pointer;background:var(--card-bg);color:var(--text);box-shadow:0 2px 4px rgba(0,0,0,0.05);">Sem. prochaine</button>
       </div>
+
 
       <div class="card">
         <div id="devoirs-debug" style="font-size:0.75rem;color:#C62828;margin-bottom:8px;"></div>
@@ -762,7 +762,7 @@
   }
 
   // --- DEVOIRS ---
-  let currentDevoirsPeriod = 'aujourd_hui';
+  let currentDevoirsPeriod = 'prochain_cours';
   let devoirsData = null;
 
   function findDevoirsList(attributes) {
@@ -855,7 +855,7 @@
 
   function selectDevoirsPeriod(period) {
     currentDevoirsPeriod = period;
-    const order = ['aujourd_hui', 'prochain_cours', 'semaine_courante', 'semaine_suivante'];
+    const order = ['prochain_cours', 'semaine_courante', 'semaine_suivante'];
     document.querySelectorAll('.devoirs-period-btn').forEach((btn, idx) => {
       const active = order[idx] === period;
       btn.style.background = active ? 'var(--primary)' : 'var(--card-bg)';
@@ -935,13 +935,7 @@
     let list;
     let emptyLabel = 'Rien à faire, bravo !';
 
-    if (currentDevoirsPeriod === 'aujourd_hui') {
-      // On filtre sur la vraie date à rendre du devoir, pas sur le bucket
-      // "aujourd_hui" du capteur (qui peut refléter le jour où le devoir a été
-      // donné plutôt que le jour où il doit être rendu).
-      const today = new Date();
-      list = mergeAllDevoirs().filter(item => isSameDay(devoirDate(item), today));
-    } else if (currentDevoirsPeriod === 'prochain_cours') {
+    if (currentDevoirsPeriod === 'prochain_cours') {
       const { date, items } = findNextDueGroup(mergeAllDevoirs());
       list = items;
       if (date) {
