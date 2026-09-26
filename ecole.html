@@ -669,7 +669,10 @@
 
   let currentDay = new Date().getDay();
   if (currentDay === 0 || currentDay === 6) currentDay = 1;
-  let currentWeekOffset = 0;
+  // Le week-end, la semaine scolaire en cours est déjà terminée (elle s'arrête
+  // le vendredi soir) : on ouvre directement sur la semaine prochaine.
+  const isWeekend = [0, 6].includes(new Date().getDay());
+  let currentWeekOffset = isWeekend ? 1 : 0;
   const weekKeys = ['semaine_courante', 'semaine_suivante', 'semaine_apres_suivante'];
 
   let weekInfo = getWeekType();
@@ -1269,7 +1272,7 @@
   }
 
   loadSettings();
-  selectDay(currentDay);
+  selectWeek(currentWeekOffset);
 </script>
 
 </body>
