@@ -455,13 +455,6 @@
         </div>
       </div>
 
-      <div class="week-selector" style="display:flex;gap:4px;margin-bottom:10px;">
-        <button class="devoirs-period-btn active" onclick="selectDevoirsPeriod('prochain_cours')" style="flex:1;padding:8px 4px;border:none;border-radius:8px;font-size:0.72rem;font-weight:bold;cursor:pointer;background:var(--primary);color:white;">Prochain cours</button>
-        <button class="devoirs-period-btn" onclick="selectDevoirsPeriod('semaine_courante')" style="flex:1;padding:8px 4px;border:none;border-radius:8px;font-size:0.72rem;font-weight:bold;cursor:pointer;background:var(--card-bg);color:var(--text);box-shadow:0 2px 4px rgba(0,0,0,0.05);">Cette semaine</button>
-        <button class="devoirs-period-btn" onclick="selectDevoirsPeriod('semaine_suivante')" style="flex:1;padding:8px 4px;border:none;border-radius:8px;font-size:0.72rem;font-weight:bold;cursor:pointer;background:var(--card-bg);color:var(--text);box-shadow:0 2px 4px rgba(0,0,0,0.05);">Sem. prochaine</button>
-      </div>
-
-
       <div class="card">
         <div id="devoirs-debug" style="font-size:0.75rem;color:#C62828;margin-bottom:8px;"></div>
         <div id="devoirs-container"></div>
@@ -537,6 +530,11 @@
           <label for="ha-url">URL du fichier JSON planning :</label>
           <input type="text" id="ha-url" value="schedule.json" placeholder="schedule.json (chemin relatif, même repo GitHub)">
         </div>
+        <div class="form-group">
+          <label for="devoirs-webhook-url">URL webhook « devoir fait » (Nabu Casa) :</label>
+          <input type="text" id="devoirs-webhook-url" placeholder="https://xxxx.ui.nabu.casa/api/webhook/manon_devoirs_done">
+          <div class="card-hint">Permet de synchroniser les cases cochées avec GitHub, sur tous les appareils.</div>
+        </div>
         <button class="save-btn" onclick="saveSettings()">Enregistrer les Réglages</button>
       </div>
     </div>
@@ -562,12 +560,15 @@
   function saveSettings() {
     const url = document.getElementById('ha-url').value.trim();
     localStorage.setItem('ha_url', url);
+    const webhookUrl = document.getElementById('devoirs-webhook-url').value.trim();
+    localStorage.setItem('devoirs_webhook_url', webhookUrl);
     alert("Réglages enregistrés !");
     selectDay(currentDay);
   }
 
   function loadSettings() {
     document.getElementById('ha-url').value = localStorage.getItem('ha_url') || 'schedule.json';
+    document.getElementById('devoirs-webhook-url').value = localStorage.getItem('devoirs_webhook_url') || '';
   }
 
   const timetable = {
@@ -762,7 +763,6 @@
   }
 
   // --- DEVOIRS ---
-  let currentDevoirsPeriod = 'prochain_cours';
   let devoirsData = null;
 
   function findDevoirsList(attributes) {
@@ -796,14 +796,6 @@
     return raw ? new Date(raw) : null;
   }
 
-  // Compare uniquement l'année/mois/jour (ignore l'heure)
-  function isSameDay(d1, d2) {
-    return !!d1 && !!d2 &&
-      d1.getFullYear() === d2.getFullYear() &&
-      d1.getMonth() === d2.getMonth() &&
-      d1.getDate() === d2.getDate();
-  }
-
   function startOfDay(d) {
     const c = new Date(d);
     c.setHours(0, 0, 0, 0);
@@ -825,43 +817,12 @@
     return Array.from(seen.values());
   }
 
-  // Cherche, parmi les devoirs non faits, la prochaine date à rendre strictement
-  // après aujourd'hui (ex: si on est samedi, ça saute directement à lundi).
-  function findNextDueGroup(merged) {
-    const today = startOfDay(new Date());
-    let bestDate = null;
-    merged.forEach(item => {
-      const d = devoirDate(item);
-      if (!d) return;
-      const dd = startOfDay(d);
-      if (dd <= today) return;
-      if (!bestDate || dd < bestDate) bestDate = dd;
-    });
-    if (!bestDate) return { date: null, items: [] };
-    const items = merged.filter(item => {
-      const d = devoirDate(item);
-      return d && isSameDay(startOfDay(d), bestDate);
-    });
-    return { date: bestDate, items };
-  }
-
   function isDoneItem(item) {
     const id = getItemId(item);
     const overrides = getDoneOverrides();
     if (Object.prototype.hasOwnProperty.call(overrides, id)) return overrides[id];
     const done = pickField(item, ['effectue', 'fait', 'done', 'termine']);
     return done === true || done === 1 || done === 'true';
-  }
-
-  function selectDevoirsPeriod(period) {
-    currentDevoirsPeriod = period;
-    const order = ['prochain_cours', 'semaine_courante', 'semaine_suivante'];
-    document.querySelectorAll('.devoirs-period-btn').forEach((btn, idx) => {
-      const active = order[idx] === period;
-      btn.style.background = active ? 'var(--primary)' : 'var(--card-bg)';
-      btn.style.color = active ? 'white' : 'var(--text)';
-    });
-    renderDevoirsPeriod();
   }
 
   async function loadDevoirs() {
@@ -883,14 +844,32 @@
         return;
       }
 
+      // On récupère les coches faites depuis d'autres appareils (synchronisées
+      // via GitHub) et on les ajoute à notre cache local, sans écraser une coche
+      // plus récente faite ici mais pas encore remontée sur GitHub.
+      mergeRemoteOverrides(data.devoirs_overrides);
+
       // Faits / À faire : calculé sur l'ensemble des devoirs connus (fusion de tous
       // les buckets), pas seulement sur le jour en cours.
       refreshDevoirsBadges();
 
-      renderDevoirsPeriod();
+      renderDevoirsList();
     } catch (e) {
       debugEl.innerText = `⚠️ Erreur lors du chargement des devoirs : ${e.message}`;
     }
+  }
+
+  function mergeRemoteOverrides(remoteOverrides) {
+    if (!remoteOverrides || typeof remoteOverrides !== 'object') return;
+    const local = getDoneOverrides();
+    let changed = false;
+    Object.keys(remoteOverrides).forEach(id => {
+      if (!Object.prototype.hasOwnProperty.call(local, id)) {
+        local[id] = remoteOverrides[id];
+        changed = true;
+      }
+    });
+    if (changed) localStorage.setItem('devoirs_done_overrides', JSON.stringify(local));
   }
 
   function getDoneOverrides() {
@@ -906,12 +885,40 @@
   }
 
   function toggleDevoirDone(itemId, currentlyDone) {
+    const newDone = !currentlyDone;
     const overrides = getDoneOverrides();
-    overrides[itemId] = !currentlyDone;
+    overrides[itemId] = newDone;
     localStorage.setItem('devoirs_done_overrides', JSON.stringify(overrides));
     refreshDevoirsBadges();
-    renderDevoirsPeriod();
+    renderDevoirsList();
+    pushDevoirOverride(itemId, newDone);
   }
+
+  // Envoie la coche au webhook Home Assistant pour la répercuter sur GitHub
+  // (et donc sur les autres appareils). Best-effort : en cas d'échec (pas de
+  // réseau, webhook non configuré...), la coche reste valable localement et
+  // sera simplement synchronisée au prochain succès.
+  function pushDevoirOverride(itemId, done) {
+    const debugEl = document.getElementById('devoirs-debug');
+    const webhookUrl = localStorage.getItem('devoirs_webhook_url');
+    if (!webhookUrl) {
+      debugEl.innerHTML = `<span style="color:var(--text-muted);">ℹ️ Coché en local seulement (webhook non configuré dans Réglages).</span>`;
+      return;
+    }
+    fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ item_id: itemId, done: done })
+    })
+      .then(res => {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        debugEl.innerText = '';
+      })
+      .catch(e => {
+        debugEl.innerHTML = `<span style="color:#C62828;">⚠️ Synchro GitHub échouée (${e.message}) — coché en local seulement pour l'instant.</span>`;
+      });
+  }
+
 
   function refreshDevoirsBadges() {
     if (!devoirsData) return;
@@ -924,7 +931,11 @@
     todoEl.parentElement.style.background = todoCount === 0 ? '#E8F5E9' : '#FFF3E0';
   }
 
-  function renderDevoirsPeriod() {
+  // Affiche tous les devoirs connus (fusionnés, dédupliqués) à la suite les uns
+  // des autres, groupés par date d'échéance ("Lundi 28 septembre", etc.), du
+  // plus proche au plus lointain. Les devoirs sans date reconnue passent en fin
+  // de liste dans une section "Sans date".
+  function renderDevoirsList() {
     const container = document.getElementById('devoirs-container');
     const debugEl = document.getElementById('devoirs-debug');
     debugEl.innerText = '';
@@ -932,62 +943,66 @@
 
     if (!devoirsData) return;
 
-    let list;
-    let emptyLabel = 'Rien à faire, bravo !';
-
-    if (currentDevoirsPeriod === 'prochain_cours') {
-      const { date, items } = findNextDueGroup(mergeAllDevoirs());
-      list = items;
-      if (date) {
-        const label = date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-        debugEl.innerHTML = `<span style="color:var(--text-muted);">Prochaine échéance : ${label}</span>`;
-      } else {
-        emptyLabel = 'Rien de prévu pour le moment, bravo !';
-      }
-    } else {
-      const periodData = devoirsData[currentDevoirsPeriod];
-      if (!periodData) {
-        debugEl.innerText = `⚠️ Pas de données pour cette période.`;
-        return;
-      }
-      list = findDevoirsList(periodData).slice();
-    }
+    const list = mergeAllDevoirs();
 
     if (list.length === 0) {
       container.innerHTML = `
         <div style="text-align:center;padding:24px 8px;">
           <div style="font-size:2.2rem;">🎉</div>
-          <div style="font-weight:bold;margin-top:6px;">${emptyLabel}</div>
+          <div style="font-weight:bold;margin-top:6px;">Rien à faire, bravo !</div>
         </div>`;
       return;
     }
 
-    // Tri par date
-    list.sort((a, b) => {
-      const da = devoirDate(a), db = devoirDate(b);
-      return (da && db) ? da - db : 0;
+    // Regroupement par jour (clé = date à minuit, en millisecondes ; null si pas de date)
+    const groups = new Map();
+    list.forEach(item => {
+      const d = devoirDate(item);
+      const key = d ? startOfDay(d).getTime() : 'no-date';
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(item);
     });
 
-    list.forEach(item => {
-      const matiere = pickField(item, ['matiere', 'matière', 'subject', 'nom_matiere']) || 'Devoir';
-      const itemId = getItemId(item);
-      const isDone = isDoneItem(item);
-      const isInterro = pickField(item, ['interrogation']) === true;
-      const d = devoirDate(item);
-      const dateLabel = d ? d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) : '';
-      const contenuRaw = pickField(item, ['description', 'short_description', 'contenu', 'enonce', 'text']);
-      const contenu = contenuRaw ? stripHtml(contenuRaw) : '';
+    // Tri des groupes : dates connues d'abord (croissant), "Sans date" à la fin
+    const sortedKeys = Array.from(groups.keys()).sort((a, b) => {
+      if (a === 'no-date') return 1;
+      if (b === 'no-date') return -1;
+      return a - b;
+    });
+
+    sortedKeys.forEach(key => {
+      const items = groups.get(key).sort((a, b) => {
+        const ma = pickField(a, ['matiere']) || '';
+        const mb = pickField(b, ['matiere']) || '';
+        return ma.localeCompare(mb);
+      });
+
+      const dateLabel = key === 'no-date'
+        ? 'Sans date'
+        : new Date(key).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 
       container.innerHTML += `
-        <div style="display:flex;gap:10px;align-items:flex-start;padding:10px 4px;border-bottom:1px solid rgba(0,0,0,0.06);${isDone ? 'opacity:0.5;' : ''}">
-          <input type="checkbox" ${isDone ? 'checked' : ''} onclick="toggleDevoirDone('${itemId}', ${isDone})" style="width:22px;height:22px;margin-top:2px;flex-shrink:0;accent-color:var(--primary);">
-          <div style="flex:1;">
-            <div style="font-weight:bold;${isDone ? 'text-decoration:line-through;' : ''}">${matiere}${isInterro ? ' <span style="font-size:0.7rem;background:#FFEBEE;color:#C62828;padding:1px 6px;border-radius:6px;">Interro</span>' : ''}</div>
-            <div style="font-size:0.75rem;opacity:0.6;">${dateLabel}</div>
-            ${contenu ? `<div style="font-size:0.85rem;opacity:0.85;margin-top:2px;">${contenu}</div>` : ''}
-          </div>
-        </div>
+        <div style="font-size:0.8rem;font-weight:bold;color:var(--secondary);text-transform:capitalize;margin:14px 0 4px 4px;">${dateLabel}</div>
       `;
+
+      items.forEach(item => {
+        const matiere = pickField(item, ['matiere', 'matière', 'subject', 'nom_matiere']) || 'Devoir';
+        const itemId = getItemId(item);
+        const isDone = isDoneItem(item);
+        const isInterro = pickField(item, ['interrogation']) === true;
+        const contenuRaw = pickField(item, ['description', 'short_description', 'contenu', 'enonce', 'text']);
+        const contenu = contenuRaw ? stripHtml(contenuRaw) : '';
+
+        container.innerHTML += `
+          <div style="display:flex;gap:10px;align-items:flex-start;padding:10px 4px;border-bottom:1px solid rgba(0,0,0,0.06);${isDone ? 'opacity:0.5;' : ''}">
+            <input type="checkbox" ${isDone ? 'checked' : ''} onclick="toggleDevoirDone('${itemId}', ${isDone})" style="width:22px;height:22px;margin-top:2px;flex-shrink:0;accent-color:var(--primary);">
+            <div style="flex:1;">
+              <div style="font-weight:bold;${isDone ? 'text-decoration:line-through;' : ''}">${matiere}${isInterro ? ' <span style="font-size:0.7rem;background:#FFEBEE;color:#C62828;padding:1px 6px;border-radius:6px;">Interro</span>' : ''}</div>
+              ${contenu ? `<div style="font-size:0.85rem;opacity:0.85;margin-top:2px;">${contenu}</div>` : ''}
+            </div>
+          </div>
+        `;
+      });
     });
   }
 
