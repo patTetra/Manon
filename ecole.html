@@ -293,6 +293,97 @@
       box-shadow: 0 2px 6px rgba(0,0,0,0.3);
       z-index: 10;
     }
+
+    /* --- Onglet Notes --- */
+    .note-summary-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .note-summary-box {
+      flex: 1;
+      text-align: center;
+      padding: 14px 8px;
+      border-radius: 16px;
+      background: var(--card-bg);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+
+    .note-summary-value {
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+
+    .note-summary-label {
+      font-size: 0.72rem;
+      color: var(--text);
+      opacity: 0.7;
+    }
+
+    .subject-block {
+      margin-bottom: 14px;
+    }
+
+    .subject-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .subject-name {
+      font-weight: bold;
+      font-size: 0.95rem;
+    }
+
+    .avg-pill {
+      font-size: 0.78rem;
+      font-weight: bold;
+      padding: 3px 10px;
+      border-radius: 12px;
+      white-space: nowrap;
+    }
+
+    .avg-pill.good {
+      background: #E8F5E9;
+      color: #2E7D32;
+    }
+
+    .avg-pill.bad {
+      background: #FDECEA;
+      color: #C62828;
+    }
+
+    .note-entry {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: 6px 0;
+      border-bottom: 1px solid #EEEEEE;
+      font-size: 0.85rem;
+    }
+
+    .note-entry:last-child {
+      border-bottom: none;
+    }
+
+    .note-entry-date {
+      color: var(--text-muted);
+      font-size: 0.72rem;
+    }
+
+    .note-entry-comment {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .note-entry-score {
+      font-weight: bold;
+      white-space: nowrap;
+      margin-left: 8px;
+    }
   </style>
 </head>
 <body>
@@ -300,6 +391,7 @@
   <nav class="main-nav">
     <button class="main-tab-btn active" onclick="switchMainTab('schedule')">📅 Planning</button>
     <button class="main-tab-btn" onclick="switchMainTab('devoirs')">📓 Devoirs</button>
+    <button class="main-tab-btn" onclick="switchMainTab('notes')">📊 Notes</button>
     <button class="main-tab-btn" onclick="switchMainTab('bus-live')">🗺️ Carte Bus</button>
     <button class="main-tab-btn" onclick="switchMainTab('cards')">💳 Cartes</button>
     <button class="main-tab-btn" onclick="switchMainTab('settings')">⚙️ Réglages</button>
@@ -377,6 +469,37 @@
     </div>
   </div>
 
+  <div id="tab-notes" class="tab-content">
+    <div class="container">
+      <header>
+        <h1>📊 Notes de Manon</h1>
+        <p id="notes-period-label">Chargement...</p>
+      </header>
+
+      <div class="week-selector" style="display:flex;gap:4px;margin-bottom:10px;">
+        <button class="notes-tri-btn active" onclick="selectNotesTrimester(1)" style="flex:1;padding:8px 4px;border:none;border-radius:8px;font-size:0.72rem;font-weight:bold;cursor:pointer;background:var(--primary);color:white;">Trim. 1</button>
+        <button class="notes-tri-btn" onclick="selectNotesTrimester(2)" style="flex:1;padding:8px 4px;border:none;border-radius:8px;font-size:0.72rem;font-weight:bold;cursor:pointer;background:var(--card-bg);color:var(--text);box-shadow:0 2px 4px rgba(0,0,0,0.05);">Trim. 2</button>
+        <button class="notes-tri-btn" onclick="selectNotesTrimester(3)" style="flex:1;padding:8px 4px;border:none;border-radius:8px;font-size:0.72rem;font-weight:bold;cursor:pointer;background:var(--card-bg);color:var(--text);box-shadow:0 2px 4px rgba(0,0,0,0.05);">Trim. 3</button>
+        <button class="notes-tri-btn" onclick="selectNotesTrimester(null)" style="flex:1;padding:8px 4px;border:none;border-radius:8px;font-size:0.72rem;font-weight:bold;cursor:pointer;background:var(--card-bg);color:var(--text);box-shadow:0 2px 4px rgba(0,0,0,0.05);">Année</button>
+      </div>
+
+      <div class="note-summary-row">
+        <div class="note-summary-box">
+          <div class="note-summary-value" id="notes-moy-generale">–</div>
+          <div class="note-summary-label">Moyenne de Manon /20</div>
+        </div>
+        <div class="note-summary-box">
+          <div class="note-summary-value" id="notes-moy-classe">–</div>
+          <div class="note-summary-label">Moyenne de la classe /20</div>
+        </div>
+      </div>
+
+      <div id="notes-debug" style="font-size:0.75rem;color:#C62828;margin-bottom:8px;"></div>
+
+      <div id="notes-by-subject"></div>
+    </div>
+  </div>
+
   <div id="tab-bus-live" class="tab-content">
     <div class="iframe-wrapper">
       <a href="https://hawk.hanoverdisplays.com/morlaix/public/" target="_blank" class="external-link-btn">
@@ -420,27 +543,20 @@
   </div>
 
 <script>
+  const MAIN_TAB_ORDER = ['schedule', 'devoirs', 'notes', 'bus-live', 'cards', 'settings'];
+
   function switchMainTab(tabId) {
     document.querySelectorAll('.main-tab-btn').forEach(btn => btn.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-    
-    if (tabId === 'schedule') {
-      document.querySelectorAll('.main-tab-btn')[0].classList.add('active');
-      document.getElementById('tab-schedule').classList.add('active');
-    } else if (tabId === 'devoirs') {
-      document.querySelectorAll('.main-tab-btn')[1].classList.add('active');
-      document.getElementById('tab-devoirs').classList.add('active');
-      loadDevoirs();
-    } else if (tabId === 'bus-live') {
-      document.querySelectorAll('.main-tab-btn')[2].classList.add('active');
-      document.getElementById('tab-bus-live').classList.add('active');
-    } else if (tabId === 'cards') {
-      document.querySelectorAll('.main-tab-btn')[3].classList.add('active');
-      document.getElementById('tab-cards').classList.add('active');
-    } else {
-      document.querySelectorAll('.main-tab-btn')[4].classList.add('active');
-      document.getElementById('tab-settings').classList.add('active');
-    }
+
+    const idx = MAIN_TAB_ORDER.indexOf(tabId);
+    if (idx === -1) return;
+
+    document.querySelectorAll('.main-tab-btn')[idx].classList.add('active');
+    document.getElementById('tab-' + tabId).classList.add('active');
+
+    if (tabId === 'devoirs') loadDevoirs();
+    if (tabId === 'notes') loadNotes();
   }
 
   function saveSettings() {
@@ -803,6 +919,177 @@
             <div style="font-size:0.75rem;opacity:0.6;">${dateLabel}</div>
             ${contenu ? `<div style="font-size:0.85rem;opacity:0.85;margin-top:2px;">${contenu}</div>` : ''}
           </div>
+        </div>
+      `;
+    });
+  }
+
+  // --- NOTES ---
+  let notesData = [];
+  let currentNotesTrimester = 1; // 1, 2, 3 ou null (année complète)
+
+  // Convertit un nombre écrit à la française ("9,07") en Number JS (9.07)
+  function parseFrNum(v) {
+    if (v === null || v === undefined || v === '') return null;
+    const n = parseFloat(String(v).replace(',', '.'));
+    return isNaN(n) ? null : n;
+  }
+
+  // Ramène une note sur 20 quel que soit son barème d'origine (/10, /4, etc.)
+  function noteOn20(entry) {
+    const note = parseFrNum(entry.note);
+    const sur = parseFrNum(entry.sur);
+    if (note === null || !sur) return null;
+    return (note / sur) * 20;
+  }
+
+  function classAvgOn20(entry) {
+    const avg = parseFrNum(entry.moyenne_classe);
+    const sur = parseFrNum(entry.sur);
+    if (avg === null || !sur) return null;
+    return (avg / sur) * 20;
+  }
+
+  function noteCoef(entry) {
+    const c = parseFrNum(entry.coefficient);
+    return (c === null || c <= 0) ? 1 : c;
+  }
+
+  // Découpage approximatif de l'année scolaire en 3 trimestres
+  // (sept-déc / jan-mars / avril-août). À ajuster si le collège
+  // communique des dates de trimestre différentes.
+  function getTrimester(dateStr) {
+    const d = new Date(dateStr);
+    const m = d.getMonth() + 1;
+    if (m >= 9 && m <= 12) return 1;
+    if (m >= 1 && m <= 3) return 2;
+    return 3;
+  }
+
+  function selectNotesTrimester(tri) {
+    currentNotesTrimester = tri;
+    const labels = { 1: 'Trim. 1', 2: 'Trim. 2', 3: 'Trim. 3', null: 'Année' };
+    document.querySelectorAll('.notes-tri-btn').forEach(btn => {
+      const active = btn.innerText.trim() === labels[tri];
+      btn.style.background = active ? 'var(--primary)' : 'var(--card-bg)';
+      btn.style.color = active ? 'white' : 'var(--text)';
+    });
+    renderNotes();
+  }
+
+  async function loadNotes() {
+    const debugEl = document.getElementById('notes-debug');
+    debugEl.innerText = '';
+    const jsonUrl = localStorage.getItem('ha_url') || 'schedule.json';
+
+    try {
+      const response = await fetch(`${jsonUrl}?t=${Date.now()}`, { cache: 'no-store' });
+      if (!response.ok) {
+        debugEl.innerText = `⚠️ Impossible de charger ${jsonUrl} (${response.status}).`;
+        return;
+      }
+      const data = await response.json();
+      notesData = Array.isArray(data.notes) ? data.notes : [];
+
+      if (notesData.length === 0) {
+        debugEl.innerText = `⚠️ Pas de clé "notes" dans le JSON (l'automatisation d'export doit inclure l'attribut "notes" du capteur École Directe).`;
+      }
+
+      renderNotes();
+    } catch (e) {
+      debugEl.innerText = `⚠️ Erreur lors du chargement des notes : ${e.message}`;
+    }
+  }
+
+  function renderNotes() {
+    const debugEl = document.getElementById('notes-debug');
+    const periodLabel = document.getElementById('notes-period-label');
+    const subjectContainer = document.getElementById('notes-by-subject');
+    subjectContainer.innerHTML = '';
+
+    if (!notesData || notesData.length === 0) return;
+
+    let list = notesData.slice();
+    if (currentNotesTrimester !== null) {
+      list = list.filter(n => getTrimester(n.date) === currentNotesTrimester);
+    }
+
+    periodLabel.innerText = currentNotesTrimester === null
+      ? `Année complète • ${list.length} note(s)`
+      : `Trimestre ${currentNotesTrimester} • ${list.length} note(s)`;
+
+    if (list.length === 0) {
+      debugEl.innerText = `ℹ️ Aucune note sur cette période.`;
+      document.getElementById('notes-moy-generale').innerText = '–';
+      document.getElementById('notes-moy-classe').innerText = '–';
+      return;
+    }
+    debugEl.innerText = '';
+
+    // --- Moyennes générales (pondérées par coefficient) ---
+    let sumEleve = 0, coefEleve = 0, sumClasse = 0, coefClasse = 0;
+    list.forEach(n => {
+      if (n.non_significatif) return;
+      const c = noteCoef(n);
+      const eleve = noteOn20(n);
+      const classe = classAvgOn20(n);
+      if (eleve !== null) { sumEleve += eleve * c; coefEleve += c; }
+      if (classe !== null) { sumClasse += classe * c; coefClasse += c; }
+    });
+
+    document.getElementById('notes-moy-generale').innerText =
+      coefEleve > 0 ? (sumEleve / coefEleve).toFixed(2) : '–';
+    document.getElementById('notes-moy-classe').innerText =
+      coefClasse > 0 ? (sumClasse / coefClasse).toFixed(2) : '–';
+
+    // --- Regroupement par matière ---
+    const bySubject = {};
+    list.forEach(n => {
+      const key = n.matiere || 'Autre';
+      if (!bySubject[key]) bySubject[key] = [];
+      bySubject[key].push(n);
+    });
+
+    Object.keys(bySubject).sort().forEach(matiere => {
+      const entries = bySubject[matiere].slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      let se = 0, ce = 0, sc = 0, cc = 0;
+      entries.forEach(n => {
+        if (n.non_significatif) return;
+        const coefN = noteCoef(n);
+        const eleve = noteOn20(n);
+        const classe = classAvgOn20(n);
+        if (eleve !== null) { se += eleve * coefN; ce += coefN; }
+        if (classe !== null) { sc += classe * coefN; cc += coefN; }
+      });
+      const moyEleve = ce > 0 ? se / ce : null;
+      const moyClasse = cc > 0 ? sc / cc : null;
+      const pillClass = (moyEleve !== null && moyClasse !== null && moyEleve < moyClasse) ? 'bad' : 'good';
+
+      let entriesHtml = '';
+      entries.forEach(n => {
+        const d = n.date ? new Date(n.date).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) : '';
+        entriesHtml += `
+          <div class="note-entry">
+            <div class="note-entry-left">
+              <div class="note-entry-date">${d}${n.non_significatif ? ' • non noté' : ''}</div>
+              ${n.commentaire ? `<div class="note-entry-comment">${n.commentaire}</div>` : ''}
+            </div>
+            <div class="note-entry-score">${n.note_sur || ''}</div>
+          </div>
+        `;
+      });
+
+      subjectContainer.innerHTML += `
+        <div class="card subject-block">
+          <div class="subject-header">
+            <span class="subject-name">${matiere}</span>
+            <span class="avg-pill ${pillClass}">
+              ${moyEleve !== null ? moyEleve.toFixed(1) : '–'} / 20
+              ${moyClasse !== null ? ' · classe ' + moyClasse.toFixed(1) : ''}
+            </span>
+          </div>
+          ${entriesHtml}
         </div>
       `;
     });
