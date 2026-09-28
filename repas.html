@@ -122,6 +122,37 @@ details.settings summary{cursor:pointer;font-family:var(--display);font-weight:7
 .fec-table input{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:6px 10px;background:var(--surface);min-height:40px;text-align:right}
 .fec-table label{font-size:.95rem}
 
+/* Refonte visuelle */
+.top{padding:24px 22px 22px;background:var(--durum-soft);border:0;border-radius:28px;margin-top:6px}
+.top h1{font-size:3rem}
+.top .plate{width:46px;height:46px;background-color:var(--surface)}
+.form{gap:18px}
+.fold{border:1.5px solid var(--line);border-radius:16px;background:var(--surface);padding:0 14px}
+.fold[open]{padding-bottom:14px}
+.fold>summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-weight:600}
+.fold>.picker,.fold>div{margin-top:4px}
+.chip[aria-pressed="true"]{background:var(--basil);border-color:var(--basil);color:var(--bg)}
+.chip.no[aria-pressed="true"]{background:var(--danger);border-color:var(--danger);color:var(--bg)}
+.chip[disabled]{opacity:.4;text-decoration:line-through;cursor:not-allowed}
+.btn.primary{background:var(--basil);border-color:var(--basil);border-radius:18px;padding:14px 20px;font-family:var(--display);font-size:1.15rem}
+.btn.primary:hover{background:var(--basil)}
+.results-head h2{font-size:1.5rem}
+.day{background:var(--surface);border:0;border-radius:24px;padding:18px 18px 8px;margin-top:16px}
+.day-head h3{font-size:1.5rem}
+.day-head .dots{background:var(--durum-soft);color:var(--ink);border-radius:999px;padding:4px 12px}
+details.meal[open]{background:var(--basil-soft);border-radius:16px;padding:0 14px;border-bottom-color:transparent}
+.meal-ico{font-size:1.1rem;line-height:1}
+.fav-mark{color:var(--danger)}
+.heart{border:1.5px solid var(--line);background:var(--surface);color:var(--muted);border-radius:999px;width:44px;height:44px;font-size:1.3rem;cursor:pointer;flex:none}
+.heart[aria-pressed="true"]{color:var(--danger);border-color:var(--danger)}
+.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.fav-row{display:flex;align-items:center;gap:12px;padding:6px 0;border-bottom:1px solid var(--line)}
+.fav-row span{flex:1}
+.fav-row small{color:var(--muted)}
+.fav-h{font-size:1rem;color:var(--muted);font-weight:600;margin:12px 0 2px}
+.shop{background:var(--surface);border:0;border-radius:24px;padding:22px 18px;margin-top:16px}
+.warn{background:var(--durum-soft);border-radius:14px;padding:10px 14px;margin:8px 0}
+@media (max-width:420px){.top h1{font-size:2.4rem}.top .plate{width:38px;height:38px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 @media (max-width:420px){h1{font-size:2rem}.plate{width:30px;height:30px}.split{gap:16px}}
 </style>
@@ -161,6 +192,12 @@ details.settings summary{cursor:pointer;font-family:var(--display);font-weight:7
   </div>
 
   <div class="field">
+    <span class="label">Ingrédients que je n'aime pas</span>
+    <p class="hint">Ils ne seront plus proposés dans tes recettes. Pour les tomates cuites, choisis « Tomates concassées » ; « Tomate » désigne la tomate crue.</p>
+    <details class="fold"><summary id="dis-sum">Choisir les ingrédients à exclure</summary><div class="picker" id="dis-picker"></div></details>
+  </div>
+
+  <div class="field">
     <span class="label" id="l-tol">Ingrédients manquants acceptés par recette</span>
     <div class="row" id="tol" role="group" aria-labelledby="l-tol"></div>
     <p class="hint">Les recettes qui utilisent le mieux ta sélection passent en premier.</p>
@@ -168,6 +205,13 @@ details.settings summary{cursor:pointer;font-family:var(--display);font-weight:7
 
   <div class="field">
     <div class="row"><button class="chip" id="veg" data-a="veg" aria-pressed="false">Sans viande ni poisson</button></div>
+  </div>
+
+  <div class="field">
+    <span class="label">Recettes favorites</span>
+    <div class="row"><button class="chip" id="favfirst" data-a="favfirst" aria-pressed="false">Proposer mes favoris en priorité</button></div>
+    <details class="fold"><summary id="fav-sum">Parcourir les recettes</summary><div id="fav-list"></div></details>
+    <p class="hint">Touche le cœur d'une recette, ici ou dans ta semaine, pour la garder en favori.</p>
   </div>
 
   <button class="btn primary" data-a="compose">Composer ma semaine</button>
@@ -204,6 +248,7 @@ const STORE = "doses.v2";
 const MEALS = ["pd","dj","di"];
 const MEAL_NAME = {pd:"Petit-déjeuner", dj:"Déjeuner", di:"Dîner"};
 const MEAL_SHORT = {pd:"petit-déj", dj:"déjeuner", di:"dîner"};
+const MEAL_ICO = {pd:"🥣", dj:"🍽️", di:"🌙"};
 const JOURS = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"];
 const CAT_LABEL = {proteines:"Protéines", legumes:"Légumes", feculents:"Féculents", laitiers:"Produits laitiers", fruits:"Fruits", epicerie:"Épicerie"};
 const CAT_ORDER = ["proteines","legumes","feculents","laitiers","fruits","epicerie"];
@@ -457,7 +502,7 @@ function dots(n){
 
 /* ---------- État ---------- */
 function defaults(){
-  return {persons:2, doses:{pd:1, dj:2, di:1}, sel:[], tol:1, veg:false, plan:null, checked:{}, feculents:clone(FEC_DEFAUT), prot:clone(PROT_DEFAUT)};
+  return {persons:2, doses:{pd:1, dj:2, di:1}, sel:[], dislikes:[], favs:[], favFirst:false, tol:1, veg:false, plan:null, checked:{}, feculents:clone(FEC_DEFAUT), prot:clone(PROT_DEFAUT)};
 }
 /* Quantité par personne d'un ingrédient, ajustée si c'est une protéine dont la portion a été réglée */
 function qteEff(x){
@@ -471,12 +516,16 @@ function load(){
     Object.keys(s).forEach(k => { if(r[k] !== undefined) s[k] = r[k]; });
     Object.keys(FEC_DEFAUT).forEach(k => { if(!s.feculents[k]) s.feculents[k] = clone(FEC_DEFAUT[k]); });
     Object.keys(PROT_DEFAUT).forEach(k => { if(!s.prot[k]) s.prot[k] = clone(PROT_DEFAUT[k]); });
+    if(!Array.isArray(s.dislikes)) s.dislikes = [];
+    if(!Array.isArray(s.favs)) s.favs = [];
+    s.dislikes = s.dislikes.filter(id => CAT[id]);
+    s.favs = s.favs.filter(id => BY_ID[id]);
     if(s.plan && !(Array.isArray(s.plan) && s.plan.length === 7 && s.plan.every(d => MEALS.every(m => BY_ID[d[m]])))) s.plan = null;
   }catch(e){}
   return s;
 }
 let S = load();
-let ouvert = "";
+let ouvert = "", conflit = false;
 function save(){ try{ localStorage.setItem(STORE, JSON.stringify(S)); }catch(e){} }
 
 /* ---------- Choix des recettes ---------- */
@@ -486,8 +535,22 @@ function manquants(r, sel){
   r.ing.forEach(x => { if(!CAT[x.id].pl && !sel.has(x.id)) out.push(x.id); });
   return out;
 }
+function aime(r){ const d = new Set(S.dislikes); return !d.has(r.f) && !r.ing.some(x => d.has(x.id)); }
+function purger(){
+  if(!S.plan) return;
+  conflit = false;
+  const sel = new Set(S.sel), used = new Set();
+  S.plan.forEach(day => MEALS.forEach(m => used.add(day[m])));
+  S.plan.forEach(day => MEALS.forEach(m => {
+    if(aime(BY_ID[day[m]])) return;
+    const r = choisir(m, sel, used, new Set(), new Set(), day[m]);
+    day[m] = r.id; used.add(r.id);
+  }));
+}
 function choisir(m, sel, used, avoidP, avoidF, excl){
   let pool = RECETTES.filter(r => r.repas.includes(m) && (!S.veg || !r.meat));
+  const bon = pool.filter(aime);
+  if(bon.length) pool = bon; else conflit = true;
   if(excl){ const p2 = pool.filter(r => r.id !== excl); if(p2.length) pool = p2; }
   let cand = pool.filter(r => !used.has(r.id));
   if(!cand.length) cand = pool;
@@ -497,11 +560,12 @@ function choisir(m, sel, used, avoidP, avoidF, excl){
     const min = Math.min.apply(null, cand.map(c => c.miss));
     ok = cand.filter(c => c.miss === min);
   }
-  const score = c => c.miss*10 + (avoidP.has(c.r.prot) ? 3 : 0) + (avoidF.has(c.r.f) ? 2 : 0);
+  const score = c => c.miss*10 + (avoidP.has(c.r.prot) ? 3 : 0) + (avoidF.has(c.r.f) ? 2 : 0) - (S.favFirst && S.favs.includes(c.r.id) ? 4 : 0);
   ok.sort((a,b) => score(a) - score(b));
   return ok[0].r;
 }
 function composer(){
+  conflit = false;
   const sel = new Set(S.sel), used = new Set(), plan = [], prev = {};
   for(let d=0; d<7; d++){
     const day = {}, avoidP = new Set();
@@ -539,20 +603,41 @@ function renderForm(){
   $("tol").innerHTML = [0,1,2,3].map(n =>
     '<button class="chip" data-a="tol" data-v="'+n+'" aria-pressed="'+(S.tol===n)+'">'+n+'</button>').join("");
   $("veg").setAttribute("aria-pressed", String(S.veg));
-  renderPicker();
+  $("favfirst").setAttribute("aria-pressed", String(S.favFirst));
+  renderPicker(); renderDislikes(); renderFavs();
   renderSplit();
 }
 function renderPicker(){
   $("picker").innerHTML = CAT_ORDER.map(c =>
     '<div class="field"><span class="label">'+CAT_LABEL[c]+'</span><div class="row">' +
     INGS.filter(x => x[2] === c).map(x =>
-      '<button class="chip" data-a="sel" data-v="'+x[0]+'" aria-pressed="'+S.sel.includes(x[0])+'">'+esc(x[1])+'</button>').join("") +
+      '<button class="chip" data-a="sel" data-v="'+x[0]+'" aria-pressed="'+S.sel.includes(x[0])+'"'+(S.dislikes.includes(x[0])?' disabled':'')+'>'+esc(x[1])+'</button>').join("") +
     '</div></div>').join("");
+}
+
+function renderDislikes(){
+  const lab = Object.assign({placard:"Placard"}, CAT_LABEL);
+  $("dis-picker").innerHTML = CAT_ORDER.concat("placard").map(c =>
+    '<div class="field"><span class="label">'+lab[c]+'</span><div class="row">' +
+    INGS.filter(x => x[2] === c).map(x =>
+      '<button class="chip no" data-a="dis" data-v="'+x[0]+'" aria-pressed="'+S.dislikes.includes(x[0])+'">'+esc(x[1])+'</button>').join("") +
+    '</div></div>').join("");
+  const n = S.dislikes.length;
+  $("dis-sum").textContent = n ? n + " exclu" + (n>1?"s":"") + " : " + S.dislikes.map(id => CAT[id].nom).join(", ") : "Choisir les ingrédients à exclure";
+}
+function renderFavs(){
+  const row = r => { const f = S.favs.includes(r.id);
+    return '<div class="fav-row"><button class="heart" data-a="fav" data-r="'+r.id+'" aria-pressed="'+f+'" aria-label="'+(f?'Retirer des favoris : ':'Ajouter aux favoris : ')+esc(r.nom)+'">'+(f?'♥':'♡')+'</button>' +
+      '<span>'+esc(r.nom)+' <small>'+r.t+' min'+(aime(r)?'':' · contient un ingrédient exclu')+'</small></span></div>'; };
+  const blocs = [["Petits-déjeuners", RECETTES.filter(r => r.repas.includes("pd"))], ["Déjeuners et dîners", RECETTES.filter(r => !r.repas.includes("pd"))]];
+  $("fav-list").innerHTML = blocs.map(b => '<h3 class="fav-h">'+b[0]+'</h3>' + b[1].map(row).join("")).join("");
+  const n = S.favs.length;
+  $("fav-sum").textContent = n ? n + " favori" + (n>1?"s":"") + " enregistré" + (n>1?"s":"") : "Parcourir les recettes";
 }
 
 /* ---------- Rendu : semaine ---------- */
 function mealHTML(d, m){
-  const r = BY_ID[S.plan[d][m]], key = d + "-" + m, sel = new Set(S.sel);
+  const r = BY_ID[S.plan[d][m]], key = d + "-" + m, sel = new Set(S.sel), fav = S.favs.includes(r.id);
   const miss = manquants(r, sel).length;
   const f = S.feculents[r.f], n = S.persons, doses = S.doses[m];
   const starch = '<div class="starch"><div class="starch-w">'+fmtQty(f.g * doses * n, "g", true)+'</div>' +
@@ -562,13 +647,14 @@ function mealHTML(d, m){
     return '<li'+(c.pl?' class="pl"':'')+'><span class="q">'+fmtQty(qteEff(x) * n, x.u)+'</span><span>'+esc(c.nom)+'</span>'+(buy?'<span class="tag-buy">à prévoir</span>':'')+'</li>';
   }).join("");
   return '<details class="meal" data-key="'+key+'"'+(ouvert===key?' open':'')+'><summary>' +
-    '<span class="meal-top"><span class="dots" aria-hidden="true">'+dots(doses)+'</span>'+MEAL_NAME[m]+'</span>' +
+    '<span class="meal-top"><span class="meal-ico" aria-hidden="true">'+MEAL_ICO[m]+'</span><span class="dots" aria-hidden="true">'+dots(doses)+'</span>'+MEAL_NAME[m]+(fav?'<span class="fav-mark" role="img" aria-label="Recette favorite">♥</span>':'')+'</span>' +
     '<span class="meal-name">'+esc(r.nom)+'</span>' +
     '<span class="meal-meta">'+r.t+' min'+(miss?' · '+miss+' à prévoir':'')+'</span></summary>' +
     '<div class="meal-body">' + starch + '<ul class="ing">'+ings+'</ul>' +
     '<ol class="steps">'+r.etapes.map(e => '<li>'+esc(e)+'</li>').join("")+'</ol>' +
     (r.astuce ? '<p class="tip">'+esc(r.astuce)+'</p>' : '') +
-    '<div><button class="btn small" data-a="swap" data-d="'+d+'" data-m="'+m+'">Changer cette recette</button></div></div></details>';
+    '<div class="actions"><button class="btn small" data-a="swap" data-d="'+d+'" data-m="'+m+'">Changer cette recette</button>' +
+    '<button class="heart" data-a="fav" data-r="'+r.id+'" data-d="'+d+'" data-m="'+m+'" aria-pressed="'+fav+'" aria-label="'+(fav?'Retirer des favoris':'Ajouter aux favoris')+'">'+(fav?'♥':'♡')+'</button></div></div></details>';
 }
 function renderPlan(){
   const box = $("results");
@@ -579,7 +665,7 @@ function renderPlan(){
   }
   const n = S.persons;
   const total = MEALS.reduce((a,m) => a + S.doses[m], 0);
-  box.innerHTML = '<div class="results-head"><h2>Ta semaine pour '+n+' personne'+(n>1?'s':'')+'</h2><p>Tous les poids sont crus. Touche un repas pour voir la recette.</p></div>' +
+  box.innerHTML = '<div class="results-head"><h2>Ta semaine pour '+n+' personne'+(n>1?'s':'')+'</h2><p>Tous les poids sont crus. Touche un repas pour voir la recette.</p>'+(conflit?'<p class="warn">Certaines recettes contiennent un ingrédient que tu n\'aimes pas : il n\'y avait pas assez d\'alternatives.</p>':'')+'</div>' +
     S.plan.map((day, d) =>
       '<div class="day"><div class="day-head"><h3>'+JOURS[d]+'</h3><span class="dots"><span aria-hidden="true" style="display:inline-flex;gap:4px">'+MEALS.map(m => dots(S.doses[m])).join("")+'</span>&nbsp;'+fmtN(total)+' doses</span></div>' +
       MEALS.map(m => mealHTML(d, m)).join("") + '</div>').join("");
@@ -670,9 +756,22 @@ document.addEventListener("click", ev => {
       S.plan.forEach((dd,i) => MEALS.forEach(k => { if(!(i === d && k === m)) used.add(dd[k]); }));
       const other = m === "dj" ? "di" : (m === "di" ? "dj" : null);
       const avoidP = new Set(); if(other) avoidP.add(BY_ID[day[other]].prot);
-      day[m] = choisir(m, new Set(S.sel), used, avoidP, new Set(), day[m]).id;
+      conflit = false; day[m] = choisir(m, new Set(S.sel), used, avoidP, new Set(), day[m]).id;
       ouvert = d + "-" + m; save(); renderPlan(); break;
     }
+    case "dis": {
+      const v = el.dataset.v, i = S.dislikes.indexOf(v);
+      if(i >= 0) S.dislikes.splice(i,1);
+      else { S.dislikes.push(v); const j = S.sel.indexOf(v); if(j >= 0) S.sel.splice(j,1); }
+      purger(); save(); renderPicker(); renderDislikes(); renderFavs(); renderPlan(); break;
+    }
+    case "fav": {
+      const r = el.dataset.r, i = S.favs.indexOf(r);
+      if(i >= 0) S.favs.splice(i,1); else S.favs.push(r);
+      if(el.dataset.d !== undefined) ouvert = el.dataset.d + "-" + el.dataset.m;
+      save(); renderFavs(); renderPlan(); break;
+    }
+    case "favfirst": S.favFirst = !S.favFirst; save(); el.setAttribute("aria-pressed", String(S.favFirst)); break;
     case "copy": copierListe(); break;
     case "uncheck": S.checked = {}; save(); renderShop(); break;
     case "prot-reset": S.prot = clone(PROT_DEFAUT); save(); renderSettings(); renderPlan(); break;
