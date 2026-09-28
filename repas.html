@@ -1,1 +1,703 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Doses – ta semaine de repas équilibrés</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F3F5F2; --surface:#FFFFFF; --ink:#17232B; --muted:#5C6B73; --line:#D9DFDB;
+  --durum:#EDAA1E; --durum-soft:#FBEFC9; --basil:#2F7350; --basil-soft:#DDEDE3; --danger:#B93A26;
+  --display:"Bricolage Grotesque","Trebuchet MS",system-ui,sans-serif;
+  --body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F171C; --surface:#172229; --ink:#EAF0EC; --muted:#93A3AB; --line:#26343C;
+    --durum:#F2B63A; --durum-soft:#3A3013; --basil:#5FB88A; --basil-soft:#173327; --danger:#F0806B;
+  }
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:1rem;line-height:1.5;-webkit-text-size-adjust:100%}
+main{max-width:680px;margin:0 auto;padding:20px 18px 64px}
+h1,h2,h3{font-family:var(--display);line-height:1.15;margin:0}
+h1{font-size:2.4rem;font-weight:700;letter-spacing:-.02em}
+h2{font-size:1.25rem;font-weight:700}
+h3{font-size:1.15rem;font-weight:700}
+p{margin:0}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--basil);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* En-tête : la répartition des doses du jour */
+.top{display:flex;flex-direction:column;gap:14px;padding:18px 0 22px;border-bottom:2px solid var(--ink)}
+.top p{color:var(--muted)}
+.split{display:flex;gap:22px;align-items:flex-end}
+.grp{display:flex;flex-direction:column;gap:6px}
+.grp .plates{display:flex;gap:6px}
+.grp small{color:var(--muted);font-size:.8rem}
+.plate{width:36px;height:36px;border-radius:50%;border:2.5px solid var(--ink);flex:none;
+  background:linear-gradient(to top,var(--durum) var(--fill,100%),transparent var(--fill,100%))}
+.dot{display:inline-block;width:12px;height:12px;border-radius:50%;border:1.5px solid var(--ink);flex:none;
+  background:linear-gradient(to top,var(--durum) var(--fill,100%),transparent var(--fill,100%))}
+
+/* Boutons */
+.btn{border:1.5px solid var(--ink);background:transparent;border-radius:999px;padding:8px 16px;cursor:pointer;font-weight:600;min-height:44px}
+.btn:hover{background:var(--durum-soft)}
+.btn.small{padding:4px 14px;min-height:36px;font-size:.9rem}
+.btn.primary{background:var(--ink);color:var(--bg);width:100%;font-size:1.05rem;padding:12px 20px}
+.btn.primary:hover{background:var(--ink);opacity:.9}
+
+/* Formulaire */
+.form{display:flex;flex-direction:column;gap:24px;padding:24px 0}
+.field{display:flex;flex-direction:column;gap:8px}
+.label{font-weight:600}
+.hint{color:var(--muted);font-size:.9rem}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.stepper{display:inline-flex;align-items:center;border:1.5px solid var(--ink);border-radius:999px;overflow:hidden;width:max-content}
+.stepper button{width:48px;height:44px;border:0;background:transparent;font-size:1.4rem;cursor:pointer}
+.stepper button:hover{background:var(--durum-soft)}
+.stepper output{min-width:54px;text-align:center;font-family:var(--display);font-weight:700;font-size:1.3rem}
+.stepper.sm button{width:40px;height:38px;font-size:1.2rem}
+.stepper.sm output{min-width:46px;font-size:1.1rem}
+.dose-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:4px 0;border-bottom:1px solid var(--line)}
+.chip{border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 14px;cursor:pointer;min-height:38px}
+.chip:hover{border-color:var(--ink)}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.picker{display:flex;flex-direction:column;gap:14px}
+
+/* Semaine */
+.results{display:flex;flex-direction:column}
+.empty{padding:28px 0;color:var(--muted)}
+.results-head{padding:8px 0 4px}
+.results-head p{color:var(--muted)}
+.day{padding:22px 0 6px;border-top:2px solid var(--ink)}
+.day-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:6px}
+.day-head .dots{display:flex;gap:4px;align-items:center;color:var(--muted);font-size:.9rem}
+details.meal{border-bottom:1px solid var(--line)}
+details.meal summary{list-style:none;cursor:pointer;padding:12px 0;display:flex;flex-direction:column;gap:2px;min-height:44px}
+details.meal summary::-webkit-details-marker{display:none}
+.meal-top{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:.9rem}
+.meal-top .dots{display:inline-flex;gap:3px}
+.meal-name{font-weight:600;font-size:1.05rem}
+.meal-meta{color:var(--muted);font-size:.9rem}
+.meal-body{display:flex;flex-direction:column;gap:14px;padding:4px 0 18px}
+.starch{display:flex;align-items:center;gap:16px;background:var(--durum-soft);border-radius:12px;padding:14px 16px}
+.starch-w{font-family:var(--display);font-size:2.2rem;font-weight:700;line-height:1;letter-spacing:-.02em}
+.starch-t{display:flex;flex-direction:column;line-height:1.3}
+.starch-t span{font-size:.9rem;color:var(--muted)}
+.ing{list-style:none;margin:0;padding:0}
+.ing li{display:flex;gap:12px;padding:7px 0;border-bottom:1px solid var(--line)}
+.ing .q{flex:none;min-width:84px;font-weight:600;font-variant-numeric:tabular-nums}
+.ing li.pl{color:var(--muted)}
+.ing li.pl .q{font-weight:400}
+.tag-buy{margin-left:auto;flex:none;font-size:.8rem;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:0 10px;align-self:center}
+.steps{margin:0;padding-left:1.3rem;display:flex;flex-direction:column;gap:8px}
+.tip{border-left:4px solid var(--basil);padding-left:12px;color:var(--muted)}
+
+/* Courses */
+.shop{padding-top:26px;margin-top:8px;border-top:2px solid var(--ink);display:flex;flex-direction:column;gap:18px}
+.shop-group h3{font-size:1rem;color:var(--muted);font-weight:600;margin-bottom:2px}
+.shop-item{display:flex;gap:12px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);min-height:44px}
+.shop-item input{width:22px;height:22px;flex:none;accent-color:var(--basil)}
+.shop-item label{display:flex;gap:12px;flex:1;cursor:pointer}
+.shop-item .q{min-width:84px;font-weight:600;font-variant-numeric:tabular-nums}
+.shop-item input:checked + label{text-decoration:line-through;color:var(--muted)}
+.shop-have{color:var(--muted);font-size:.95rem}
+.toast{color:var(--basil);font-weight:600;min-height:1.5em}
+
+/* Réglages */
+details.settings{border-top:2px solid var(--ink);padding-top:16px;margin-top:28px}
+details.settings summary{cursor:pointer;font-family:var(--display);font-weight:700;font-size:1.15rem;min-height:44px;display:flex;align-items:center}
+.settings-body{display:flex;flex-direction:column;gap:18px;padding-top:12px}
+.fec-table{display:grid;grid-template-columns:1fr 92px;gap:6px 12px;align-items:center}
+.fec-table input{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:6px 10px;background:var(--surface);min-height:40px;text-align:right}
+.fec-table label{font-size:.95rem}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@media (max-width:420px){h1{font-size:2rem}.plate{width:30px;height:30px}.split{gap:16px}}
+</style>
+</head>
+<body>
+<main>
+
+<header class="top">
+  <h1>Doses</h1>
+  <p>Ta semaine de repas équilibrés, avec les poids crus pour tout le foyer.</p>
+  <div class="split" id="split" role="img"></div>
+</header>
+
+<section class="form" aria-labelledby="t-form">
+  <h2 class="sr" id="t-form">Préparer la semaine</h2>
+
+  <div class="field">
+    <span class="label" id="l-persons">Nombre de personnes</span>
+    <div class="stepper" role="group" aria-labelledby="l-persons">
+      <button data-a="persons-" aria-label="Une personne de moins">−</button>
+      <output id="persons" aria-live="polite"></output>
+      <button data-a="persons+" aria-label="Une personne de plus">+</button>
+    </div>
+  </div>
+
+  <div class="field">
+    <span class="label" id="l-doses">Doses de féculent par personne</span>
+    <div id="dose-rows" role="group" aria-labelledby="l-doses"></div>
+    <p class="hint" id="doses-hint"></p>
+  </div>
+
+  <div class="field">
+    <span class="label">Tes ingrédients</span>
+    <p class="hint">Coche ce que tu as ou veux cuisiner. Sans sélection, la semaine est planifiée avec une liste de courses complète. Huile, ail, oignon, épices, herbes, moutarde, vinaigre et bouillon sont supposés dans ton placard.</p>
+    <div class="picker" id="picker"></div>
+    <div><button class="btn small" data-a="sel-clear">Tout décocher</button></div>
+  </div>
+
+  <div class="field">
+    <span class="label" id="l-tol">Ingrédients manquants acceptés par recette</span>
+    <div class="row" id="tol" role="group" aria-labelledby="l-tol"></div>
+    <p class="hint">Les recettes qui utilisent le mieux ta sélection passent en premier.</p>
+  </div>
+
+  <div class="field">
+    <div class="row"><button class="chip" id="veg" data-a="veg" aria-pressed="false">Sans viande ni poisson</button></div>
+  </div>
+
+  <button class="btn primary" data-a="compose">Composer ma semaine</button>
+</section>
+
+<section class="results" id="results" aria-live="polite"></section>
+<section id="shop"></section>
+
+<details class="settings">
+  <summary>Portions : féculents et protéines</summary>
+  <div class="settings-body">
+    <div class="field">
+      <span class="label">Poids cru d'une dose de féculent</span>
+      <p class="hint">Référence : 45 g de pâtes crues = 1 dose. Les autres féculents sont estimés à glucides équivalents ; ajuste-les selon ton programme.</p>
+      <div class="fec-table" id="fec-table"></div>
+      <div><button class="btn small" data-a="fec-reset">Rétablir les valeurs par défaut</button></div>
+    </div>
+    <div class="field">
+      <span class="label">Portion de protéine par personne</span>
+      <p class="hint">Poids cru pour un repas. Toutes les recettes qui utilisent cette protéine sont ajustées proportionnellement, ainsi que la liste de courses.</p>
+      <div class="fec-table" id="prot-table"></div>
+      <div><button class="btn small" data-a="prot-reset">Rétablir les valeurs par défaut</button></div>
+    </div>
+  </div>
+</details>
+
+</main>
+
+<script>
+(function(){
+"use strict";
+
+const STORE = "doses.v2";
+const MEALS = ["pd","dj","di"];
+const MEAL_NAME = {pd:"Petit-déjeuner", dj:"Déjeuner", di:"Dîner"};
+const MEAL_SHORT = {pd:"petit-déj", dj:"déjeuner", di:"dîner"};
+const JOURS = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"];
+const CAT_LABEL = {proteines:"Protéines", legumes:"Légumes", feculents:"Féculents", laitiers:"Produits laitiers", fruits:"Fruits", epicerie:"Épicerie"};
+const CAT_ORDER = ["proteines","legumes","feculents","laitiers","fruits","epicerie"];
+const PLURIEL = {"tranche":"tranches"};
+
+const FEC_DEFAUT = {
+  pates:{nom:"Pâtes",g:45},
+  riz:{nom:"Riz",g:45},
+  semoule:{nom:"Semoule",g:45},
+  boulgour:{nom:"Boulgour",g:45},
+  quinoa:{nom:"Quinoa",g:50},
+  lentilles:{nom:"Lentilles sèches",g:55},
+  pois_chiches:{nom:"Pois chiches secs",g:55},
+  haricots_secs:{nom:"Haricots rouges secs",g:55},
+  flocons_avoine:{nom:"Flocons d'avoine",g:50},
+  pain:{nom:"Pain (poids tel quel)",g:60},
+  pomme_de_terre:{nom:"Pommes de terre (crues)",g:190},
+  patate_douce:{nom:"Patate douce (crue)",g:160}
+};
+
+/* Portion de référence par personne pour chaque protéine (les recettes sont ajustées proportionnellement) */
+const PROT_DEFAUT = {
+  poulet:{v:120,u:"g"}, dinde:{v:120,u:"g"}, boeuf:{v:100,u:"g"}, porc:{v:120,u:"g"},
+  jambon:{v:1,u:"tranche"}, saumon:{v:120,u:"g"}, cabillaud:{v:130,u:"g"}, thon:{v:80,u:"g"},
+  crevettes:{v:120,u:"g"}, oeufs:{v:2,u:"pièce"}, tofu:{v:120,u:"g"}
+};
+
+/* ---------- Catalogue d'ingrédients : [id, nom, catégorie, drapeaux] (m = viande/poisson, p = placard) ---------- */
+const INGS = [
+  ["poulet","Blanc de poulet","proteines","m"],
+  ["dinde","Dinde (escalope ou haché)","proteines","m"],
+  ["boeuf","Bœuf haché 5 %","proteines","m"],
+  ["porc","Filet de porc","proteines","m"],
+  ["jambon","Jambon blanc","proteines","m"],
+  ["saumon","Pavé de saumon","proteines","m"],
+  ["cabillaud","Filet de cabillaud","proteines","m"],
+  ["thon","Thon au naturel","proteines","m"],
+  ["crevettes","Crevettes décortiquées","proteines","m"],
+  ["oeufs","Œufs","proteines",""],
+  ["tofu","Tofu ferme","proteines",""],
+  ["courgette","Courgette","legumes",""],
+  ["tomate","Tomate","legumes",""],
+  ["poivron","Poivron","legumes",""],
+  ["aubergine","Aubergine","legumes",""],
+  ["carotte","Carotte","legumes",""],
+  ["brocoli","Brocoli","legumes",""],
+  ["epinards","Épinards","legumes",""],
+  ["champignons","Champignons","legumes",""],
+  ["haricots_verts","Haricots verts","legumes",""],
+  ["poireau","Poireau","legumes",""],
+  ["concombre","Concombre","legumes",""],
+  ["petits_pois","Petits pois","legumes",""],
+  ["salade","Salade verte","legumes",""],
+  ["pates","Pâtes","feculents",""],
+  ["riz","Riz","feculents",""],
+  ["semoule","Semoule","feculents",""],
+  ["boulgour","Boulgour","feculents",""],
+  ["quinoa","Quinoa","feculents",""],
+  ["lentilles","Lentilles","feculents",""],
+  ["pois_chiches","Pois chiches secs","feculents",""],
+  ["haricots_secs","Haricots rouges secs","feculents",""],
+  ["flocons_avoine","Flocons d'avoine","feculents",""],
+  ["pain","Pain","feculents",""],
+  ["pomme_de_terre","Pommes de terre","feculents",""],
+  ["patate_douce","Patate douce","feculents",""],
+  ["yaourt","Yaourt nature","laitiers",""],
+  ["fromage_blanc","Fromage blanc","laitiers",""],
+  ["lait","Lait","laitiers",""],
+  ["mozzarella","Mozzarella","laitiers",""],
+  ["feta","Feta","laitiers",""],
+  ["emmental","Emmental râpé","laitiers",""],
+  ["creme","Crème légère","laitiers",""],
+  ["pomme","Pommes","fruits",""],
+  ["banane","Bananes","fruits",""],
+  ["fruits_rouges","Fruits rouges","fruits",""],
+  ["citron","Citrons","fruits",""],
+  ["tomates_concassees","Tomates concassées","epicerie",""],
+  ["lait_coco","Lait de coco","epicerie",""],
+  ["sauce_soja","Sauce soja","epicerie",""],
+  ["amandes","Amandes","epicerie",""],
+  ["miel","Miel","epicerie",""],
+  ["huile","Huile d'olive","placard","p"],
+  ["ail","Ail","placard","p"],
+  ["oignon","Oignon","placard","p"],
+  ["epices","Épices","placard","p"],
+  ["herbes","Herbes","placard","p"],
+  ["moutarde","Moutarde","placard","p"],
+  ["vinaigre","Vinaigre","placard","p"],
+  ["bouillon","Bouillon (cube)","placard","p"]
+];
+const CAT = {};
+INGS.forEach(x => { CAT[x[0]] = {id:x[0], nom:x[1], cat:x[2], m:x[3].includes("m"), pl:x[3].includes("p")}; });
+
+/* ---------- Base de recettes (quantités crues PAR PERSONNE, hors féculent) ---------- */
+function R(id, nom, repas, t, f, ing, etapes, astuce){
+  const r = {id, nom, repas:repas.split(","), t, f, etapes, astuce:astuce || "",
+             ing:ing.map(x => ({id:x[0], q:x[1], u:x[2] || "g"}))};
+  r.meat = r.ing.some(x => CAT[x.id].m);
+  const p = r.ing.find(x => CAT[x.id].cat === "proteines");
+  r.prot = p ? p.id : null;
+  return r;
+}
+const RECETTES = [
+  /* Petits-déjeuners */
+  R("pd-porridge","Porridge pomme-cannelle","pd",10,"flocons_avoine",
+    [["lait",200,"ml"],["pomme",1,"pièce"],["amandes",10],["epices",1,"c. à café"]],
+    ["Chauffe le lait avec les flocons d'avoine à feu doux pendant 5 minutes, en remuant.","Râpe la pomme et ajoute-la avec la cannelle.","Verse dans un bol et parsème d'amandes concassées."],
+    "Prépare-le la veille et réchauffe-le au micro-ondes."),
+  R("pd-tartine-oeuf","Tartines œuf et tomate","pd",10,"pain",
+    [["oeufs",2,"pièce"],["tomate",100],["herbes",1,"c. à café"],["huile",1,"c. à café"]],
+    ["Fais griller le pain.","Cuis les œufs à la poêle avec un peu d'huile.","Dispose la tomate en tranches sur le pain, pose les œufs et parsème d'herbes."]),
+  R("pd-tartine-fruits","Tartines fromage blanc et fruits rouges","pd",5,"pain",
+    [["fromage_blanc",100],["fruits_rouges",80],["miel",1,"c. à café"]],
+    ["Fais griller le pain.","Étale le fromage blanc, ajoute les fruits rouges et un filet de miel."]),
+  R("pd-bowl","Bowl fromage blanc, avoine et banane","pd",5,"flocons_avoine",
+    [["fromage_blanc",150],["banane",1,"pièce"],["amandes",10]],
+    ["Verse le fromage blanc dans un bol.","Ajoute les flocons d'avoine, la banane en rondelles et les amandes concassées."]),
+  R("pd-overnight","Overnight oats aux fruits rouges","pd",5,"flocons_avoine",
+    [["yaourt",125],["lait",100,"ml"],["fruits_rouges",80],["miel",1,"c. à café"]],
+    ["Mélange les flocons d'avoine, le yaourt et le lait dans un bocal.","Laisse gonfler au frais toute la nuit.","Ajoute les fruits rouges et le miel au moment de manger."]),
+  R("pd-omelette","Omelette aux champignons et pain","pd",15,"pain",
+    [["oeufs",2,"pièce"],["champignons",80],["huile",1,"c. à café"],["herbes",1,"c. à café"]],
+    ["Fais dorer les champignons émincés dans l'huile.","Bats les œufs avec les herbes, verse-les sur les champignons et cuis l'omelette à feu doux.","Sers avec le pain."]),
+  R("pd-painperdu","Pain perdu à la banane","pd",15,"pain",
+    [["oeufs",1,"pièce"],["lait",100,"ml"],["banane",1,"pièce"],["epices",1,"c. à café"]],
+    ["Bats l'œuf avec le lait et la cannelle.","Trempe les tranches de pain, puis fais-les dorer à la poêle antiadhésive.","Sers avec la banane en rondelles."]),
+  R("pd-pancakes","Pancakes avoine-banane","pd",15,"flocons_avoine",
+    [["banane",1,"pièce"],["oeufs",1,"pièce"],["lait",50,"ml"],["fruits_rouges",50],["huile",1,"c. à café"]],
+    ["Mixe les flocons d'avoine avec la banane, l'œuf et le lait.","Fais cuire de petits pancakes à la poêle huilée, 2 minutes de chaque côté.","Sers avec les fruits rouges."]),
+  R("pd-tartine-jambon","Tartine jambon, mozzarella et tomate","pd",10,"pain",
+    [["jambon",1,"tranche"],["mozzarella",40],["tomate",100],["herbes",1,"c. à café"]],
+    ["Fais griller le pain.","Garnis-le de jambon, de mozzarella et de tomate en tranches.","Passe 3 minutes au four, puis parsème d'herbes."]),
+
+  /* Déjeuners et dîners */
+  R("poulet-brocoli-riz","Poulet sauté au brocoli et riz","dj,di",25,"riz",
+    [["poulet",120],["brocoli",200],["ail",1,"gousse"],["sauce_soja",1,"c. à soupe"],["huile",1,"c. à café"]],
+    ["Fais cuire le riz dans l'eau bouillante salée, puis égoutte-le.","Coupe le poulet en dés et fais-le dorer avec l'huile et l'ail.","Ajoute le brocoli en petits bouquets et un peu d'eau, couvre et cuis 8 minutes.","Déglace avec la sauce soja et sers sur le riz."],
+    "Un filet de citron à la fin relève le plat."),
+  R("pates-thon-courgette","Pâtes au thon, courgette et tomate","dj,di",20,"pates",
+    [["thon",80],["courgette",150],["tomates_concassees",150],["oignon",0.5,"pièce"],["ail",1,"gousse"],["huile",1,"c. à café"]],
+    ["Fais cuire les pâtes.","Fais revenir l'oignon et l'ail dans l'huile, ajoute la courgette en rondelles et cuis 5 minutes.","Verse les tomates concassées et laisse mijoter 10 minutes.","Ajoute le thon émietté, puis mélange avec les pâtes."]),
+  R("bolo-legere","Spaghettis bolognaise légère","dj,di",30,"pates",
+    [["boeuf",100],["tomates_concassees",200],["carotte",60],["oignon",0.5,"pièce"],["ail",1,"gousse"],["herbes",1,"c. à café"],["huile",1,"c. à café"]],
+    ["Fais revenir l'oignon et l'ail dans l'huile, ajoute la viande et émiette-la.","Ajoute la carotte râpée, les tomates et les herbes, puis mijote 20 minutes.","Fais cuire les spaghettis et sers avec la sauce."],
+    "La carotte râpée adoucit l'acidité de la tomate."),
+  R("riz-cantonais","Riz cantonais léger","dj,di",25,"riz",
+    [["oeufs",1,"pièce"],["jambon",1,"tranche"],["petits_pois",80],["carotte",50],["sauce_soja",1,"c. à soupe"],["huile",1,"c. à café"]],
+    ["Fais cuire le riz et laisse-le refroidir.","Brouille l'œuf dans la poêle huilée et réserve-le.","Fais sauter la carotte en petits dés, les petits pois et le jambon en lanières.","Ajoute le riz, l'œuf et la sauce soja, puis mélange vivement."],
+    "Le riz de la veille donne un meilleur résultat."),
+  R("curry-pois-chiches","Curry de pois chiches et épinards","dj,di",45,"pois_chiches",
+    [["epinards",150],["tomates_concassees",150],["lait_coco",50,"ml"],["oignon",0.5,"pièce"],["ail",1,"gousse"],["epices",1,"c. à café"],["huile",1,"c. à café"]],
+    ["Fais tremper les pois chiches la veille, puis cuis-les 45 minutes à l'eau frémissante.","Fais revenir l'oignon, l'ail et les épices à curry dans l'huile.","Ajoute les tomates et le lait de coco, puis laisse mijoter 10 minutes.","Incorpore les pois chiches et les épinards, cuis encore 5 minutes."],
+    "Des pois chiches en bocal égouttés conviennent aussi : compte environ 2,5 fois le poids sec."),
+  R("dahl-lentilles","Dahl de lentilles aux carottes","dj,di",35,"lentilles",
+    [["carotte",80],["tomates_concassees",100],["lait_coco",50,"ml"],["oignon",0.5,"pièce"],["ail",1,"gousse"],["epices",1,"c. à café"],["huile",1,"c. à café"]],
+    ["Fais revenir l'oignon, l'ail et les épices dans l'huile.","Ajoute les lentilles rincées, les carottes en dés, les tomates et deux fois leur volume d'eau.","Cuis 25 minutes à feu doux.","Ajoute le lait de coco et mixe légèrement selon la texture voulue."]),
+  R("salade-quinoa-feta","Salade de quinoa, feta et légumes croquants","dj,di",20,"quinoa",
+    [["concombre",100],["tomate",100],["poivron",60],["feta",40],["citron",0.5,"pièce"],["huile",2,"c. à café"],["herbes",1,"c. à café"]],
+    ["Rince le quinoa, fais-le cuire 12 minutes, puis laisse-le refroidir.","Coupe les légumes en dés.","Mélange le tout avec la feta émiettée, le jus de citron, l'huile et les herbes."]),
+  R("saumon-pdt-haricots","Saumon au four, pommes de terre et haricots verts","dj,di",35,"pomme_de_terre",
+    [["saumon",120],["haricots_verts",200],["citron",0.5,"pièce"],["herbes",1,"c. à café"],["huile",1,"c. à café"]],
+    ["Fais cuire les pommes de terre en morceaux à la vapeur, environ 20 minutes.","Cuis les haricots verts 8 minutes.","Enfourne le saumon 12 minutes à 180 °C avec le citron, l'huile et les herbes.","Dresse le tout dans l'assiette."]),
+  R("cabillaud-semoule","Cabillaud et semoule aux légumes","dj,di",30,"semoule",
+    [["cabillaud",130],["courgette",100],["carotte",60],["poivron",60],["epices",1,"c. à café"],["herbes",1,"c. à café"],["huile",1,"c. à café"]],
+    ["Fais sauter les légumes en petits dés dans l'huile avec les épices, 10 minutes.","Verse de l'eau bouillante sur la semoule, couvre 5 minutes, puis égrène-la.","Fais cuire le cabillaud à la poêle ou à la vapeur, 8 minutes.","Mélange légumes et semoule, pose le poisson dessus et parsème d'herbes."]),
+  R("poulet-boulgour-poivrons","Poulet rôti, boulgour et poivrons","dj,di",35,"boulgour",
+    [["poulet",120],["poivron",150],["courgette",100],["ail",1,"gousse"],["herbes",1,"c. à café"],["huile",1,"c. à café"]],
+    ["Coupe le poulet, le poivron et la courgette en morceaux.","Enfourne le tout avec l'huile, l'ail et les herbes, 25 minutes à 200 °C.","Fais cuire le boulgour 10 minutes dans l'eau bouillante.","Sers le poulet et les légumes sur le boulgour."]),
+  R("chili-haricots","Chili de haricots rouges","dj,di",50,"haricots_secs",
+    [["poivron",100],["tomates_concassees",200],["yaourt",50],["oignon",0.5,"pièce"],["ail",1,"gousse"],["epices",1,"c. à café"],["huile",1,"c. à café"]],
+    ["Fais tremper les haricots la veille, puis cuis-les environ 1 heure.","Fais revenir l'oignon, l'ail, le poivron en dés et les épices dans l'huile.","Ajoute les tomates et les haricots, puis mijote 20 minutes.","Sers avec une cuillerée de yaourt."],
+    "Des haricots en conserve égouttés conviennent aussi : compte environ 2,5 fois le poids sec."),
+  R("tortilla-legere","Tortilla légère et salade","dj,di",35,"pomme_de_terre",
+    [["oeufs",3,"pièce"],["oignon",0.5,"pièce"],["salade",50],["huile",2,"c. à café"],["vinaigre",1,"c. à café"]],
+    ["Coupe les pommes de terre en fines rondelles et précuis-les 10 minutes à l'eau.","Fais revenir l'oignon émincé dans l'huile, ajoute les pommes de terre.","Verse les œufs battus et cuis à feu doux, 6 minutes de chaque côté.","Sers avec la salade assaisonnée au vinaigre."]),
+  R("parmentier-patate-douce","Parmentier de patate douce","dj,di",45,"patate_douce",
+    [["boeuf",100],["tomates_concassees",100],["carotte",60],["oignon",0.5,"pièce"],["lait",50,"ml"],["herbes",1,"c. à café"],["huile",1,"c. à café"]],
+    ["Cuis la patate douce en morceaux 20 minutes, puis écrase-la avec le lait.","Fais revenir l'oignon, la viande et la carotte râpée dans l'huile, ajoute les tomates et les herbes, puis mijote 10 minutes.","Dans un plat, alterne la viande et la purée.","Fais gratiner 10 minutes à 200 °C."]),
+  R("riz-tofu-legumes","Riz sauté au tofu et légumes","dj,di",25,"riz",
+    [["tofu",120],["poivron",80],["carotte",60],["haricots_verts",100],["sauce_soja",1,"c. à soupe"],["ail",1,"gousse"],["huile",1,"c. à café"]],
+    ["Fais cuire le riz.","Fais dorer le tofu en cubes dans l'huile avec l'ail.","Ajoute les légumes coupés en fines lamelles et cuis 8 minutes.","Ajoute le riz et la sauce soja, puis fais sauter le tout."]),
+  R("pates-dinde-champignons","Pâtes à la dinde et aux champignons","dj,di",25,"pates",
+    [["dinde",120],["champignons",150],["creme",30,"ml"],["ail",1,"gousse"],["herbes",1,"c. à café"],["huile",1,"c. à café"]],
+    ["Fais cuire les pâtes.","Fais dorer la dinde en lanières dans l'huile avec l'ail, puis réserve-la.","Fais sauter les champignons émincés, puis remets la dinde.","Ajoute la crème et les herbes, puis mélange avec les pâtes."]),
+  R("veloute-poireaux-oeuf","Velouté poireaux-pommes de terre et œuf mollet","dj,di",35,"pomme_de_terre",
+    [["poireau",200],["oeufs",2,"pièce"],["fromage_blanc",30],["bouillon",0.5,"pièce"],["herbes",1,"c. à café"]],
+    ["Fais cuire les poireaux émincés et les pommes de terre en morceaux dans l'eau avec le bouillon, 20 minutes.","Mixe avec le fromage blanc.","Plonge les œufs 6 minutes 30 dans l'eau bouillante, puis écale-les.","Sers le velouté avec les œufs et les herbes."]),
+  R("boulettes-dinde-semoule","Boulettes de dinde, sauce tomate et semoule","dj,di",35,"semoule",
+    [["dinde",120],["tomates_concassees",150],["aubergine",100],["oignon",0.5,"pièce"],["ail",1,"gousse"],["herbes",1,"c. à café"],["huile",1,"c. à café"]],
+    ["Hache la dinde avec l'oignon et les herbes, puis forme des boulettes.","Fais-les dorer dans l'huile.","Ajoute l'aubergine en dés, l'ail et les tomates, puis mijote 15 minutes.","Prépare la semoule à l'eau bouillante et sers avec les boulettes."]),
+  R("salade-lentilles-thon","Salade de lentilles au thon","dj,di",30,"lentilles",
+    [["thon",80],["tomate",100],["salade",50],["oignon",0.5,"pièce"],["moutarde",1,"c. à café"],["vinaigre",1,"c. à café"],["huile",2,"c. à café"]],
+    ["Fais cuire les lentilles 20 minutes, égoutte-les et laisse-les tiédir.","Prépare une vinaigrette avec la moutarde, le vinaigre et l'huile.","Mélange les lentilles avec la tomate, l'oignon émincé, le thon émietté et la vinaigrette.","Sers sur la salade."]),
+  R("tartines-gratinees","Tartines gratinées poulet-champignons","dj,di",20,"pain",
+    [["poulet",100],["champignons",100],["mozzarella",40],["salade",50],["huile",1,"c. à café"],["herbes",1,"c. à café"]],
+    ["Fais sauter le poulet en petits dés et les champignons dans l'huile.","Étale le mélange sur le pain, ajoute la mozzarella.","Fais gratiner 8 minutes au four, puis sers avec la salade."]),
+  R("croque-leger","Croque léger au four et salade","dj,di",20,"pain",
+    [["jambon",2,"tranche"],["emmental",30],["tomate",100],["salade",50],["moutarde",1,"c. à café"],["vinaigre",1,"c. à café"]],
+    ["Tartine le pain de moutarde, garnis-le de jambon et de fromage.","Enfourne 10 minutes à 200 °C.","Sers avec la tomate et la salade assaisonnées au vinaigre."]),
+  R("pates-courgette-mozza","Pâtes courgette, mozzarella et tomate","dj,di",20,"pates",
+    [["courgette",150],["mozzarella",60],["tomate",100],["ail",1,"gousse"],["herbes",1,"c. à café"],["huile",1,"c. à café"]],
+    ["Fais cuire les pâtes.","Fais sauter la courgette en dés avec l'ail dans l'huile, ajoute la tomate en morceaux.","Mélange avec les pâtes, la mozzarella en cubes et les herbes."]),
+  R("porc-pdt-carottes","Filet de porc, pommes de terre et carottes rôties","dj,di",45,"pomme_de_terre",
+    [["porc",120],["carotte",150],["moutarde",1,"c. à café"],["herbes",1,"c. à café"],["huile",1,"c. à café"]],
+    ["Badigeonne le porc de moutarde et d'herbes.","Enfourne-le avec les pommes de terre en quartiers et les carottes en bâtons, avec l'huile.","Cuis 35 minutes à 200 °C en retournant à mi-cuisson."]),
+  R("crevettes-riz-legumes","Crevettes, riz et poêlée de légumes","dj,di",25,"riz",
+    [["crevettes",120],["courgette",100],["poivron",100],["ail",1,"gousse"],["citron",0.5,"pièce"],["epices",1,"c. à café"],["huile",1,"c. à café"]],
+    ["Fais cuire le riz.","Fais sauter les légumes en dés dans l'huile avec l'ail, 8 minutes.","Ajoute les crevettes et les épices, cuis 4 minutes.","Sers sur le riz avec un jus de citron."]),
+  R("quinoa-epinards-oeuf","Quinoa aux épinards et œuf poché","dj,di",25,"quinoa",
+    [["oeufs",2,"pièce"],["epinards",150],["champignons",80],["ail",1,"gousse"],["huile",1,"c. à café"]],
+    ["Rince le quinoa et fais-le cuire 12 minutes.","Fais sauter les champignons avec l'ail dans l'huile, ajoute les épinards jusqu'à ce qu'ils tombent.","Pochez les œufs 3 minutes dans l'eau frémissante vinaigrée.","Sers le quinoa avec les légumes et les œufs."]),
+  R("ratatouille-riz-oeuf","Ratatouille, riz et œuf au plat","dj,di",40,"riz",
+    [["aubergine",100],["courgette",100],["poivron",80],["tomates_concassees",100],["oeufs",1,"pièce"],["oignon",0.5,"pièce"],["ail",1,"gousse"],["herbes",1,"c. à café"],["huile",1,"c. à café"]],
+    ["Fais revenir l'oignon et l'ail, ajoute les légumes en dés.","Verse les tomates, ajoute les herbes et laisse mijoter 25 minutes.","Fais cuire le riz.","Cuis l'œuf au plat et sers sur le riz et la ratatouille."]),
+  R("salade-pates-poulet","Salade de pâtes, poulet et crudités","dj,di",25,"pates",
+    [["poulet",100],["tomate",100],["concombre",100],["yaourt",50],["moutarde",1,"c. à café"],["herbes",1,"c. à café"]],
+    ["Fais cuire les pâtes, rince-les à l'eau froide.","Fais cuire le poulet à la poêle et coupe-le en dés.","Mélange le yaourt, la moutarde et les herbes en sauce.","Assemble les pâtes, le poulet, la tomate et le concombre en dés avec la sauce."]),
+  R("steak-patate-douce","Steak haché, patate douce rôtie et haricots verts","dj,di",35,"patate_douce",
+    [["boeuf",100],["haricots_verts",200],["epices",1,"c. à café"],["huile",1,"c. à café"]],
+    ["Coupe la patate douce en bâtonnets, mélange-la avec l'huile et les épices, et enfourne 25 minutes à 200 °C.","Cuis les haricots verts 8 minutes.","Façonne le steak haché et fais-le cuire à la poêle."])
+];
+const BY_ID = {};
+RECETTES.forEach(r => { BY_ID[r.id] = r; });
+
+/* ---------- Utilitaires ---------- */
+const clone = o => JSON.parse(JSON.stringify(o));
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmtN = n => (Math.round(n*10)/10).toString().replace(".",",");
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+
+function fmtQty(q, unit, exact){
+  if(unit === "g" || unit === "ml"){
+    let v = exact ? Math.round(q) : (q >= 20 ? Math.round(q/5)*5 : Math.round(q));
+    if(v < 1) v = 1;
+    if(unit === "g" && v >= 1000) return fmtN(v/1000) + " kg";
+    if(unit === "ml" && v >= 1000) return fmtN(v/1000) + " l";
+    return v + " " + unit;
+  }
+  const v = Math.max(0.5, Math.round(q*2)/2);
+  const whole = Math.floor(v);
+  const txt = (whole ? whole : "") + (v % 1 ? "½" : "");
+  if(unit === "pièce") return txt;
+  return txt + " " + (v > 1 && PLURIEL[unit] ? PLURIEL[unit] : unit);
+}
+function dots(n){
+  let h = "";
+  for(let i=0;i<Math.ceil(n);i++) h += '<span class="dot" style="--fill:'+(Math.min(1, n-i)*100)+'%"></span>';
+  return h;
+}
+
+/* ---------- État ---------- */
+function defaults(){
+  return {persons:2, doses:{pd:1, dj:2, di:1}, sel:[], tol:1, veg:false, plan:null, checked:{}, feculents:clone(FEC_DEFAUT), prot:clone(PROT_DEFAUT)};
+}
+/* Quantité par personne d'un ingrédient, ajustée si c'est une protéine dont la portion a été réglée */
+function qteEff(x){
+  const d = PROT_DEFAUT[x.id], p = S.prot[x.id];
+  return d && p ? x.q * p.v / d.v : x.q;
+}
+function load(){
+  const s = defaults();
+  try{
+    const r = JSON.parse(localStorage.getItem(STORE) || "{}");
+    Object.keys(s).forEach(k => { if(r[k] !== undefined) s[k] = r[k]; });
+    Object.keys(FEC_DEFAUT).forEach(k => { if(!s.feculents[k]) s.feculents[k] = clone(FEC_DEFAUT[k]); });
+    Object.keys(PROT_DEFAUT).forEach(k => { if(!s.prot[k]) s.prot[k] = clone(PROT_DEFAUT[k]); });
+    if(s.plan && !(Array.isArray(s.plan) && s.plan.length === 7 && s.plan.every(d => MEALS.every(m => BY_ID[d[m]])))) s.plan = null;
+  }catch(e){}
+  return s;
+}
+let S = load();
+let ouvert = "";
+function save(){ try{ localStorage.setItem(STORE, JSON.stringify(S)); }catch(e){} }
+
+/* ---------- Choix des recettes ---------- */
+function manquants(r, sel){
+  const out = [];
+  if(!sel.has(r.f)) out.push(r.f);
+  r.ing.forEach(x => { if(!CAT[x.id].pl && !sel.has(x.id)) out.push(x.id); });
+  return out;
+}
+function choisir(m, sel, used, avoidP, avoidF, excl){
+  let pool = RECETTES.filter(r => r.repas.includes(m) && (!S.veg || !r.meat));
+  if(excl){ const p2 = pool.filter(r => r.id !== excl); if(p2.length) pool = p2; }
+  let cand = pool.filter(r => !used.has(r.id));
+  if(!cand.length) cand = pool;
+  cand = shuffle(cand.slice()).map(r => ({r, miss:manquants(r, sel).length}));
+  let ok = cand.filter(c => c.miss <= S.tol);
+  if(!ok.length){
+    const min = Math.min.apply(null, cand.map(c => c.miss));
+    ok = cand.filter(c => c.miss === min);
+  }
+  const score = c => c.miss*10 + (avoidP.has(c.r.prot) ? 3 : 0) + (avoidF.has(c.r.f) ? 2 : 0);
+  ok.sort((a,b) => score(a) - score(b));
+  return ok[0].r;
+}
+function composer(){
+  const sel = new Set(S.sel), used = new Set(), plan = [], prev = {};
+  for(let d=0; d<7; d++){
+    const day = {}, avoidP = new Set();
+    ["dj","di","pd"].forEach(m => {
+      const aP = new Set(avoidP), aF = new Set();
+      if(prev[m]){ aP.add(prev[m].prot); aF.add(prev[m].f); }
+      const r = choisir(m, sel, used, aP, aF);
+      day[m] = r.id; used.add(r.id); prev[m] = r;
+      if(m !== "pd") avoidP.add(r.prot);
+    });
+    plan.push(day);
+  }
+  S.plan = plan; ouvert = ""; save();
+}
+
+/* ---------- Rendu : en-tête et formulaire ---------- */
+function renderSplit(){
+  const parts = MEALS.map(m =>
+    '<div class="grp"><div class="plates">' +
+    Array.from({length:Math.ceil(S.doses[m])}, (_,i) => '<span class="plate" style="--fill:'+(Math.min(1, S.doses[m]-i)*100)+'%"></span>').join("") +
+    '</div><small>'+MEAL_SHORT[m]+'</small></div>').join("");
+  const el = $("split");
+  el.innerHTML = parts;
+  el.setAttribute("aria-label", MEALS.map(m => fmtN(S.doses[m]) + " dose(s) au " + MEAL_SHORT[m]).join(", "));
+}
+function renderForm(){
+  $("persons").textContent = S.persons;
+  $("dose-rows").innerHTML = MEALS.map(m =>
+    '<div class="dose-row"><span>'+MEAL_NAME[m]+'</span>' +
+    '<div class="stepper sm"><button data-a="dose-" data-m="'+m+'" aria-label="Moins de doses au '+MEAL_SHORT[m]+'">−</button>' +
+    '<output>'+fmtN(S.doses[m])+'</output>' +
+    '<button data-a="dose+" data-m="'+m+'" aria-label="Plus de doses au '+MEAL_SHORT[m]+'">+</button></div></div>').join("");
+  const total = MEALS.reduce((a,m) => a + S.doses[m], 0);
+  $("doses-hint").textContent = fmtN(total) + " doses par jour" + (total === 4 ? "." : " (objectif habituel : 4).");
+  $("tol").innerHTML = [0,1,2,3].map(n =>
+    '<button class="chip" data-a="tol" data-v="'+n+'" aria-pressed="'+(S.tol===n)+'">'+n+'</button>').join("");
+  $("veg").setAttribute("aria-pressed", String(S.veg));
+  renderPicker();
+  renderSplit();
+}
+function renderPicker(){
+  $("picker").innerHTML = CAT_ORDER.map(c =>
+    '<div class="field"><span class="label">'+CAT_LABEL[c]+'</span><div class="row">' +
+    INGS.filter(x => x[2] === c).map(x =>
+      '<button class="chip" data-a="sel" data-v="'+x[0]+'" aria-pressed="'+S.sel.includes(x[0])+'">'+esc(x[1])+'</button>').join("") +
+    '</div></div>').join("");
+}
+
+/* ---------- Rendu : semaine ---------- */
+function mealHTML(d, m){
+  const r = BY_ID[S.plan[d][m]], key = d + "-" + m, sel = new Set(S.sel);
+  const miss = manquants(r, sel).length;
+  const f = S.feculents[r.f], n = S.persons, doses = S.doses[m];
+  const starch = '<div class="starch"><div class="starch-w">'+fmtQty(f.g * doses * n, "g", true)+'</div>' +
+    '<div class="starch-t"><strong>'+esc(f.nom)+'</strong><span>'+fmtN(doses)+' dose'+(doses>1?'s':'')+' par personne · poids cru'+(sel.has(r.f)?'':' · à prévoir')+'</span></div></div>';
+  const ings = r.ing.map(x => {
+    const c = CAT[x.id], buy = !c.pl && !sel.has(x.id);
+    return '<li'+(c.pl?' class="pl"':'')+'><span class="q">'+fmtQty(qteEff(x) * n, x.u)+'</span><span>'+esc(c.nom)+'</span>'+(buy?'<span class="tag-buy">à prévoir</span>':'')+'</li>';
+  }).join("");
+  return '<details class="meal" data-key="'+key+'"'+(ouvert===key?' open':'')+'><summary>' +
+    '<span class="meal-top"><span class="dots" aria-hidden="true">'+dots(doses)+'</span>'+MEAL_NAME[m]+'</span>' +
+    '<span class="meal-name">'+esc(r.nom)+'</span>' +
+    '<span class="meal-meta">'+r.t+' min'+(miss?' · '+miss+' à prévoir':'')+'</span></summary>' +
+    '<div class="meal-body">' + starch + '<ul class="ing">'+ings+'</ul>' +
+    '<ol class="steps">'+r.etapes.map(e => '<li>'+esc(e)+'</li>').join("")+'</ol>' +
+    (r.astuce ? '<p class="tip">'+esc(r.astuce)+'</p>' : '') +
+    '<div><button class="btn small" data-a="swap" data-d="'+d+'" data-m="'+m+'">Changer cette recette</button></div></div></details>';
+}
+function renderPlan(){
+  const box = $("results");
+  if(!S.plan){
+    box.innerHTML = '<p class="empty">Règle ton foyer et tes ingrédients, puis compose ta semaine : les recettes apparaissent ici avec les poids crus.</p>';
+    $("shop").innerHTML = "";
+    return;
+  }
+  const n = S.persons;
+  const total = MEALS.reduce((a,m) => a + S.doses[m], 0);
+  box.innerHTML = '<div class="results-head"><h2>Ta semaine pour '+n+' personne'+(n>1?'s':'')+'</h2><p>Tous les poids sont crus. Touche un repas pour voir la recette.</p></div>' +
+    S.plan.map((day, d) =>
+      '<div class="day"><div class="day-head"><h3>'+JOURS[d]+'</h3><span class="dots"><span aria-hidden="true" style="display:inline-flex;gap:4px">'+MEALS.map(m => dots(S.doses[m])).join("")+'</span>&nbsp;'+fmtN(total)+' doses</span></div>' +
+      MEALS.map(m => mealHTML(d, m)).join("") + '</div>').join("");
+  renderShop();
+}
+
+/* ---------- Rendu : courses ---------- */
+function courses(){
+  const map = new Map(), n = S.persons;
+  const add = (id, u, q) => { const k = id + "|" + u; map.set(k, (map.get(k) || 0) + q); };
+  S.plan.forEach(day => MEALS.forEach(m => {
+    const r = BY_ID[day[m]];
+    add(r.f, "g", S.feculents[r.f].g * S.doses[m] * n);
+    r.ing.forEach(x => { if(!CAT[x.id].pl) add(x.id, x.u, qteEff(x) * n); });
+  }));
+  const sel = new Set(S.sel), buy = [], have = [];
+  map.forEach((q, k) => {
+    const [id, u] = k.split("|");
+    (sel.has(id) ? have : buy).push({k, id, u, q});
+  });
+  return {buy, have};
+}
+function renderShop(){
+  if(!S.plan){ $("shop").innerHTML = ""; return; }
+  const {buy, have} = courses();
+  const line = x => fmtQty(x.q, x.u) + " " + CAT[x.id].nom;
+  let h = '<div class="shop"><h2>Liste de courses</h2>';
+  if(!buy.length) h += '<p class="hint">Tout est déjà dans ta sélection.</p>';
+  CAT_ORDER.forEach(c => {
+    const items = buy.filter(x => CAT[x.id].cat === c);
+    if(!items.length) return;
+    h += '<div class="shop-group"><h3>'+CAT_LABEL[c]+'</h3>' + items.map(x =>
+      '<div class="shop-item"><input type="checkbox" id="ck-'+esc(x.k)+'" data-ck="'+esc(x.k)+'"'+(S.checked[x.k]?' checked':'')+'>' +
+      '<label for="ck-'+esc(x.k)+'"><span class="q">'+esc(fmtQty(x.q, x.u))+'</span><span>'+esc(CAT[x.id].nom)+'</span></label></div>').join("") + '</div>';
+  });
+  if(have.length){
+    h += '<div class="shop-group"><h3>Déjà chez toi (quantités à prévoir)</h3><p class="shop-have">' +
+      have.map(x => esc(line(x))).join(" · ") + '</p></div>';
+  }
+  h += '<div class="row"><button class="btn small" data-a="copy">Copier la liste</button><button class="btn small" data-a="uncheck">Tout décocher</button></div><p class="toast" id="toast" role="status"></p></div>';
+  $("shop").innerHTML = h;
+}
+function copierListe(){
+  const {buy} = courses();
+  const txt = CAT_ORDER.map(c => {
+    const items = buy.filter(x => CAT[x.id].cat === c);
+    return items.length ? CAT_LABEL[c] + "\n" + items.map(x => "- " + fmtQty(x.q, x.u) + " " + CAT[x.id].nom).join("\n") : "";
+  }).filter(Boolean).join("\n\n");
+  const done = ok => { const t = $("toast"); if(t) t.textContent = ok ? "Liste copiée." : "Copie impossible sur cet appareil."; };
+  if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(() => done(true), () => done(false));
+  else done(false);
+}
+
+/* ---------- Réglages ---------- */
+function renderSettings(){
+  $("fec-table").innerHTML = Object.keys(S.feculents).map(k =>
+    '<label for="fec-'+k+'">'+esc(S.feculents[k].nom)+'</label>' +
+    '<input id="fec-'+k+'" data-fec="'+k+'" type="number" inputmode="numeric" min="5" max="600" step="5" value="'+S.feculents[k].g+'" aria-label="Grammes par dose : '+esc(S.feculents[k].nom)+'">').join("");
+  const unite = {"g":"g", "pièce":"œuf(s)", "tranche":"tranche(s)"};
+  $("prot-table").innerHTML = Object.keys(PROT_DEFAUT).map(k => {
+    const u = PROT_DEFAUT[k].u, g = u === "g";
+    return '<label for="prot-'+k+'">'+esc(CAT[k].nom)+' <span class="hint">('+unite[u]+')</span></label>' +
+      '<input id="prot-'+k+'" data-prot="'+k+'" type="number" inputmode="decimal" min="'+(g?20:0.5)+'" max="'+(g?500:8)+'" step="'+(g?5:0.5)+'" value="'+S.prot[k].v+'" aria-label="Portion par personne : '+esc(CAT[k].nom)+'">';
+  }).join("");
+}
+
+/* ---------- Événements ---------- */
+document.addEventListener("click", ev => {
+  const el = ev.target.closest("[data-a]");
+  if(!el) return;
+  const a = el.dataset.a, m = el.dataset.m;
+  switch(a){
+    case "persons+": S.persons = Math.min(12, S.persons + 1); save(); renderForm(); renderPlan(); break;
+    case "persons-": S.persons = Math.max(1, S.persons - 1); save(); renderForm(); renderPlan(); break;
+    case "dose+": S.doses[m] = Math.min(3, S.doses[m] + 0.5); save(); renderForm(); renderPlan(); break;
+    case "dose-": S.doses[m] = Math.max(0.5, S.doses[m] - 0.5); save(); renderForm(); renderPlan(); break;
+    case "sel": {
+      const v = el.dataset.v, i = S.sel.indexOf(v);
+      if(i >= 0) S.sel.splice(i,1); else S.sel.push(v);
+      save(); el.setAttribute("aria-pressed", String(i < 0)); break;
+    }
+    case "sel-clear": S.sel = []; save(); renderPicker(); break;
+    case "tol": S.tol = Number(el.dataset.v); save(); renderForm(); break;
+    case "veg": S.veg = !S.veg; save(); el.setAttribute("aria-pressed", String(S.veg)); break;
+    case "compose": composer(); renderPlan(); $("results").scrollIntoView({behavior:"smooth", block:"start"}); break;
+    case "swap": {
+      const d = Number(el.dataset.d), day = S.plan[d], used = new Set();
+      S.plan.forEach((dd,i) => MEALS.forEach(k => { if(!(i === d && k === m)) used.add(dd[k]); }));
+      const other = m === "dj" ? "di" : (m === "di" ? "dj" : null);
+      const avoidP = new Set(); if(other) avoidP.add(BY_ID[day[other]].prot);
+      day[m] = choisir(m, new Set(S.sel), used, avoidP, new Set(), day[m]).id;
+      ouvert = d + "-" + m; save(); renderPlan(); break;
+    }
+    case "copy": copierListe(); break;
+    case "uncheck": S.checked = {}; save(); renderShop(); break;
+    case "prot-reset": S.prot = clone(PROT_DEFAUT); save(); renderSettings(); renderPlan(); break;
+    case "fec-reset": S.feculents = clone(FEC_DEFAUT); save(); renderSettings(); renderPlan(); break;
+  }
+});
+document.addEventListener("change", ev => {
+  const t = ev.target;
+  if(t.dataset.ck){ if(t.checked) S.checked[t.dataset.ck] = true; else delete S.checked[t.dataset.ck]; save(); }
+  if(t.dataset.fec){
+    const g = Number(t.value);
+    if(g >= 5 && g <= 600){ S.feculents[t.dataset.fec].g = g; save(); renderPlan(); }
+    else t.value = S.feculents[t.dataset.fec].g;
+  }
+  if(t.dataset.prot){
+    const k = t.dataset.prot, v = Number(t.value.replace(",", ".")), g = PROT_DEFAUT[k].u === "g";
+    if(v >= (g ? 20 : 0.5) && v <= (g ? 500 : 8)){ S.prot[k].v = v; save(); renderPlan(); }
+    else t.value = S.prot[k].v;
+  }
+});
+
+/* ---------- Démarrage ---------- */
+renderForm(); renderPlan(); renderSettings();
+})();
+</script>
+</body>
+</html>
 
