@@ -1,7 +1,7 @@
 {
-  "solde": 28.599999999999994,
+  "solde": 18.599999999999994,
   "tirelire": 63,
-  "objectifActuel": 0,
+  "objectifActuel": 10,
   "objectifCible": 300,
   "nomObjectif": "Tablette",
   "history": [
@@ -160,6 +160,12 @@
       "type": "depense",
       "desc": "Cadeau 🎁 pour moi",
       "montant": 22
+    },
+    {
+      "date": "2026-09-29",
+      "type": "depense",
+      "desc": "🎯 Vers Objectif",
+      "montant": 10
     }
   ],
   "lastAllowanceDate": {
