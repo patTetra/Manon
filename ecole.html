@@ -810,7 +810,7 @@
   // calculé côté capteur (qui se base sur le jour, pas sur la date à rendre réelle).
   function mergeAllDevoirs() {
     const seen = new Map();
-    ['aujourd_hui', 'demain', 'semaine_courante', 'semaine_suivante'].forEach(key => {
+    ['aujourd_hui', 'demain', 'semaine_courante', 'semaine_suivante', 'semaine_apres_suivante'].forEach(key => {
       const list = findDevoirsList((devoirsData && devoirsData[key]) || {});
       list.forEach(item => {
         const id = getItemId(item);
