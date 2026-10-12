@@ -1,5 +1,5 @@
 {
-  "solde": 13.599999999999994,
+  "solde": 25.599999999999994,
   "tirelire": 63,
   "objectifActuel": 15,
   "objectifCible": 300,
@@ -172,10 +172,22 @@
       "type": "depense",
       "desc": "🎯 Vers Objectif",
       "montant": 5
+    },
+    {
+      "date": "2026-09-30",
+      "type": "gain",
+      "desc": "Argent de poche",
+      "montant": 15
+    },
+    {
+      "date": "2026-10-12",
+      "type": "depense",
+      "desc": "Chewing-gum Leclerc",
+      "montant": 3
     }
   ],
   "lastAllowanceDate": {
     "year": 2026,
-    "month": 8
+    "month": 9
   }
 }
