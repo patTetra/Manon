@@ -1,7 +1,7 @@
 {
-  "solde": 25.599999999999994,
+  "solde": 30.599999999999994,
   "tirelire": 63,
-  "objectifActuel": 15,
+  "objectifActuel": 25,
   "objectifCible": 300,
   "nomObjectif": "Tablette",
   "history": [
@@ -184,10 +184,22 @@
       "type": "depense",
       "desc": "Chewing-gum Leclerc",
       "montant": 3
+    },
+    {
+      "date": "2026-10-31",
+      "type": "gain",
+      "desc": "Argent de poche",
+      "montant": 15
+    },
+    {
+      "date": "2026-11-10",
+      "type": "depense",
+      "desc": "🎯 Vers Objectif",
+      "montant": 10
     }
   ],
   "lastAllowanceDate": {
     "year": 2026,
-    "month": 9
+    "month": 10
   }
 }
