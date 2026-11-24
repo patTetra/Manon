@@ -1,5 +1,5 @@
 {
-  "solde": 20.599999999999994,
+  "solde": 4.699999999999994,
   "tirelire": 63,
   "objectifActuel": 35,
   "objectifCible": 300,
@@ -202,6 +202,12 @@
       "type": "depense",
       "desc": "🎯 Vers Objectif",
       "montant": 10
+    },
+    {
+      "date": "2026-11-12",
+      "type": "depense",
+      "desc": "Livre",
+      "montant": 15.9
     }
   ],
   "lastAllowanceDate": {
